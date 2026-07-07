@@ -64,3 +64,7 @@ If `tcp_ports` or `udp_ports` is empty, `enumscan` expands the selected profile 
 ## Service Fingerprinting
 
 The `service_fingerprint` module subscribes to open-port events and combines port hints, captured banners, UDP responses, and small protocol probes. It currently recognizes common infrastructure services including SSH, FTP, SMTP, DNS, SMB, LDAP, MySQL, PostgreSQL, Redis, MongoDB, Elasticsearch, Docker, Kubernetes, WinRM, RDP, NFS, VNC, and HTTP-family services.
+
+## HTTP, TLS, and Crawling
+
+The HTTP module records response metadata, security-header findings, TLS certificates, SANs, supported TLS versions, negotiated ciphers, robots.txt and sitemap URLs, scoped crawl links, JavaScript endpoints, potential client-side secret hints, API discovery hits, and screenshot targets. Screenshot targets are queued as assets until a browser renderer such as Playwright or Chromedp is added.

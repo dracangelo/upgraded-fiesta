@@ -8,6 +8,7 @@ type Config struct {
 	Scheduler SchedulerConfig
 	Discovery DiscoveryConfig
 	PortScan  PortScanConfig
+	HTTP      HTTPConfig
 	Scan      ScanConfig
 	Reporting ReportingConfig
 }
@@ -46,6 +47,17 @@ type PortScanConfig struct {
 	EnableRawSYN  bool
 	BaseTimeoutMS int
 	MaxTimeoutMS  int
+}
+
+type HTTPConfig struct {
+	MaxDepth           int
+	MaxPagesPerHost    int
+	EnableTLS          bool
+	EnableCrawler      bool
+	EnableJSAnalysis   bool
+	EnableAPIDiscovery bool
+	EnableScreenshots  bool
+	APIPaths           []string
 }
 
 type ScanConfig struct {

@@ -19,6 +19,16 @@ func Load(path string) (models.Config, error) {
 		Scheduler: models.SchedulerConfig{Concurrency: 4, GlobalRateLimitMS: 250, PerTargetRateLimitMS: 500, ModuleTimeoutMS: 10000},
 		Discovery: models.DiscoveryConfig{CIDRMaxHosts: 256, EnableReverseDNS: true, EnableWildcardDNS: true},
 		PortScan:  models.PortScanConfig{Profile: "quick", EnableTCP: true, EnableUDP: false, EnableBanner: true, BaseTimeoutMS: 750, MaxTimeoutMS: 3000},
+		HTTP: models.HTTPConfig{
+			MaxDepth:           1,
+			MaxPagesPerHost:    50,
+			EnableTLS:          true,
+			EnableCrawler:      true,
+			EnableJSAnalysis:   true,
+			EnableAPIDiscovery: true,
+			EnableScreenshots:  true,
+			APIPaths:           []string{"/openapi.json", "/swagger.json", "/swagger/v1/swagger.json", "/api-docs", "/graphql", "/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo", "/soap?wsdl"},
+		},
 		Reporting: models.ReportingConfig{OutputDir: "reports"},
 	}
 
@@ -164,6 +174,50 @@ func assign(cfg *models.Config, section, key, value string) error {
 			return err
 		}
 		cfg.PortScan.MaxTimeoutMS = n
+	case "http.max_depth":
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+		cfg.HTTP.MaxDepth = n
+	case "http.max_pages_per_host":
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+		cfg.HTTP.MaxPagesPerHost = n
+	case "http.enable_tls":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.HTTP.EnableTLS = enabled
+	case "http.enable_crawler":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.HTTP.EnableCrawler = enabled
+	case "http.enable_js_analysis":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.HTTP.EnableJSAnalysis = enabled
+	case "http.enable_api_discovery":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.HTTP.EnableAPIDiscovery = enabled
+	case "http.enable_screenshots":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.HTTP.EnableScreenshots = enabled
+	case "http.api_paths":
+		cfg.HTTP.APIPaths = parseList(value)
 	case "scan.profile":
 		cfg.Scan.Profile = value
 	case "scan.targets":

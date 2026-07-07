@@ -44,14 +44,15 @@
 
 ## 6. HTTP, TLS, and Crawling
 
-- [ ] Add TLS certificate collection and SAN extraction.
-- [ ] Add TLS version and cipher enumeration.
-- [ ] Add security header checks.
-- [ ] Add robots.txt and sitemap parsing.
-- [ ] Add recursive crawler with depth, auth, cookies, and scope controls.
-- [ ] Add JavaScript endpoint and secret extraction.
-- [ ] Add API discovery for OpenAPI, Swagger, GraphQL, SOAP, REST, and gRPC.
-- [ ] Add screenshots for web pages and high-value panels.
+- [x] Add TLS certificate collection and SAN extraction.
+- [x] Add TLS version and cipher enumeration.
+- [x] Add security header checks.
+- [x] Add robots.txt and sitemap parsing.
+- [x] Add recursive crawler with depth, auth, cookies, and scope controls.
+- [x] Add JavaScript endpoint and secret extraction.
+- [x] Add API discovery for OpenAPI, Swagger, GraphQL, SOAP, REST, and gRPC.
+- [x] Add screenshot target queue for web pages and high-value panels.
+- [ ] Add browser-backed PNG screenshot renderer.
 
 ## 7. Specialized Enumeration
 

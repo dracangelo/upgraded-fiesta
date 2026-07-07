@@ -29,6 +29,16 @@ portscan:
   base_timeout_ms: 750
   max_timeout_ms: 3000
 
+http:
+  max_depth: 1
+  max_pages_per_host: 50
+  enable_tls: true
+  enable_crawler: true
+  enable_js_analysis: true
+  enable_api_discovery: true
+  enable_screenshots: true
+  api_paths: ["/openapi.json", "/swagger.json", "/swagger/v1/swagger.json", "/api-docs", "/graphql", "/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo", "/soap?wsdl"]
+
 scan:
   profile: "quick"
   targets: ["127.0.0.1"]
