@@ -18,6 +18,7 @@ func Load(path string) (models.Config, error) {
 		Database:  models.DatabaseConfig{Path: "data/enumscan.sqlite"},
 		Scheduler: models.SchedulerConfig{Concurrency: 4, GlobalRateLimitMS: 250, PerTargetRateLimitMS: 500, ModuleTimeoutMS: 10000},
 		Discovery: models.DiscoveryConfig{CIDRMaxHosts: 256, EnableReverseDNS: true, EnableWildcardDNS: true},
+		PortScan:  models.PortScanConfig{Profile: "quick", EnableTCP: true, EnableUDP: false, EnableBanner: true, BaseTimeoutMS: 750, MaxTimeoutMS: 3000},
 		Reporting: models.ReportingConfig{OutputDir: "reports"},
 	}
 
@@ -113,6 +114,56 @@ func assign(cfg *models.Config, section, key, value string) error {
 		cfg.Discovery.PassiveDNSFiles = parseList(value)
 	case "discovery.certificate_transparency_files":
 		cfg.Discovery.CertificateTransparencyFiles = parseList(value)
+	case "portscan.profile":
+		cfg.PortScan.Profile = value
+	case "portscan.tcp_ports":
+		ports, err := parseInts(value)
+		if err != nil {
+			return err
+		}
+		cfg.PortScan.TCPPorts = ports
+	case "portscan.udp_ports":
+		ports, err := parseInts(value)
+		if err != nil {
+			return err
+		}
+		cfg.PortScan.UDPPorts = ports
+	case "portscan.enable_tcp":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.PortScan.EnableTCP = enabled
+	case "portscan.enable_udp":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.PortScan.EnableUDP = enabled
+	case "portscan.enable_banner":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.PortScan.EnableBanner = enabled
+	case "portscan.enable_raw_syn":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.PortScan.EnableRawSYN = enabled
+	case "portscan.base_timeout_ms":
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+		cfg.PortScan.BaseTimeoutMS = n
+	case "portscan.max_timeout_ms":
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+		cfg.PortScan.MaxTimeoutMS = n
 	case "scan.profile":
 		cfg.Scan.Profile = value
 	case "scan.targets":

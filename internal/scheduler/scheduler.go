@@ -75,14 +75,16 @@ func (s *Scheduler) Run(ctx context.Context, db *store.SQLiteCLI) error {
 
 func (s *Scheduler) worker(ctx context.Context, db *store.SQLiteCLI, errs chan<- error) {
 	for event := range s.queue {
-		eventID, err := db.AddEvent(ctx, event)
-		if err != nil {
-			select {
-			case errs <- err:
-			default:
+		if event.ID == 0 {
+			eventID, err := db.AddEvent(ctx, event)
+			if err != nil {
+				select {
+				case errs <- err:
+				default:
+				}
 			}
+			event.ID = eventID
 		}
-		event.ID = eventID
 		for _, module := range s.modules {
 			if subscribes(module, event.Type) {
 				moduleLog := s.logger.With(

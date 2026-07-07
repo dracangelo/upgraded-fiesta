@@ -7,6 +7,7 @@ type Config struct {
 	Scope     ScopeConfig
 	Scheduler SchedulerConfig
 	Discovery DiscoveryConfig
+	PortScan  PortScanConfig
 	Scan      ScanConfig
 	Reporting ReportingConfig
 }
@@ -33,6 +34,18 @@ type DiscoveryConfig struct {
 	EnableRDAP                   bool
 	PassiveDNSFiles              []string
 	CertificateTransparencyFiles []string
+}
+
+type PortScanConfig struct {
+	Profile       string
+	TCPPorts      []int
+	UDPPorts      []int
+	EnableTCP     bool
+	EnableUDP     bool
+	EnableBanner  bool
+	EnableRawSYN  bool
+	BaseTimeoutMS int
+	MaxTimeoutMS  int
 }
 
 type ScanConfig struct {

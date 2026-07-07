@@ -42,7 +42,11 @@ func (e Engine) Run(ctx context.Context, scanID string) error {
 		logging.New(),
 	)
 	queue.Register(modules.NewDiscovery(e.db, e.guard, e.cfg.Discovery))
-	queue.Register(modules.NewPortScan(e.db, e.guard, e.cfg.Scan.Ports))
+	portScanConfig := e.cfg.PortScan
+	if len(e.cfg.Scan.Ports) > 0 && len(portScanConfig.TCPPorts) == 0 {
+		portScanConfig.TCPPorts = e.cfg.Scan.Ports
+	}
+	queue.Register(modules.NewPortScan(e.db, e.guard, portScanConfig))
 	queue.Register(modules.NewHTTP(e.db, e.guard))
 
 	previous, err := e.db.Events(ctx, scanID)

@@ -29,12 +29,12 @@
 
 ## 4. Port Scanning
 
-- [ ] Add full TCP connect scan profile.
+- [x] Add full TCP connect scan profile.
 - [ ] Add raw SYN scanning where privileges allow.
-- [ ] Add UDP scanning for DNS, SNMP, NTP, TFTP, SIP, IKE, RPC, NetBIOS, mDNS, SSDP, LDAP, Kerberos, and RADIUS.
-- [ ] Add banner grabbing for open TCP services.
-- [ ] Add adaptive timing based on latency and failures.
-- [ ] Add safe scan profiles: quick, standard, exhaustive.
+- [x] Add UDP scanning for DNS, SNMP, NTP, TFTP, SIP, IKE, RPC, NetBIOS, mDNS, SSDP, LDAP, Kerberos, and RADIUS.
+- [x] Add banner grabbing for open TCP services.
+- [x] Add adaptive timing based on latency and failures.
+- [x] Add safe scan profiles: quick, standard, exhaustive.
 
 ## 5. Service Fingerprinting
 

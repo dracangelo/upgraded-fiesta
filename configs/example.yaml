@@ -18,6 +18,17 @@ discovery:
   passive_dns_files: []
   certificate_transparency_files: []
 
+portscan:
+  profile: "quick"
+  tcp_ports: [80, 443, 8000, 8080, 8443]
+  udp_ports: [53, 123, 161, 500, 1900]
+  enable_tcp: true
+  enable_udp: true
+  enable_banner: true
+  enable_raw_syn: false
+  base_timeout_ms: 750
+  max_timeout_ms: 3000
+
 scan:
   profile: "quick"
   targets: ["127.0.0.1"]

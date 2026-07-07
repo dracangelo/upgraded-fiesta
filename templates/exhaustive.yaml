@@ -1,0 +1,7 @@
+template:
+  name: "exhaustive"
+  description: "Full-port authorized profile. Use carefully with explicit scope, rate limits, and maintenance windows."
+  modules: ["discovery", "portscan", "tls", "http", "crawler", "reporting"]
+  tcp_ports: "1-65535"
+  udp_ports: "1-65535"
+  notes: "The Go scanner expands this profile internally when no explicit port override is set."

@@ -39,5 +39,23 @@ plugins              Plugin examples and future SDK surface
 
 - SQLite is accessed through the installed `sqlite3` command to keep this scaffold dependency-free.
 - YAML support is intentionally constrained to the project config/template shapes in `configs/` and `templates/`.
-- Raw SYN/UDP scans, advanced TLS tests, AD/SMB enumeration, and vulnerability correlation are planned in `todo.md`.
+- Port scanning supports quick, standard, and exhaustive profiles; explicit TCP/UDP port overrides; TCP banner grabbing; UDP response probes; and adaptive timeouts.
+- Raw SYN packet scanning, advanced TLS tests, AD/SMB enumeration, and vulnerability correlation are planned in `todo.md`.
 
+## Port Scanning
+
+Configure port scanning in `configs/example.yaml`:
+
+```yaml
+portscan:
+  profile: "quick" # quick, standard, exhaustive
+  tcp_ports: [80, 443, 8080]
+  udp_ports: [53, 123, 161]
+  enable_tcp: true
+  enable_udp: true
+  enable_banner: true
+  base_timeout_ms: 750
+  max_timeout_ms: 3000
+```
+
+If `tcp_ports` or `udp_ports` is empty, `enumscan` expands the selected profile automatically. Use the exhaustive profile only inside tightly authorized scope with conservative rate limits.
