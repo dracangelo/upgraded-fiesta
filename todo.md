@@ -20,12 +20,12 @@
 
 ## 3. Discovery
 
-- [ ] Add CIDR expansion.
-- [ ] Add reverse DNS lookups.
-- [ ] Add passive DNS and certificate transparency importers.
-- [ ] Add ASN/RDAP lookup support.
-- [ ] Add wildcard DNS detection.
-- [ ] Add cloud/CDN/load balancer detection.
+- [x] Add CIDR expansion.
+- [x] Add reverse DNS lookups.
+- [x] Add passive DNS and certificate transparency importers.
+- [x] Add ASN/RDAP lookup support.
+- [x] Add wildcard DNS detection.
+- [x] Add cloud/CDN/load balancer detection.
 
 ## 4. Port Scanning
 

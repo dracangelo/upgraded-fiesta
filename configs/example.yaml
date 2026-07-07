@@ -10,6 +10,14 @@ scheduler:
   per_target_rate_limit_ms: 250
   module_timeout_ms: 10000
 
+discovery:
+  cidr_max_hosts: 256
+  enable_reverse_dns: true
+  enable_wildcard_dns: true
+  enable_rdap: false
+  passive_dns_files: []
+  certificate_transparency_files: []
+
 scan:
   profile: "quick"
   targets: ["127.0.0.1"]

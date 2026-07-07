@@ -41,7 +41,7 @@ func (e Engine) Run(ctx context.Context, scanID string) error {
 		time.Duration(e.cfg.Scheduler.ModuleTimeoutMS)*time.Millisecond,
 		logging.New(),
 	)
-	queue.Register(modules.NewDiscovery(e.db, e.guard))
+	queue.Register(modules.NewDiscovery(e.db, e.guard, e.cfg.Discovery))
 	queue.Register(modules.NewPortScan(e.db, e.guard, e.cfg.Scan.Ports))
 	queue.Register(modules.NewHTTP(e.db, e.guard))
 

@@ -6,6 +6,7 @@ type Config struct {
 	Database  DatabaseConfig
 	Scope     ScopeConfig
 	Scheduler SchedulerConfig
+	Discovery DiscoveryConfig
 	Scan      ScanConfig
 	Reporting ReportingConfig
 }
@@ -23,6 +24,15 @@ type SchedulerConfig struct {
 	GlobalRateLimitMS    int
 	PerTargetRateLimitMS int
 	ModuleTimeoutMS      int
+}
+
+type DiscoveryConfig struct {
+	CIDRMaxHosts                 int
+	EnableReverseDNS             bool
+	EnableWildcardDNS            bool
+	EnableRDAP                   bool
+	PassiveDNSFiles              []string
+	CertificateTransparencyFiles []string
 }
 
 type ScanConfig struct {

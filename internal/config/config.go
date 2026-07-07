@@ -17,6 +17,7 @@ func Load(path string) (models.Config, error) {
 	cfg := models.Config{
 		Database:  models.DatabaseConfig{Path: "data/enumscan.sqlite"},
 		Scheduler: models.SchedulerConfig{Concurrency: 4, GlobalRateLimitMS: 250, PerTargetRateLimitMS: 500, ModuleTimeoutMS: 10000},
+		Discovery: models.DiscoveryConfig{CIDRMaxHosts: 256, EnableReverseDNS: true, EnableWildcardDNS: true},
 		Reporting: models.ReportingConfig{OutputDir: "reports"},
 	}
 
@@ -84,6 +85,34 @@ func assign(cfg *models.Config, section, key, value string) error {
 			return err
 		}
 		cfg.Scheduler.ModuleTimeoutMS = n
+	case "discovery.cidr_max_hosts":
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.CIDRMaxHosts = n
+	case "discovery.enable_reverse_dns":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.EnableReverseDNS = enabled
+	case "discovery.enable_wildcard_dns":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.EnableWildcardDNS = enabled
+	case "discovery.enable_rdap":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.EnableRDAP = enabled
+	case "discovery.passive_dns_files":
+		cfg.Discovery.PassiveDNSFiles = parseList(value)
+	case "discovery.certificate_transparency_files":
+		cfg.Discovery.CertificateTransparencyFiles = parseList(value)
 	case "scan.profile":
 		cfg.Scan.Profile = value
 	case "scan.targets":
