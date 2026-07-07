@@ -5,4 +5,5 @@ const (
 	EventHost    = "host.discovered"
 	EventPort    = "port.open"
 	EventHTTPURL = "http.url"
+	EventService = "service.fingerprinted"
 )

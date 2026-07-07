@@ -38,9 +38,9 @@
 
 ## 5. Service Fingerprinting
 
-- [ ] Add protocol probes for SSH, FTP, SMTP, DNS, SMB, LDAP, databases, Redis, Elasticsearch, and Kubernetes.
-- [ ] Normalize service names, versions, and CPE candidates.
-- [ ] Store evidence for every fingerprint.
+- [x] Add protocol probes for SSH, FTP, SMTP, DNS, SMB, LDAP, databases, Redis, Elasticsearch, and Kubernetes.
+- [x] Normalize service names, versions, and CPE candidates.
+- [x] Store evidence for every fingerprint.
 
 ## 6. HTTP, TLS, and Crawling
 

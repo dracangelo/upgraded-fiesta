@@ -47,6 +47,7 @@ func (e Engine) Run(ctx context.Context, scanID string) error {
 		portScanConfig.TCPPorts = e.cfg.Scan.Ports
 	}
 	queue.Register(modules.NewPortScan(e.db, e.guard, portScanConfig))
+	queue.Register(modules.NewServiceFingerprint(e.db, e.guard))
 	queue.Register(modules.NewHTTP(e.db, e.guard))
 
 	previous, err := e.db.Events(ctx, scanID)
