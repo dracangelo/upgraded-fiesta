@@ -1,0 +1,6 @@
+template:
+  name: "quick"
+  description: "Fast authorized recon profile for live hosts, common web ports, and HTTP headers."
+  modules: ["discovery", "portscan", "http"]
+  ports: [80, 443, 8000, 8080, 8443]
+

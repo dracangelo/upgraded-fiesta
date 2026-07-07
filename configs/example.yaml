@@ -1,0 +1,19 @@
+database:
+  path: "data/enumscan.sqlite"
+
+scope:
+  allowed_targets: ["127.0.0.1", "localhost"]
+
+scheduler:
+  concurrency: 4
+  global_rate_limit_ms: 100
+  per_target_rate_limit_ms: 250
+  module_timeout_ms: 10000
+
+scan:
+  profile: "quick"
+  targets: ["127.0.0.1"]
+  ports: [80, 443, 8000, 8080, 8443]
+
+reporting:
+  output_dir: "reports"

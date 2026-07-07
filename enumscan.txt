@@ -1,0 +1,941 @@
+If your goal is to build an **enumeration framework for authorized security assessments**, think of it less as "a scanner" and more as a **reconnaissance pipeline**. The best penetration testers spend far more time enumerating than exploiting.
+
+A truly thorough scanner should answer every question about a target before any exploitation begins.
+
+## 1. Host Discovery
+
+Before you even scan ports, discover everything that exists.
+
+* ICMP discovery
+* TCP SYN discovery
+* TCP ACK discovery
+* UDP discovery
+* ARP discovery
+* IPv6 discovery
+* Passive DNS
+* ASN lookup
+* CIDR expansion
+* Reverse DNS
+* Cloud asset discovery
+* CDN detection
+* Load balancer detection
+* Virtual hosts
+
+Output
+
+```
+Target
+├── IPs
+├── Hostnames
+├── Cloud provider
+├── CDN
+├── Reverse DNS
+└── Live hosts
+```
+
+---
+
+# 2. Port Scanning
+
+This is where many tools stop.
+
+Be much more aggressive.
+
+### TCP
+
+* SYN scan
+* Connect scan
+* FIN
+* NULL
+* XMAS
+* ACK
+* Window
+* Maimon
+* Fragmented packets
+* Decoy scans
+* Idle scans
+* Version detection
+* OS fingerprinting
+* Service fingerprinting
+* Banner grabbing
+
+### UDP
+
+People ignore UDP.
+
+Don't.
+
+Scan all UDP ports.
+
+Look for
+
+DNS
+
+SNMP
+
+NTP
+
+TFTP
+
+SIP
+
+IKE
+
+RPC
+
+NetBIOS
+
+mDNS
+
+SSDP
+
+LDAP
+
+Kerberos
+
+RADIUS
+
+---
+
+## 3. Service Fingerprinting
+
+Not just
+
+```
+Apache
+```
+
+Instead identify
+
+Apache 2.4.57
+
+OpenSSL version
+
+PHP version
+
+Tomcat version
+
+Node version
+
+Express
+
+ASP.NET version
+
+Jetty
+
+Gunicorn
+
+Werkzeug
+
+Python version
+
+Go version
+
+Java version
+
+Ruby version
+
+---
+
+## 4. SSL/TLS Enumeration
+
+Very important.
+
+Collect
+
+Certificates
+
+SANs
+
+Cipher suites
+
+TLS versions
+
+Weak ciphers
+
+Heartbleed
+
+ROBOT
+
+CRIME
+
+BREACH
+
+Certificate transparency logs
+
+OCSP
+
+HSTS
+
+HPKP
+
+Expiration
+
+Wildcard certs
+
+Subdomains inside cert
+
+---
+
+# 5. HTTP Enumeration
+
+This becomes huge.
+
+Collect
+
+Methods
+
+Headers
+
+Cookies
+
+Security headers
+
+Redirect chain
+
+Technologies
+
+Compression
+
+Caching
+
+Robots
+
+Sitemap
+
+Manifest
+
+Favicon hash
+
+Default pages
+
+Error pages
+
+Status codes
+
+Response timings
+
+Allowed verbs
+
+Authentication methods
+
+---
+
+# 6. Web Technology Detection
+
+Fingerprint
+
+Apache
+
+Nginx
+
+IIS
+
+Tomcat
+
+Express
+
+Flask
+
+Django
+
+Laravel
+
+Symfony
+
+WordPress
+
+Drupal
+
+Joomla
+
+Ghost
+
+Magento
+
+Next.js
+
+React
+
+Angular
+
+Vue
+
+Bootstrap
+
+jQuery
+
+Tailwind
+
+Cloudflare
+
+AWS
+
+Azure
+
+Google Cloud
+
+---
+
+# 7. Directory Enumeration
+
+Like Gobuster but more.
+
+Directories
+
+Files
+
+Backups
+
+Configs
+
+Hidden folders
+
+Old versions
+
+Admin panels
+
+Source maps
+
+Git
+
+SVN
+
+Mercurial
+
+Environment files
+
+Log files
+
+Database backups
+
+Temp files
+
+Wordlists based on technology detected.
+
+---
+
+# 8. API Enumeration
+
+Huge attack surface.
+
+Swagger
+
+OpenAPI
+
+GraphQL
+
+SOAP
+
+REST
+
+gRPC
+
+Versioned APIs
+
+Hidden endpoints
+
+OPTIONS
+
+JSON schemas
+
+Authentication
+
+Rate limits
+
+---
+
+# 9. DNS Enumeration
+
+MX
+
+TXT
+
+CAA
+
+SOA
+
+NS
+
+SRV
+
+AXFR
+
+DNSSEC
+
+Subdomain brute force
+
+Certificate transparency
+
+Wordlists
+
+Reverse lookup
+
+Wildcard detection
+
+Zone walking
+
+---
+
+# 10. SMB Enumeration
+
+Shares
+
+Permissions
+
+SMB version
+
+Signing
+
+Users
+
+Anonymous login
+
+OS
+
+Domain
+
+Policies
+
+Sessions
+
+---
+
+# 11. LDAP Enumeration
+
+Naming contexts
+
+Schema
+
+Anonymous bind
+
+Users
+
+Groups
+
+Computers
+
+Policies
+
+Domain info
+
+---
+
+# 12. Active Directory Enumeration
+
+If authenticated
+
+Trusts
+
+Users
+
+Groups
+
+SPNs
+
+Kerberoast targets
+
+ASREP roast
+
+ACLs
+
+Delegation
+
+Password policy
+
+LAPS
+
+BloodHound-compatible output
+
+---
+
+# 13. SSH Enumeration
+
+Algorithms
+
+Host keys
+
+Banner
+
+Weak ciphers
+
+Authentication methods
+
+Version
+
+---
+
+# 14. FTP Enumeration
+
+Anonymous login
+
+Writable directories
+
+TLS
+
+Users
+
+Banner
+
+---
+
+# 15. SMTP Enumeration
+
+VRFY
+
+EXPN
+
+Open relay
+
+Banner
+
+TLS
+
+Authentication
+
+Users
+
+---
+
+# 16. SNMP Enumeration
+
+System
+
+Interfaces
+
+Processes
+
+Installed software
+
+Users
+
+Routes
+
+ARP
+
+Services
+
+Storage
+
+Printers
+
+---
+
+# 17. Database Enumeration
+
+MySQL
+
+PostgreSQL
+
+MSSQL
+
+Oracle
+
+MongoDB
+
+Redis
+
+Cassandra
+
+Elasticsearch
+
+ClickHouse
+
+InfluxDB
+
+Neo4j
+
+Determine:
+
+Version
+
+Authentication
+
+Configuration
+
+Databases
+
+Privileges
+
+---
+
+# 18. Container Enumeration
+
+Docker
+
+Podman
+
+Containerd
+
+Kubernetes
+
+Namespaces
+
+Pods
+
+Images
+
+Secrets
+
+Exposed dashboards
+
+---
+
+# 19. Cloud Enumeration
+
+AWS
+
+Azure
+
+Google Cloud
+
+DigitalOcean
+
+Cloudflare
+
+Detect
+
+Buckets
+
+Metadata services
+
+Open dashboards
+
+Leaked credentials
+
+IAM hints
+
+Serverless endpoints
+
+---
+
+# 20. Vulnerability Scanning
+
+Integrate multiple engines.
+
+Examples
+
+* OpenVAS
+* Nessus (optional integration if licensed)
+* Nuclei
+* Custom CVEs
+* CIS checks
+* Misconfiguration detection
+* Known exploits
+
+---
+
+# 21. Web Vulnerability Checks
+
+SQL injection
+
+XSS
+
+CSRF
+
+SSRF
+
+LFI
+
+RFI
+
+XXE
+
+Open Redirect
+
+Command Injection
+
+SSTI
+
+CORS
+
+Host Header Injection
+
+Prototype Pollution
+
+HTTP Request Smuggling
+
+Directory Traversal
+
+Broken Authentication
+
+IDOR
+
+Clickjacking
+
+---
+
+# 22. Authentication Enumeration
+
+OAuth
+
+OIDC
+
+JWT
+
+SAML
+
+Kerberos
+
+LDAP
+
+Basic Auth
+
+NTLM
+
+Cookies
+
+Session management
+
+Password policies
+
+MFA detection
+
+---
+
+# 23. Secret Discovery
+
+Git history
+
+JavaScript
+
+Source maps
+
+Config files
+
+`.env`
+
+Private keys
+
+API keys
+
+AWS keys
+
+Azure keys
+
+Google Cloud keys
+
+JWT secrets
+
+Passwords
+
+Tokens
+
+---
+
+# 24. JavaScript Analysis
+
+Crawl JS
+
+Beautify
+
+Extract
+
+Endpoints
+
+Secrets
+
+URLs
+
+Domains
+
+IPs
+
+API calls
+
+Interesting comments
+
+Version numbers
+
+---
+
+# 25. Crawling
+
+Recursive crawler
+
+Sitemap parsing
+
+robots.txt
+
+Forms
+
+Parameters
+
+Cookies
+
+Authentication support
+
+Depth control
+
+JavaScript rendering (headless browser)
+
+SPA support
+
+---
+
+# 26. Screenshots
+
+Take screenshots of
+
+Every page
+
+Admin panels
+
+Errors
+
+Dashboards
+
+Login portals
+
+This makes reports much more useful.
+
+---
+
+# 27. Correlation Engine
+
+This is what separates good tools from great ones.
+
+Example:
+
+```
+Apache
+
+↓
+
+PHP
+
+↓
+
+Laravel
+
+↓
+
+Git exposed
+
+↓
+
+.env exposed
+
+↓
+
+AWS Keys
+
+↓
+
+S3 Bucket
+
+↓
+
+Bucket Public
+
+↓
+
+Sensitive Files
+```
+
+Instead of isolated findings, correlate them into attack paths.
+
+---
+
+# 28. Asset Graph
+
+Represent relationships as a graph:
+
+```
+Company
+ │
+ ├── Domain
+ │     ├── Subdomain
+ │     │     ├── IP
+ │     │     │     ├── Port
+ │     │     │     │     ├── Service
+ │     │     │     │     │     ├── Technology
+ │     │     │     │     │     │     ├── CVEs
+ │     │     │     │     │     │     ├── Secrets
+ │     │     │     │     │     │     └── Screenshots
+```
+
+This enables visualization and path analysis.
+
+---
+
+# 29. Reporting
+
+Provide reports in multiple formats:
+
+* JSON (for automation)
+* HTML (interactive)
+* Markdown
+* CSV
+* PDF
+* SARIF (for CI/CD)
+* Graph database export (Neo4j)
+* BloodHound-compatible output where applicable
+
+Each finding should include:
+
+* Severity
+* Confidence
+* Evidence
+* Affected asset
+* Remediation guidance
+* References (e.g., CVEs, CWEs)
+
+## Architecture recommendation
+
+Instead of creating one massive program, build a modular engine:
+
+```
+Core Engine
+├── Discovery
+├── Port Scanner
+├── Service Detection
+├── Web Enumerator
+├── DNS Module
+├── SMB Module
+├── AD Module
+├── TLS Module
+├── JavaScript Analyzer
+├── API Enumerator
+├── Vulnerability Engine
+├── Correlation Engine
+├── Reporting Engine
+└── Plugin SDK
+```
+
+Use an event-driven workflow where modules publish newly discovered assets (hosts, ports, URLs, credentials, technologies) to a central asset database, and other modules subscribe to those events. For example, discovering a new web service automatically triggers HTTP fingerprinting, crawling, JavaScript analysis, and API enumeration. This avoids redundant work and makes the framework easy to extend with new plugins.
+
+One important consideration is scope and authorization. Build the tool with features that encourage responsible use—such as explicit target scoping, rate limiting, scan profiles (quick, standard, exhaustive), resumable scans, comprehensive logging, and clear safeguards against scanning assets outside the authorized scope. These features make the framework more practical for professional penetration testing and security assessments while helping ensure it is used appropriately.
+
+Thoroughness here really comes down to stacking phases so each one hands better targets to the next, plus a correlation layer that ties raw findings back to actual CVEs — that correlation piece is usually the most underestimated part, and it's genuinely what separates a toy scanner from something Nessus/OpenVAS-grade. Here's the shape I'd build toward:**Recon & discovery**
+Before you send a single packet: certificate transparency logs (crt.sh) surface subdomains you'd never think to brute-force, Shodan/Censys give you already-indexed banners with zero footprint on the target, and WHOIS/RDAP plus ASN/BGP lookups tell you the IP space an org actually owns, not just the range you were handed.
+
+For live-host detection, don't lean on ICMP alone — plenty of networks drop it. Layer ARP (on-subnet), TCP SYN to a handful of common ports, and UDP probes (DNS/NTP/SNMP) as alternate signals. IPv6 gets skipped constantly too — link-local multicast/NDP discovery matters if there's any dual-stack in the environment. And since you've already got packet capture running in the traffic analyzer, passive discovery off live traffic is close to free alongside the active probing.
+
+**Port scanning**
+Full 65535 range, TCP and UDP both — top-1000 is a speed tradeoff, not a thoroughness one. The pattern real tools use is two-phase: a fast raw-socket sweep across the whole range (`masscan`/`rustscan`-style, or a `scapy` SYN scanner if you want to build it yourself — you've already got that plumbing) to find what's open, then a slower, deeper service/version probe only against those ports. Running `nmap -sV`-depth checks against all 65535 ports from the start doesn't scale.
+
+Banner-grab every open port, not just the "known" ones — plenty of real findings live on non-standard ports. OS fingerprinting via TCP/IP stack quirks (TTL, window size, option ordering) rounds this phase out, active or passive. Timing should adapt to RTT rather than use a fixed delay — too aggressive drops packets and creates false negatives on a jittery link, too polite and a full scan takes days.
+
+**Service enumeration — this is where "thorough" actually lives**
+- DNS: zone transfer attempts (AXFR), subdomain brute force against a real wordlist (`SecLists` is the standard), full record enumeration (MX/TXT/SPF/DMARC/CNAME/NS), reverse PTR across the whole range, DNSSEC status, cache snooping
+- HTTP/TLS: cert chain, SAN, expiry, weak signature algorithms; protocol/cipher enumeration (TLS 1.0 is still out there); security header audits; tech-stack fingerprinting; vhost fuzzing via the Host header; content/directory brute force; API surface discovery — exposed Swagger/OpenAPI specs, GraphQL introspection left on; CMS-specific checks like WordPress plugin enumeration
+- SMB/AD/LDAP: null session checks, share enumeration, RID cycling for users and groups, password policy extraction, SMB signing status (relay risk), anonymous LDAP bind. `impacket` is genuinely the tool for this whole category — build on it rather than reimplementing SMB from scratch
+- Infra services: SNMP community string brute force plus MIB walk, SMTP VRFY/EXPN user enum and open relay testing, FTP anonymous login, SSH algorithm/cipher enumeration, database default-creds and unauthenticated-instance checks — Mongo/Redis/Elasticsearch left wide open is still shockingly common
+- Cloud/container: public S3 or blob bucket checks, exposed Docker daemon or Kubernetes API, cloud metadata endpoint reachability. This barely existed in the Nmap-era mental model but it's a huge slice of real external attack surface now
+
+**Vulnerability correlation**
+This is genuinely the hard part, and it's why Nessus and OpenVAS are big, complicated products instead of weekend scripts. You need to map service and version to CPE strings, then match against NVD's CVE data — mirror the JSON feed locally so you're not rate-limited or offline-dependent.
+
+Version-string matching is messier than it looks: vendors backport security patches without bumping the visible version, so naive matching throws false positives constantly. Budget real design time for this, not a quick regex. Layer EPSS (exploit prediction scoring from FIRST.org) on top of raw CVSS for prioritization, and flag anything in CISA's KEV catalog specifically — that's "actively being exploited" signal, far more actionable than a bare CVSS score.
+
+Credentialed scanning is the single biggest lever for depth here. SSH/WinRM access to check actual installed package and patch levels beats banner-guessing every time, and it's the main thing separating authenticated Nessus-style scans from blackbox tools.
+
+**What makes it production-grade instead of a script**
+- Modular plugin architecture — each enumeration module takes a target, returns findings in a common schema. Same shape as PhishFlow's mail source adapters, applied here.
+- Rate limiting and pacing per-target, not just globally. Fragile IoT/embedded gear falls over fast, and SMB/AD brute-forcing risks account lockouts if you're not respecting policy.
+- Built-in scope enforcement — an authorized-targets allowlist checked before any module fires. Not a compliance afterthought; it's what stops a fat-fingered scan from hitting the wrong /24 mid-engagement.
+- A unified findings schema across every module so scoring and reporting stay consistent — same idea as PhishFlow's risk-weight matrix.
+- Decide early what you're building versus wrapping. Reimplementing `nmap`'s service-probe database from scratch is a multi-year project on its own; most serious all-in-one tools (`Sn1per`, `Legion`, `AutoRecon` are worth looking at for prior art) orchestrate existing engines and add value in correlation, reporting, and workflow instead.
+
+Given the scope, this is naturally a multi-module build. Want to start with the scan core — discovery plus port scanning — or the vulnerability correlation engine, since that one has the most design decisions to lock in early?Whenever you're ready to start writing the actual modules — even just the port scan core — I can help build it out here too.

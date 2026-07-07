@@ -1,0 +1,6 @@
+/data/*.sqlite
+/data/*.sqlite-*
+/reports/*.json
+/reports/*.md
+/bin/
+/.env
