@@ -43,6 +43,7 @@ func (e Engine) Run(ctx context.Context, scanID string) error {
 		logging.New(),
 	)
 	queue.Register(modules.NewDiscovery(e.db, e.guard, e.cfg.Discovery))
+	queue.Register(modules.NewReenumeration(e.guard))
 	queue.Register(modules.NewIPv6Discovery(e.db, e.guard))
 	queue.Register(modules.NewARPDiscovery(e.db, e.guard))
 	queue.Register(modules.NewVHostDiscovery(e.db, e.guard))

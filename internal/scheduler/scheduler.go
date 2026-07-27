@@ -53,6 +53,18 @@ func (s *Scheduler) Register(module Module) {
 	s.modules = append(s.modules, module)
 }
 
+// ChainFor reports the modules that will consume an event. It exposes the
+// scheduler's event-driven chaining plan for diagnostics and automation.
+func (s *Scheduler) ChainFor(eventType string) []string {
+	names := make([]string, 0)
+	for _, module := range s.modules {
+		if subscribes(module, eventType) {
+			names = append(names, module.Name())
+		}
+	}
+	return names
+}
+
 func (s *Scheduler) Enqueue(event models.Event) {
 	s.wg.Add(1)
 	s.queue <- event

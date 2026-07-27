@@ -92,3 +92,15 @@ Run `analyze-vulnerabilities <scan-id>` after importing vulnerability reports. I
 ## Evidence Correlation
 
 Run `correlate <scan-id>` to build a graph from collected asset parents, trust/authentication evidence, secret exposures, lateral-movement-capable services, and findings. It persists inferred correlation edges, a 0–100 business-impact score, and a Mermaid attack-chain representation. Inferred edges identify possible relationships, not confirmed attacker access.
+
+## Risk Scoring
+
+Run `score-risk <scan-id>` to produce explainable 0–100 composite risk assessments. Scores combine internet exposure, asset criticality, business-context clues, finding severity, EPSS, KEV, and curated public-exploit indicators. Each assessment includes its contributing factors in metadata.
+
+## Differential Analysis
+
+Run `compare-scans <baseline-scan-id> <current-scan-id>` to generate a Markdown change report. It compares host, port, service, certificate, technology, and vulnerability evidence; a removed item means it was not observed in the current scan.
+
+## Automation
+
+Modules automatically chain by emitting events for later subscribers. An `asset.changed` event triggers scoped re-enumeration of the affected host or URL. The engine also exposes `RunRecurring(ctx, interval)` for programmatic recurring scans, creating a fresh scan ID for every scheduled run.

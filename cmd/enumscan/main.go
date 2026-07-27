@@ -12,6 +12,7 @@ import (
 	"enumscan/internal/api"
 	"enumscan/internal/config"
 	"enumscan/internal/engine"
+	"enumscan/internal/inventory"
 	"enumscan/internal/models"
 	"enumscan/internal/reporting"
 	"enumscan/internal/store"
@@ -146,6 +147,31 @@ func main() {
 			log.Fatalf("correlate scan: %v", err)
 		}
 		fmt.Printf("Correlated %d nodes, %d edges; business impact score %d/100\n", len(result.Graph.Nodes), len(result.Graph.Edges), result.BusinessImpact)
+	case "score-risk":
+		if flag.NArg() < 2 {
+			log.Fatal("score-risk requires a scan id")
+		}
+		if err := db.Migrate(ctx); err != nil {
+			log.Fatalf("migrate db: %v", err)
+		}
+		assessments, err := vulnerability.NewRiskEngine(db).AnalyzeScan(ctx, flag.Arg(1))
+		if err != nil {
+			log.Fatalf("score risk: %v", err)
+		}
+		fmt.Printf("Recorded %d risk assessments for scan %s\n", len(assessments), flag.Arg(1))
+	case "compare-scans":
+		if flag.NArg() < 3 {
+			log.Fatal("compare-scans requires baseline and current scan ids")
+		}
+		result, err := inventory.CompareStoredScans(ctx, db, flag.Arg(1), flag.Arg(2))
+		if err != nil {
+			log.Fatalf("compare scans: %v", err)
+		}
+		path, err := inventory.WriteChangeReport(cfg.Reporting.OutputDir, flag.Arg(1), flag.Arg(2), result)
+		if err != nil {
+			log.Fatalf("write change report: %v", err)
+		}
+		fmt.Printf("Wrote scan change report to %s\n", path)
 	case "server":
 		serverFlags := flag.NewFlagSet("server", flag.ExitOnError)
 		port := serverFlags.Int("port", 8080, "API server port")
@@ -172,5 +198,7 @@ Usage:
   enumscan [-config configs/example.yaml] import-nvd -file <path>
   enumscan [-config configs/example.yaml] analyze-vulnerabilities <scan-id>
   enumscan [-config configs/example.yaml] correlate <scan-id>
+  enumscan [-config configs/example.yaml] score-risk <scan-id>
+  enumscan [-config configs/example.yaml] compare-scans <baseline-scan-id> <current-scan-id>
   enumscan [-config configs/example.yaml] server [-port 8080]`)
 }

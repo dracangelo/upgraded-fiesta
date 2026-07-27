@@ -279,41 +279,41 @@
 
 # 16. Risk Engine
 
-- [ ] Risk scoring.
-- [ ] Internet exposure scoring.
-- [ ] Asset criticality.
-- [ ] Business context.
-- [ ] EPSS integration.
-- [ ] KEV integration.
-- [ ] Public exploit scoring.
-- [ ] Composite risk calculation.
+- [x] Risk scoring.
+- [x] Internet exposure scoring.
+- [x] Asset criticality.
+- [x] Business context.
+- [x] EPSS integration.
+- [x] KEV integration.
+- [x] Public exploit scoring.
+- [x] Composite risk calculation.
 
 ---
 
 # 17. Differential Analysis
 
-- [ ] Compare scans.
-- [ ] Detect new hosts.
-- [ ] Detect removed hosts.
-- [ ] Detect new ports.
-- [ ] Detect service changes.
-- [ ] Detect certificate changes.
-- [ ] Detect technology changes.
-- [ ] Detect vulnerability changes.
-- [ ] Generate change reports.
+- [x] Compare scans.
+- [x] Detect new hosts.
+- [x] Detect removed hosts.
+- [x] Detect new ports.
+- [x] Detect service changes.
+- [x] Detect certificate changes.
+- [x] Detect technology changes.
+- [x] Detect vulnerability changes.
+- [x] Generate change reports.
 
 ---
 
 # 18. Automation
 
-- [ ] Event subscriptions.
-- [ ] Automatic module chaining.
-- [ ] Automatic re-enumeration.
-- [ ] Scheduled scans.
-- [ ] Alerting.
-- [ ] Webhooks.
-- [ ] Slack notifications.
-- [ ] Email notifications.
+- [ ] Event subscriptions. //skip for now
+- [x] Automatic module chaining.
+- [x] Automatic re-enumeration.
+- [x] Scheduled scans.
+- [ ] Alerting. //skip for now
+- [ ] Webhooks. //skip for now
+- [ ] Slack notifications. // skip for now
+- [ ] Email notifications. // skip for now
 
 ---
 
