@@ -68,3 +68,27 @@ The `service_fingerprint` module subscribes to open-port events and combines por
 ## HTTP, TLS, and Crawling
 
 The HTTP module records response metadata, security-header findings, TLS certificates, SANs, supported TLS versions, negotiated ciphers, robots.txt and sitemap URLs, scoped crawl links, JavaScript endpoints, potential client-side secret hints, API discovery hits, and screenshot targets. Screenshot targets are queued as assets until a browser renderer such as Playwright or Chromedp is added.
+
+## Directory and API Enumeration
+
+The optional `directory_api_enumerator` performs a bounded, scope-checked pass over common and technology-specific paths. It derives additional paths from first-party JavaScript, checks for exposed backups, Git/SVN metadata and environment files, and records OpenAPI, GraphQL, SOAP/WSDL and gRPC reflection evidence. Configure `http.max_directory_paths` and `http.directory_wordlist` to keep the request volume appropriate for the authorization you hold.
+
+## Container and Kubernetes Enumeration
+
+When `specialized.enable_container` is enabled, the standard profile includes Docker, registry, etcd, Kubernetes API, and kubelet ports. The specialized module identifies exposed Docker API sockets, registries and runtime endpoints; validates exposed Compose files; and records Kubernetes secrets-list endpoint access with only an item count, never secret values.
+
+## Passive Intelligence
+
+Set `passive_intel.enabled: true` and choose sources in `passive_intel.sources` to enable third-party lookups. API credentials are read from environment variables (`SHODAN_API_KEY`, `CENSYS_API_ID`/`CENSYS_API_SECRET`, `SECURITYTRAILS_API_KEY`, `FOFA_EMAIL`/`FOFA_API_KEY`, `VIRUSTOTAL_API_KEY`, `GITHUB_TOKEN`, and `GITLAB_TOKEN`), not YAML. Supported source names are `shodan`, `censys`, `securitytrails`, `fofa`, `virustotal`, `wayback`, `github`, `gitlab`, `bucket`, and `paste`. `paste` requires `PASTE_MONITOR_URL`; GitLab accepts `GITLAB_API_URL` for self-hosted instances.
+
+## Secret Intelligence
+
+HTTP content can be scanned for AWS, Azure, GCP, JWT, generic API, and private-key indicators with `http.enable_secret_intelligence`. Findings use structural validation and risk scoring locally; discovered values are represented only by a redacted, hashed fingerprint and are never sent to a validation service or persisted in clear text.
+
+## Vulnerability Prioritization
+
+Run `analyze-vulnerabilities <scan-id>` after importing vulnerability reports. It correlates locally maintained KEV, EPSS, and public-exploit indicators, records a priority asset for every CVE finding, and applies built-in misconfiguration rules to discovered assets. Original findings are preserved unchanged for auditability.
+
+## Evidence Correlation
+
+Run `correlate <scan-id>` to build a graph from collected asset parents, trust/authentication evidence, secret exposures, lateral-movement-capable services, and findings. It persists inferred correlation edges, a 0–100 business-impact score, and a Mermaid attack-chain representation. Inferred edges identify possible relationships, not confirmed attacker access.

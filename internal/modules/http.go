@@ -107,6 +107,9 @@ func (h *HTTP) Handle(ctx context.Context, event models.Event) ([]models.Event, 
 	if h.config.EnableJSAnalysis {
 		h.analyzeJavaScript(ctx, event.ScanID, event.Target, body)
 	}
+	if h.config.EnableSecretIntel {
+		h.recordSecretIntelligence(ctx, event.ScanID, event.Target, body)
+	}
 	if h.config.EnableCrawler && depth < h.config.MaxDepth {
 		for _, link := range extractLinks(parsed, body) {
 			if link.Hostname() == "" || !h.guard.Allowed(link.Hostname()) || link.Hostname() != parsed.Hostname() {
@@ -283,17 +286,6 @@ func (h *HTTP) discoverAPIs(ctx context.Context, scanID string, root *url.URL) {
 func (h *HTTP) analyzeJavaScript(ctx context.Context, scanID, target, body string) {
 	for _, endpoint := range extractJSEndpoints(body) {
 		_ = h.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "js_endpoint", Value: endpoint, Parent: target})
-	}
-	for _, secret := range extractSecretHints(body) {
-		_ = h.db.AddFinding(ctx, models.Finding{
-			ScanID:      scanID,
-			Severity:    "medium",
-			Confidence:  "low",
-			Asset:       target,
-			Title:       "Potential secret in JavaScript",
-			Evidence:    secret,
-			Remediation: "Review the referenced JavaScript and remove client-side secrets or sensitive tokens.",
-		})
 	}
 }
 

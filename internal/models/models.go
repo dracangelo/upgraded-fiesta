@@ -3,14 +3,16 @@ package models
 import "time"
 
 type Config struct {
-	Database  DatabaseConfig
-	Scope     ScopeConfig
-	Scheduler SchedulerConfig
-	Discovery DiscoveryConfig
-	PortScan  PortScanConfig
-	HTTP      HTTPConfig
-	Scan      ScanConfig
-	Reporting ReportingConfig
+	Database     DatabaseConfig
+	Scope        ScopeConfig
+	Scheduler    SchedulerConfig
+	Discovery    DiscoveryConfig
+	PortScan     PortScanConfig
+	HTTP         HTTPConfig
+	Specialized  SpecializedConfig
+	PassiveIntel PassiveIntelConfig
+	Scan         ScanConfig
+	Reporting    ReportingConfig
 }
 
 type DatabaseConfig struct {
@@ -58,6 +60,27 @@ type HTTPConfig struct {
 	EnableAPIDiscovery bool
 	EnableScreenshots  bool
 	APIPaths           []string
+	EnableDirectoryAPI bool
+	DirectoryWordlist  []string
+	MaxDirectoryPaths  int
+	EnableSecretIntel  bool
+}
+
+type SpecializedConfig struct {
+	EnableSMB       bool
+	EnableLDAP      bool
+	EnableSNMP      bool
+	EnableCloud     bool
+	EnableContainer bool
+	EnableDatabase  bool
+	SNMPCommunities []string
+}
+
+// PassiveIntelConfig controls optional third-party lookups. Credentials are
+// read from environment variables rather than persisted in scan configuration.
+type PassiveIntelConfig struct {
+	Enabled bool
+	Sources []string
 }
 
 type ScanConfig struct {
@@ -89,6 +112,12 @@ type Finding struct {
 	Title       string    `json:"title"`
 	Evidence    string    `json:"evidence"`
 	Remediation string    `json:"remediation"`
+	CWE         string    `json:"cwe,omitempty"`
+	CVE         string    `json:"cve,omitempty"`
+	CVSS        float64   `json:"cvss,omitempty"`
+	EPSS        float64   `json:"epss,omitempty"`
+	KEV         bool      `json:"kev,omitempty"`
+	References  []string  `json:"references,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 

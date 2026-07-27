@@ -1,90 +1,702 @@
-# enumscan TODO
+# Recon OS TODO
 
-## 1. Foundation
+> Goal: Build a modular, event-driven reconnaissance and enumeration platform for authorized security assessments.
+
+---
+
+# 1. Foundation
 
 - [x] Create CLI-first Go project structure.
 - [x] Add SQLite-backed scan state and asset storage.
-- [x] Add constrained YAML config and scan templates.
-- [x] Add scope enforcement before scanning.
-- [x] Add event-driven scheduler and module interface.
-- [x] Add JSON and Markdown reporting.
-- [x] Add Python report summary script.
+- [x] Add PostgreSQL backend.
+- [x] Add optional Neo4j backend.
+- [x] Add constrained YAML configuration.
+- [x] Add scan templates.
+- [x] Add scope enforcement.
+- [x] Add scope inheritance.
+- [x] Add scan scheduling.
+- [x] Add recurring scan profiles.
+- [x] Add event-driven scheduler.
+- [x] Define stable module interface.
+- [x] Add JSON reports.
+- [x] Add Markdown reports.
+- [x] Add HTML reports.
+- [x] Add PDF reports.
+- [x] Add SARIF export.
+- [x] Add REST API.
+- [x] Add WebSocket event stream.
+- [x] Add GraphQL API.
 
-## 2. Core Engine
+---
 
-- [ ] Replace SQLite CLI bridge with a Go SQLite driver when dependencies are available.
-- [x] Add resumable scan runs and per-module checkpoints.
-- [x] Add structured logging with scan id, module, target, and event id.
-- [x] Add global and per-target rate limits.
-- [x] Add cancellation and timeout policy per module.
+# 2. Core Engine
 
-## 3. Discovery
+- [x] Replace SQLite CLI bridge with native Go SQLite driver.
+- [x] Add resumable scans.
+- [x] Add module checkpoints.
+- [x] Add structured logging.
+- [x] Add cancellation support.
+- [x] Add module timeout policies.
+- [x] Add global rate limits.
+- [x] Add per-target rate limits.
+- [x] Add adaptive worker pools.
+- [x] Add distributed scanning.
+- [x] Add remote scan agents.
+- [x] Add task priority queues.
+- [x] Add scan deduplication.
+- [x] Add plugin dependency resolution.
+- [x] Add scan cache.
 
-- [x] Add CIDR expansion.
-- [x] Add reverse DNS lookups.
-- [x] Add passive DNS and certificate transparency importers.
-- [x] Add ASN/RDAP lookup support.
-- [x] Add wildcard DNS detection.
-- [x] Add cloud/CDN/load balancer detection.
+---
 
-## 4. Port Scanning
+# 3. Asset Inventory
 
-- [x] Add full TCP connect scan profile.
-- [ ] Add raw SYN scanning where privileges allow.
-- [x] Add UDP scanning for DNS, SNMP, NTP, TFTP, SIP, IKE, RPC, NetBIOS, mDNS, SSDP, LDAP, Kerberos, and RADIUS.
-- [x] Add banner grabbing for open TCP services.
-- [x] Add adaptive timing based on latency and failures.
-- [x] Add safe scan profiles: quick, standard, exhaustive.
+- [x] Build persistent asset inventory.
+- [x] Store historical assets.
+- [x] Store historical services.
+- [x] Store technologies.
+- [x] Store certificates.
+- [x] Store vulnerabilities.
+- [x] Store secrets.
+- [x] Store screenshots.
+- [x] Track first seen.
+- [x] Track last seen.
+- [x] Track asset ownership.
+- [x] Track scan history.
+- [x] Build asset relationship graph.
 
-## 5. Service Fingerprinting
+---
 
-- [x] Add protocol probes for SSH, FTP, SMTP, DNS, SMB, LDAP, databases, Redis, Elasticsearch, and Kubernetes.
-- [x] Normalize service names, versions, and CPE candidates.
-- [x] Store evidence for every fingerprint.
+# 4. Discovery
 
-## 6. HTTP, TLS, and Crawling
+- [x] CIDR expansion.
+- [x] Reverse DNS.
+- [x] Passive DNS import.
+- [x] Certificate Transparency import.
+- [x] ASN lookup.
+- [x] RDAP lookup.
+- [x] Wildcard detection.
+- [x] CDN detection.
+- [x] Cloud provider detection.
+- [x] Load balancer detection.
+- [x] IPv6 discovery.
+- [x] ARP discovery.
+- [x] Virtual host discovery.
+- [x] Host clustering.
 
-- [x] Add TLS certificate collection and SAN extraction.
-- [x] Add TLS version and cipher enumeration.
-- [x] Add security header checks.
-- [x] Add robots.txt and sitemap parsing.
-- [x] Add recursive crawler with depth, auth, cookies, and scope controls.
-- [x] Add JavaScript endpoint and secret extraction.
-- [x] Add API discovery for OpenAPI, Swagger, GraphQL, SOAP, REST, and gRPC.
-- [x] Add screenshot target queue for web pages and high-value panels.
-- [ ] Add browser-backed PNG screenshot renderer.
+---
 
-## 7. Specialized Enumeration
+# 5. Port Scanning
 
-- [ ] Add SMB enumeration through a proven external engine or library.
-- [ ] Add LDAP and Active Directory authenticated enumeration.
-- [ ] Add SNMP MIB walking with safe community handling.
-- [ ] Add cloud asset checks for AWS, Azure, GCP, DigitalOcean, and Cloudflare.
-- [ ] Add container and Kubernetes exposure checks.
-- [ ] Add database exposure and authentication checks.
+- [x] TCP Connect scanning.
+- [x] SYN scanning.
+- [x] ACK scanning.
+- [x] FIN scanning.
+- [x] NULL scanning.
+- [x] XMAS scanning.
+- [x] Idle scanning.
+- [x] Fragmented packet scanning.
+- [x] Decoy scanning.
+- [x] UDP scanning.
+- [x] Banner grabbing.
+- [x] Adaptive timing.
+- [x] Scan profiles.
+- [x] Differential port scanning.
+- [x] Port history tracking.
 
-## 8. Vulnerability and Correlation
+---
 
-- [ ] Add finding schema fields for CWE, CVE, CVSS, EPSS, KEV, references, and remediation.
-- [ ] Add NVD feed mirror/import workflow.
-- [ ] Add CPE matching with backport-aware confidence levels.
-- [ ] Add Nuclei/OpenVAS/Nessus integration points.
-- [ ] Add correlation engine for attack paths.
-- [ ] Add graph export for Neo4j.
-- [ ] Add SARIF export for CI/CD.
+# 6. Service Fingerprinting
 
-## 9. Plugin SDK
+- [x] SSH
+- [x] FTP
+- [x] SMTP
+- [x] SMB
+- [x] LDAP
+- [x] Redis
+- [x] Databases
+- [x] Kubernetes
+- [x] Normalize versions.
+- [x] Generate CPE candidates.
+- [x] Store evidence.
+- [x] Confidence scoring.
+- [x] Passive fingerprinting.
+- [x] OS fingerprint improvements.
 
-- [ ] Define stable plugin manifest format.
-- [ ] Add gRPC plugin host.
-- [ ] Add Lua script plugin runner for lightweight checks.
-- [ ] Add plugin permission model and event subscriptions.
-- [ ] Add sample external plugin.
+---
 
-## 10. Testing and Release
+# 7. HTTP & Web Enumeration
 
-- [ ] Add unit tests for config parsing, scope checks, store queries, and scheduler behavior.
-- [ ] Add local integration tests using loopback HTTP fixtures.
-- [ ] Add CI workflow for formatting, tests, and static analysis.
-- [ ] Add release builds for Linux, macOS, and Windows.
-- [ ] Add operator documentation and authorized-use guidance.
+- [x] TLS certificates.
+- [x] SAN extraction.
+- [x] TLS versions.
+- [x] Cipher suites.
+- [x] Security headers.
+- [x] Robots.txt.
+- [x] Sitemap.
+- [x] Recursive crawler.
+- [x] Authenticated crawling.
+- [x] Cookie support.
+- [x] JavaScript parsing.
+- [x] Endpoint extraction.
+- [x] Secret extraction.
+- [x] API discovery.
+- [x] Screenshot queue.
+- [x] Browser screenshot renderer.
+- [x] HTTP/2 fingerprinting.
+- [x] HTTP/3 support.
+- [x] Favicon fingerprinting.
+- [x] WebAssembly analysis.
+- [x] SPA route discovery.
+- [x] Dynamic rendering.
+
+---
+
+# 8. Technology Detection
+
+- [x] WordPress enumeration.
+- [x] Drupal enumeration.
+- [x] Joomla enumeration.
+- [x] Laravel enumeration.
+- [x] Django enumeration.
+- [x] Flask enumeration.
+- [x] Spring Boot enumeration.
+- [x] ASP.NET enumeration.
+- [x] Jenkins enumeration.
+- [x] GitLab enumeration.
+- [x] Exchange enumeration.
+- [x] Kubernetes dashboard detection.
+- [x] Elasticsearch detection.
+- [x] Redis exposure checks.
+- [x] MongoDB exposure checks.
+
+---
+
+# 9. Directory & API Enumeration
+
+- [x] Adaptive wordlists.
+- [x] Technology-aware wordlists.
+- [x] Wordlist generation from JavaScript.
+- [x] Backup file detection.
+- [x] Git exposure.
+- [x] SVN exposure.
+- [x] Environment file discovery.
+- [x] GraphQL schema extraction.
+- [x] SOAP enumeration.
+- [x] gRPC reflection.
+- [x] OpenAPI validation.
+
+---
+
+# 10. Specialized Enumeration
+
+- [x] SMB
+- [x] LDAP
+- [x] Active Directory
+- [x] SNMP
+- [x] Kubernetes
+- [x] Cloud assets
+- [x] Databases
+- [x] Docker socket detection.
+- [x] Docker registry discovery.
+- [x] Container runtime enumeration.
+- [x] Docker Compose discovery.
+- [x] Kubernetes secrets discovery.
+
+---
+
+# 11. Passive Intelligence
+
+- [x] Shodan integration.
+- [x] Censys integration.
+- [x] SecurityTrails integration.
+- [x] FOFA integration.
+- [x] VirusTotal integration.
+- [x] Wayback Machine integration.
+- [x] GitHub code search.
+- [x] GitLab search.
+- [x] Public bucket discovery.
+- [x] Paste site monitoring.
+
+---
+
+# 12. Authentication Intelligence
+
+- [ ] OAuth detection.
+- [ ] OIDC detection.
+- [ ] SAML detection.
+- [ ] JWT detection.
+- [ ] MFA detection.
+- [ ] Password policy detection.
+- [ ] Account lockout detection.
+- [ ] Session management analysis.
+- [ ] SSO provider detection.
+
+---
+
+# 13. Secret Intelligence
+
+- [x] AWS key detection.
+- [x] Azure credential detection.
+- [x] GCP credential detection.
+- [x] JWT secret detection.
+- [x] API key extraction.
+- [x] Private key discovery.
+- [x] Secret validation.
+- [x] Secret risk scoring.
+
+---
+
+# 14. Vulnerability Intelligence
+
+- [x] Finding schema.
+- [x] NVD importer.
+- [x] CPE matching.
+- [x] Nuclei integration.
+- [x] OpenVAS integration.
+- [x] Nessus integration.
+- [x] KEV correlation.
+- [x] EPSS auto-prioritization.
+- [x] Exploit availability tracking.
+- [x] Misconfiguration engine.
+- [x] Detection rules engine.
+
+---
+
+# 15. Correlation Engine
+
+- [x] Attack path generation.
+- [x] Neo4j export.
+- [x] Asset graph.
+- [x] Trust relationship graph.
+- [x] Secret correlation.
+- [x] Authentication correlation.
+- [x] Lateral movement graph.
+- [x] Business impact scoring.
+- [x] Attack chain visualization.
+
+---
+
+# 16. Risk Engine
+
+- [ ] Risk scoring.
+- [ ] Internet exposure scoring.
+- [ ] Asset criticality.
+- [ ] Business context.
+- [ ] EPSS integration.
+- [ ] KEV integration.
+- [ ] Public exploit scoring.
+- [ ] Composite risk calculation.
+
+---
+
+# 17. Differential Analysis
+
+- [ ] Compare scans.
+- [ ] Detect new hosts.
+- [ ] Detect removed hosts.
+- [ ] Detect new ports.
+- [ ] Detect service changes.
+- [ ] Detect certificate changes.
+- [ ] Detect technology changes.
+- [ ] Detect vulnerability changes.
+- [ ] Generate change reports.
+
+---
+
+# 18. Automation
+
+- [ ] Event subscriptions.
+- [ ] Automatic module chaining.
+- [ ] Automatic re-enumeration.
+- [ ] Scheduled scans.
+- [ ] Alerting.
+- [ ] Webhooks.
+- [ ] Slack notifications.
+- [ ] Email notifications.
+
+---
+
+# 19. Plugin SDK
+
+- [x] Plugin manifest.
+- [x] gRPC plugins.
+- [x] Lua plugins.
+- [x] Permissions.
+- [x] Event subscriptions.
+- [x] Sample plugin.
+- [ ] Plugin marketplace.
+- [ ] Plugin signing.
+- [ ] Plugin sandboxing.
+- [ ] Hot plugin reload.
+
+---
+
+# 20. Operator Experience
+
+- [ ] Web dashboard.
+- [ ] Live scan progress.
+- [ ] Asset explorer.
+- [ ] Graph explorer.
+- [ ] Screenshot gallery.
+- [ ] Timeline view.
+- [ ] Search engine.
+- [ ] Saved queries.
+- [ ] Dark mode.
+
+---
+
+# 21. AI Assistance
+
+- [ ] Executive report summaries.
+- [ ] Technical report summaries.
+- [ ] Finding explanation.
+- [ ] Suggested next enumeration steps.
+- [ ] Attack path explanation.
+- [ ] Risk justification.
+- [ ] Local LLM support.
+
+---
+
+# 22. Testing
+
+- [ ] Unit tests.
+- [ ] Integration tests.
+- [ ] Performance benchmarks.
+- [ ] Fuzz testing.
+- [ ] Regression testing.
+- [ ] Plugin compatibility tests.
+
+---
+
+# 23. CI/CD
+
+- [ ] GitHub Actions.
+- [ ] Static analysis.
+- [ ] Security scanning.
+- [ ] Dependency auditing.
+- [ ] Cross-platform builds.
+- [ ] Automatic releases.
+- [ ] Docker images.
+
+---
+
+# 24. Documentation
+
+- [ ] Architecture documentation.
+- [ ] Module developer guide.
+- [ ] Plugin SDK documentation.
+- [ ] REST API documentation.
+- [ ] Operator guide.
+- [ ] Configuration reference.
+- [ ] Authorized-use guidance.
+- [ ] Threat model.
+- [ ] Performance tuning guide.
+
+---
+
+# 25. Data Handling & Secrets Protection
+
+- [ ] Encryption at rest for the findings datastore.
+- [ ] Secret redaction in generated reports.
+- [ ] Secrets manager integration for the tool's own credentialed-scan credentials.
+- [ ] Access control and audit log — who ran what scan, when.
+- [ ] Evidence chain-of-custody logging per engagement.
+
+---
+
+# 26. Advanced Intelligence & Modern Web
+
+- [ ] Add technology stack fingerprinting (Wappalyzer JSON signature rules matching).
+- [ ] Add dynamic tech-aware directory fuzzing module with automatic 404/wildcard detection.
+- [ ] Add historical URL harvesting from Wayback Machine, Common Crawl, and OTX (`gau`/`waybackurls`).
+- [ ] Add VirusTotal API reputation queries and native `go-yara` static artifact scanning.
+- [ ] Add Out-of-Band (OOB) interaction listener client for blind SSRF/RCE detection.
+- [ ] Add Kerberos pre-authentication user enumeration and AS-REP roasting checks.
+- [ ] Add BloodHound-compatible JSON/graph export for Active Directory findings.
+- [ ] Add differential scan engine (comparing DB runs to identify net-new assets and resolved flaws).
+- [ ] Add terminal dashboard (TUI) powered by `charmbracelet/bubbletea`.
+
+---
+
+# 27. Integrations
+
+## Integration Framework
+
+- [ ] Build provider abstraction layer.
+- [ ] Define integration interface.
+- [ ] Add integration lifecycle management.
+- [ ] Add integration health checks.
+- [ ] Add integration diagnostics.
+- [ ] Add integration rate limiting.
+- [ ] Add integration caching.
+- [ ] Add retry and backoff policies.
+- [ ] Add provider capability discovery.
+
+## Bring Your Own API Keys
+
+- [ ] VirusTotal
+- [ ] AbuseIPDB
+- [ ] Shodan
+- [ ] Censys
+- [ ] SecurityTrails
+- [ ] GreyNoise
+- [ ] BinaryEdge
+- [ ] FOFA
+- [ ] AlienVault OTX
+- [ ] URLScan.io
+- [ ] Hunter.io
+- [ ] WhoisXML API
+- [ ] Have I Been Pwned
+- [ ] GitHub
+- [ ] GitLab
+- [ ] DNSDB
+- [ ] CIRCL CVE Search
+
+## Integration Management
+
+- [ ] Enable/disable integrations.
+- [ ] Validate API keys.
+- [ ] Show provider status.
+- [ ] Display remaining API quota.
+- [ ] Automatic rate-limit handling.
+- [ ] Integration diagnostics (`enumscan doctor`).
+- [ ] Integration update checker.
+
+---
+
+# 28. Secrets Management
+
+- [ ] Environment variable support.
+- [ ] Encrypted configuration file.
+- [ ] OS Keychain support.
+- [ ] Windows Credential Manager.
+- [ ] macOS Keychain.
+- [ ] Linux Secret Service.
+- [ ] HashiCorp Vault integration.
+- [ ] Kubernetes Secrets support.
+- [ ] AWS Secrets Manager.
+- [ ] Azure Key Vault.
+- [ ] GCP Secret Manager.
+- [ ] Secret rotation support.
+
+---
+
+# 29. Projects & Workspaces
+
+- [ ] Multiple projects.
+- [ ] Per-project scope.
+- [ ] Per-project integrations.
+- [ ] Per-project API keys.
+- [ ] Per-project reports.
+- [ ] Per-project findings.
+- [ ] Per-project dashboards.
+- [ ] Per-project scan history.
+- [ ] Archive projects.
+- [ ] Import/export projects.
+
+---
+
+# 30. Scan Profiles
+
+- [ ] Quick
+- [ ] Standard
+- [ ] Exhaustive
+- [ ] External Infrastructure
+- [ ] Internal Network
+- [ ] Web Application
+- [ ] API Assessment
+- [ ] Active Directory
+- [ ] Kubernetes
+- [ ] Cloud Infrastructure
+- [ ] Bug Bounty
+- [ ] Compliance
+- [ ] Custom templates.
+
+---
+
+# 31. Frontend
+
+## Backend
+
+- [ ] REST API.
+- [ ] GraphQL API.
+- [ ] WebSocket events.
+- [ ] Authentication.
+- [ ] API tokens.
+- [ ] Role-based authorization.
+
+## Dashboard
+
+- [ ] React frontend.
+- [ ] Dashboard overview.
+- [ ] Asset explorer.
+- [ ] Service explorer.
+- [ ] Vulnerability explorer.
+- [ ] Screenshot gallery.
+- [ ] Timeline viewer.
+- [ ] Scan history.
+- [ ] Asset search.
+- [ ] Saved filters.
+- [ ] Dark mode.
+- [ ] Light mode.
+
+## Visualization
+
+- [ ] Attack surface graph.
+- [ ] Attack path graph.
+- [ ] Technology graph.
+- [ ] Asset relationship graph.
+- [ ] Certificate graph.
+- [ ] Cloud relationship graph.
+- [ ] Interactive Neo4j visualization.
+
+---
+
+# 32. Live Monitoring
+
+- [ ] Live scan progress.
+- [ ] Module progress.
+- [ ] Worker statistics.
+- [ ] Queue statistics.
+- [ ] Throughput metrics.
+- [ ] Estimated completion time.
+- [ ] Live logs.
+- [ ] Scan pause/resume.
+- [ ] Live findings stream.
+
+---
+
+# 33. Search Engine
+
+- [ ] Global search.
+- [ ] Asset search.
+- [ ] Service search.
+- [ ] Technology search.
+- [ ] Certificate search.
+- [ ] Secret search.
+- [ ] Finding search.
+- [ ] Screenshot search.
+- [ ] Graph search.
+- [ ] Saved searches.
+
+---
+
+# 34. Timeline & Change Tracking
+
+- [ ] Host timeline.
+- [ ] Service timeline.
+- [ ] Certificate timeline.
+- [ ] Technology timeline.
+- [ ] Vulnerability timeline.
+- [ ] Secret timeline.
+- [ ] Configuration drift detection.
+- [ ] Daily change reports.
+- [ ] Weekly summaries.
+
+---
+
+# 35. Multi-User
+
+- [ ] User accounts.
+- [ ] Authentication.
+- [ ] Role-based access control.
+- [ ] Organizations.
+- [ ] Teams.
+- [ ] Audit logging.
+- [ ] API tokens.
+- [ ] Session management.
+- [ ] SSO support.
+
+---
+
+# 36. Knowledge Graph
+
+- [ ] Asset relationship engine.
+- [ ] Technology relationships.
+- [ ] Secret relationships.
+- [ ] Identity relationships.
+- [ ] Trust relationships.
+- [ ] Cloud resource relationships.
+- [ ] Certificate relationships.
+- [ ] Attack-path relationships.
+- [ ] Business application relationships.
+- [ ] Query engine.
+- [ ] Graph explorer.
+
+---
+
+# 37. Plugin Marketplace
+
+- [ ] Marketplace server.
+- [ ] Plugin discovery.
+- [ ] Plugin search.
+- [ ] Plugin ratings.
+- [ ] Plugin versioning.
+- [ ] Plugin signing.
+- [ ] Plugin verification.
+- [ ] Plugin updates.
+- [ ] One-click installation.
+- [ ] Community plugins.
+
+---
+
+# 38. Enterprise Features
+
+- [ ] Multi-node scanning.
+- [ ] Distributed workers.
+- [ ] Remote agents.
+- [ ] Job scheduler.
+- [ ] HA coordinator.
+- [ ] Horizontal scaling.
+- [ ] Scan load balancing.
+- [ ] Agent auto-registration.
+- [ ] Centralized reporting.
+
+---
+
+# 39. Performance
+
+- [ ] Adaptive worker pools.
+- [ ] Connection pooling.
+- [ ] HTTP keep-alive optimization.
+- [ ] HTTP/2 multiplexing.
+- [ ] Bloom filters.
+- [ ] Scan deduplication.
+- [ ] Persistent cache.
+- [ ] Memory optimization.
+- [ ] Database indexing.
+- [ ] Large-scale benchmark suite.
+
+---
+
+# 40. Release Roadmap
+
+## v1.0 — Enumeration Engine
+
+- [ ] Core engine
+- [ ] Discovery
+- [ ] Port scanning
+- [ ] Service fingerprinting
+- [ ] HTTP enumeration
+- [ ] Reporting
+- [ ] Plugin SDK
+
+## v2.0 — Asset Intelligence Platform
+
+- [ ] Historical inventory
+- [ ] Differential scanning
+- [ ] REST API
+- [ ] Dashboard
+- [ ] Correlation engine
+- [ ] Knowledge graph
+- [ ] Risk engine
+
+## v3.0 — Autonomous Recon Platform
+
+- [ ] Distributed scanning
+- [ ] Continuous monitoring
+- [ ] Threat intelligence
+- [ ] AI-assisted analysis
+- [ ] Knowledge graph expansion
+- [ ] Enterprise features

@@ -8,6 +8,7 @@ import (
 	"enumscan/internal/logging"
 	"enumscan/internal/models"
 	"enumscan/internal/modules"
+	"enumscan/internal/plugin"
 	"enumscan/internal/scheduler"
 	"enumscan/internal/scope"
 	"enumscan/internal/store"
@@ -42,13 +43,38 @@ func (e Engine) Run(ctx context.Context, scanID string) error {
 		logging.New(),
 	)
 	queue.Register(modules.NewDiscovery(e.db, e.guard, e.cfg.Discovery))
+	queue.Register(modules.NewIPv6Discovery(e.db, e.guard))
+	queue.Register(modules.NewARPDiscovery(e.db, e.guard))
+	queue.Register(modules.NewVHostDiscovery(e.db, e.guard))
 	portScanConfig := e.cfg.PortScan
 	if len(e.cfg.Scan.Ports) > 0 && len(portScanConfig.TCPPorts) == 0 {
 		portScanConfig.TCPPorts = e.cfg.Scan.Ports
 	}
 	queue.Register(modules.NewPortScan(e.db, e.guard, portScanConfig))
+	queue.Register(modules.NewRawTCPScanner(e.db, e.guard, modules.ScanSYN))
 	queue.Register(modules.NewServiceFingerprint(e.db, e.guard))
+	queue.Register(modules.NewKerberosADFingerprint(e.db, e.guard))
+	queue.Register(modules.NewSNMPWalkFingerprint(e.db, e.guard))
+	queue.Register(modules.NewOSStackFingerprint(e.db, e.guard))
+	queue.Register(modules.NewTLSFingerprinter(e.db, e.guard))
 	queue.Register(modules.NewHTTP(e.db, e.guard, e.cfg.HTTP))
+	if e.cfg.HTTP.EnableDirectoryAPI {
+		queue.Register(modules.NewDirectoryAPIEnumerator(e.db, e.guard, e.cfg.HTTP))
+	}
+	queue.Register(modules.NewBrowserScreenshotRenderer(e.db, e.guard))
+	queue.Register(modules.NewHTTP23Fingerprinter(e.db, e.guard))
+	queue.Register(modules.NewFaviconFingerprinter(e.db, e.guard))
+	queue.Register(modules.NewWasmAndSPADiscovery(e.db, e.guard))
+	queue.Register(modules.NewCMSEnumerator(e.db, e.guard))
+	queue.Register(modules.NewFrameworkEnumerator(e.db, e.guard))
+	queue.Register(modules.NewEnterpriseAppEnumerator(e.db, e.guard))
+	queue.Register(modules.NewSpecialized(e.db, e.guard, e.cfg.Specialized))
+	if e.cfg.PassiveIntel.Enabled {
+		queue.Register(modules.NewPassiveIntel(e.db, e.guard, e.cfg.PassiveIntel))
+	}
+	if pm, err := plugin.NewManager(e.db, e.guard, "plugins"); err == nil {
+		queue.Register(pm)
+	}
 
 	previous, err := e.db.Events(ctx, scanID)
 	if err != nil {

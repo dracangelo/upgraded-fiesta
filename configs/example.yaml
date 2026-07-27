@@ -20,7 +20,7 @@ discovery:
 
 portscan:
   profile: "quick"
-  tcp_ports: [80, 443, 8000, 8080, 8443]
+  tcp_ports: [80, 443, 2375, 2376, 5000, 5001, 6443, 8000, 8080, 8443, 10250, 10255]
   udp_ports: [53, 123, 161, 500, 1900]
   enable_tcp: true
   enable_udp: true
@@ -37,12 +37,20 @@ http:
   enable_js_analysis: true
   enable_api_discovery: true
   enable_screenshots: true
+  enable_directory_api: true
+  enable_secret_intelligence: true
+  max_directory_paths: 80
+  directory_wordlist: []
   api_paths: ["/openapi.json", "/swagger.json", "/swagger/v1/swagger.json", "/api-docs", "/graphql", "/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo", "/soap?wsdl"]
+
+passive_intel:
+  enabled: false
+  sources: ["wayback"]
 
 scan:
   profile: "quick"
   targets: ["127.0.0.1"]
-  ports: [80, 443, 8000, 8080, 8443]
+  ports: [80, 443, 2375, 2376, 5000, 5001, 6443, 8000, 8080, 8443, 10250, 10255]
 
 reporting:
   output_dir: "reports"

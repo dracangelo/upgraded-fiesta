@@ -42,6 +42,30 @@ func Write(ctx context.Context, db *store.SQLiteCLI, scanID, format, outputDir s
 	case "markdown", "md":
 		path := filepath.Join(outputDir, scanID+".md")
 		return path, os.WriteFile(path, []byte(markdown(r)), 0644)
+	case "html":
+		path := filepath.Join(outputDir, scanID+".html")
+		return path, os.WriteFile(path, []byte(ExportHTML(r)), 0644)
+	case "pdf":
+		path := filepath.Join(outputDir, scanID+".pdf")
+		return path, os.WriteFile(path, ExportPDFText(r), 0644)
+	case "sarif":
+		path := filepath.Join(outputDir, scanID+".sarif")
+		data, err := ExportSARIF(r)
+		if err != nil {
+			return "", err
+		}
+		return path, os.WriteFile(path, data, 0644)
+	case "neo4j", "cypher":
+		path := filepath.Join(outputDir, scanID+".cypher")
+		cypherText := ExportNeo4jCypher(r)
+		return path, os.WriteFile(path, []byte(cypherText), 0644)
+	case "neo4j-json":
+		path := filepath.Join(outputDir, scanID+".neo4j.json")
+		data, err := ExportNeo4jJSON(r)
+		if err != nil {
+			return "", err
+		}
+		return path, os.WriteFile(path, data, 0644)
 	default:
 		return "", fmt.Errorf("unsupported report format %q", format)
 	}
@@ -56,7 +80,23 @@ func markdown(r report) string {
 	}
 	for _, f := range r.Findings {
 		fmt.Fprintf(&b, "### %s\n\n", f.Title)
-		fmt.Fprintf(&b, "- Severity: %s\n- Confidence: %s\n- Asset: `%s`\n- Evidence: %s\n- Remediation: %s\n\n", f.Severity, f.Confidence, f.Asset, f.Evidence, f.Remediation)
+		fmt.Fprintf(&b, "- Severity: %s\n- Confidence: %s\n- Asset: `%s`\n", f.Severity, f.Confidence, f.Asset)
+		if f.CVE != "" {
+			fmt.Fprintf(&b, "- CVE: %s\n", f.CVE)
+		}
+		if f.CWE != "" {
+			fmt.Fprintf(&b, "- CWE: %s\n", f.CWE)
+		}
+		if f.CVSS > 0 {
+			fmt.Fprintf(&b, "- CVSS Score: %.1f\n", f.CVSS)
+		}
+		if f.EPSS > 0 {
+			fmt.Fprintf(&b, "- EPSS Score: %.2f\n", f.EPSS)
+		}
+		if f.KEV {
+			fmt.Fprintf(&b, "- CISA KEV: Known Exploited\n")
+		}
+		fmt.Fprintf(&b, "- Evidence: %s\n- Remediation: %s\n\n", f.Evidence, f.Remediation)
 	}
 	fmt.Fprintf(&b, "## Assets\n\n")
 	for _, a := range r.Assets {

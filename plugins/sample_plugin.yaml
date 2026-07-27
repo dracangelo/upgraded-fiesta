@@ -1,0 +1,12 @@
+name: sample_http_checker
+version: 1.0.0
+author: enumscan-team
+description: Sample Lua plugin that performs lightweight HTTP checks.
+type: lua
+exec: plugins/sample_script.lua
+permissions:
+  - network
+  - store_write
+subscriptions:
+  - port.open
+  - http.url

@@ -28,8 +28,21 @@ func Load(path string) (models.Config, error) {
 			EnableAPIDiscovery: true,
 			EnableScreenshots:  true,
 			APIPaths:           []string{"/openapi.json", "/swagger.json", "/swagger/v1/swagger.json", "/api-docs", "/graphql", "/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo", "/soap?wsdl"},
+			EnableDirectoryAPI: true,
+			MaxDirectoryPaths:  80,
+			EnableSecretIntel:  true,
 		},
-		Reporting: models.ReportingConfig{OutputDir: "reports"},
+		Specialized: models.SpecializedConfig{
+			EnableSMB:       true,
+			EnableLDAP:      true,
+			EnableSNMP:      true,
+			EnableCloud:     true,
+			EnableContainer: true,
+			EnableDatabase:  true,
+			SNMPCommunities: []string{"public", "private", "community"},
+		},
+		PassiveIntel: models.PassiveIntelConfig{Enabled: false},
+		Reporting:    models.ReportingConfig{OutputDir: "reports"},
 	}
 
 	section := ""
@@ -218,6 +231,72 @@ func assign(cfg *models.Config, section, key, value string) error {
 		cfg.HTTP.EnableScreenshots = enabled
 	case "http.api_paths":
 		cfg.HTTP.APIPaths = parseList(value)
+	case "http.enable_directory_api":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.HTTP.EnableDirectoryAPI = enabled
+	case "http.directory_wordlist":
+		cfg.HTTP.DirectoryWordlist = parseList(value)
+	case "http.max_directory_paths":
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+		cfg.HTTP.MaxDirectoryPaths = n
+	case "http.enable_secret_intelligence":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.HTTP.EnableSecretIntel = enabled
+	case "specialized.enable_smb":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Specialized.EnableSMB = enabled
+	case "specialized.enable_ldap":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Specialized.EnableLDAP = enabled
+	case "specialized.enable_snmp":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Specialized.EnableSNMP = enabled
+	case "specialized.enable_cloud":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Specialized.EnableCloud = enabled
+	case "specialized.enable_container":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Specialized.EnableContainer = enabled
+	case "specialized.enable_database":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Specialized.EnableDatabase = enabled
+	case "specialized.snmp_communities":
+		cfg.Specialized.SNMPCommunities = parseList(value)
+	case "passive_intel.enabled":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.PassiveIntel.Enabled = enabled
+	case "passive_intel.sources":
+		cfg.PassiveIntel.Sources = parseList(value)
 	case "scan.profile":
 		cfg.Scan.Profile = value
 	case "scan.targets":
