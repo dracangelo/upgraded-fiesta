@@ -4,3 +4,6 @@
 /reports/*.md
 /bin/
 /.env
+enumscan.txt
+PRODUCTION_READINESS.md
+todo.md

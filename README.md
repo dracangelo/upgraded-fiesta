@@ -37,7 +37,7 @@ plugins              Plugin examples and future SDK surface
 
 ## Notes
 
-- SQLite is accessed through the installed `sqlite3` command to keep this scaffold dependency-free.
+- SQLite uses a native Go driver with WAL mode, a busy timeout, and serialized pooled writes for reliable concurrent scan persistence.
 - YAML support is intentionally constrained to the project config/template shapes in `configs/` and `templates/`.
 - Port scanning supports quick, standard, and exhaustive profiles; explicit TCP/UDP port overrides; TCP banner grabbing; UDP response probes; and adaptive timeouts.
 - Service fingerprinting normalizes open-port evidence into `service`, `service_version`, and `cpe_candidate` assets for later vulnerability correlation.

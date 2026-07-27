@@ -2,299 +2,200 @@ package store
 
 import (
 	"context"
-	"encoding/csv"
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
+
+	_ "modernc.org/sqlite"
 
 	"enumscan/internal/models"
 )
 
+// SQLiteCLI is retained as the public store name for compatibility. Its
+// implementation is now a native, process-local SQLite connection rather
+// than a sqlite3 command bridge.
 type SQLiteCLI struct {
 	path string
+	db   *sql.DB
 }
 
 func OpenSQLiteCLI(path string) (*SQLiteCLI, error) {
-	if _, err := exec.LookPath("sqlite3"); err != nil {
-		return nil, fmt.Errorf("sqlite3 command not found: %w", err)
-	}
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return nil, err
 	}
-	return &SQLiteCLI{path: path}, nil
+	dsn := "file:" + path + "?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)"
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("open SQLite database: %w", err)
+	}
+	// SQLite has one writer. A single pooled connection serializes writes while
+	// WAL keeps reads responsive, eliminating CLI-process lock contention.
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("ping SQLite database: %w", err)
+	}
+	return &SQLiteCLI{path: path, db: db}, nil
 }
 
-func (s SQLiteCLI) Migrate(ctx context.Context) error {
-	sql := `
+func (s *SQLiteCLI) Close() error {
+	if s == nil || s.db == nil {
+		return nil
+	}
+	return s.db.Close()
+}
+
+func (s *SQLiteCLI) Migrate(ctx context.Context) error {
+	const schema = `
 CREATE TABLE IF NOT EXISTS assets (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  scan_id TEXT NOT NULL,
-  type TEXT NOT NULL,
-  value TEXT NOT NULL,
-  parent TEXT NOT NULL DEFAULT '',
-  metadata TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(scan_id, type, value, parent)
-);
+ id INTEGER PRIMARY KEY AUTOINCREMENT, scan_id TEXT NOT NULL, type TEXT NOT NULL, value TEXT NOT NULL,
+ parent TEXT NOT NULL DEFAULT '', metadata TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE(scan_id,type,value,parent));
 CREATE TABLE IF NOT EXISTS findings (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  scan_id TEXT NOT NULL,
-  severity TEXT NOT NULL,
-  confidence TEXT NOT NULL,
-  asset TEXT NOT NULL,
-  title TEXT NOT NULL,
-  evidence TEXT NOT NULL,
-  remediation TEXT NOT NULL,
-  cwe TEXT NOT NULL DEFAULT '',
-  cve TEXT NOT NULL DEFAULT '',
-  cvss REAL NOT NULL DEFAULT 0.0,
-  epss REAL NOT NULL DEFAULT 0.0,
-  kev INTEGER NOT NULL DEFAULT 0,
-  references_json TEXT NOT NULL DEFAULT '[]',
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+ id INTEGER PRIMARY KEY AUTOINCREMENT, scan_id TEXT NOT NULL, severity TEXT NOT NULL, confidence TEXT NOT NULL,
+ asset TEXT NOT NULL, title TEXT NOT NULL, evidence TEXT NOT NULL, remediation TEXT NOT NULL,
+ cwe TEXT NOT NULL DEFAULT '', cve TEXT NOT NULL DEFAULT '', cvss REAL NOT NULL DEFAULT 0.0,
+ epss REAL NOT NULL DEFAULT 0.0, kev INTEGER NOT NULL DEFAULT 0, references_json TEXT NOT NULL DEFAULT '[]',
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS nvd_cves (
-  cve_id TEXT PRIMARY KEY,
-  cwe_id TEXT NOT NULL DEFAULT '',
-  cvss REAL NOT NULL DEFAULT 0.0,
-  epss REAL NOT NULL DEFAULT 0.0,
-  kev INTEGER NOT NULL DEFAULT 0,
-  description TEXT NOT NULL DEFAULT '',
-  cpe_configurations TEXT NOT NULL DEFAULT '',
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+ cve_id TEXT PRIMARY KEY, cwe_id TEXT NOT NULL DEFAULT '', cvss REAL NOT NULL DEFAULT 0.0,
+ epss REAL NOT NULL DEFAULT 0.0, kev INTEGER NOT NULL DEFAULT 0, description TEXT NOT NULL DEFAULT '',
+ cpe_configurations TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS events (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  scan_id TEXT NOT NULL,
-  type TEXT NOT NULL,
-  target TEXT NOT NULL,
-  data TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+ id INTEGER PRIMARY KEY AUTOINCREMENT, scan_id TEXT NOT NULL, type TEXT NOT NULL, target TEXT NOT NULL,
+ data TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS scan_runs (
-  scan_id TEXT PRIMARY KEY,
-  status TEXT NOT NULL,
-  started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  finished_at TEXT,
-  error TEXT NOT NULL DEFAULT ''
-);
+ scan_id TEXT PRIMARY KEY, status TEXT NOT NULL, started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ finished_at TEXT, error TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS checkpoints (
-  scan_id TEXT NOT NULL,
-  module TEXT NOT NULL,
-  event_type TEXT NOT NULL,
-  target TEXT NOT NULL,
-  status TEXT NOT NULL,
-  error TEXT NOT NULL DEFAULT '',
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY(scan_id, module, event_type, target)
-);`
-	if err := s.Exec(ctx, sql); err != nil {
+ scan_id TEXT NOT NULL, module TEXT NOT NULL, event_type TEXT NOT NULL, target TEXT NOT NULL,
+ status TEXT NOT NULL, error TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ PRIMARY KEY(scan_id,module,event_type,target));`
+	_, err := s.db.ExecContext(ctx, schema)
+	return err
+}
+
+func (s *SQLiteCLI) StartScan(ctx context.Context, scanID string) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO scan_runs(scan_id,status) VALUES(?, 'running')
+ON CONFLICT(scan_id) DO UPDATE SET status='running', error='', finished_at=NULL`, scanID)
+	return err
+}
+
+func (s *SQLiteCLI) FinishScan(ctx context.Context, scanID, status, message string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE scan_runs SET status=?, error=?, finished_at=CURRENT_TIMESTAMP WHERE scan_id=?`, status, message, scanID)
+	return err
+}
+
+func (s *SQLiteCLI) AddAsset(ctx context.Context, asset models.Asset) error {
+	_, err := s.db.ExecContext(ctx, `INSERT OR IGNORE INTO assets(scan_id,type,value,parent,metadata) VALUES(?,?,?,?,?)`, asset.ScanID, asset.Type, asset.Value, asset.Parent, asset.Metadata)
+	return err
+}
+
+func (s *SQLiteCLI) AddFinding(ctx context.Context, finding models.Finding) error {
+	references, err := json.Marshal(finding.References)
+	if err != nil {
 		return err
 	}
-	// Best-effort column additions for legacy SQLite files
-	_ = s.Exec(ctx, "ALTER TABLE findings ADD COLUMN cwe TEXT NOT NULL DEFAULT '';")
-	_ = s.Exec(ctx, "ALTER TABLE findings ADD COLUMN cve TEXT NOT NULL DEFAULT '';")
-	_ = s.Exec(ctx, "ALTER TABLE findings ADD COLUMN cvss REAL NOT NULL DEFAULT 0.0;")
-	_ = s.Exec(ctx, "ALTER TABLE findings ADD COLUMN epss REAL NOT NULL DEFAULT 0.0;")
-	_ = s.Exec(ctx, "ALTER TABLE findings ADD COLUMN kev INTEGER NOT NULL DEFAULT 0;")
-	_ = s.Exec(ctx, "ALTER TABLE findings ADD COLUMN references_json TEXT NOT NULL DEFAULT '[]';")
-	return nil
-}
-
-func (s SQLiteCLI) StartScan(ctx context.Context, scanID string) error {
-	sql := fmt.Sprintf("INSERT INTO scan_runs(scan_id,status) VALUES(%s,'running') ON CONFLICT(scan_id) DO UPDATE SET status='running', error='', finished_at=NULL;",
-		quote(scanID))
-	return s.Exec(ctx, sql)
-}
-
-func (s SQLiteCLI) FinishScan(ctx context.Context, scanID, status, message string) error {
-	sql := fmt.Sprintf("UPDATE scan_runs SET status=%s, error=%s, finished_at=CURRENT_TIMESTAMP WHERE scan_id=%s;",
-		quote(status), quote(message), quote(scanID))
-	return s.Exec(ctx, sql)
-}
-
-func (s SQLiteCLI) AddAsset(ctx context.Context, asset models.Asset) error {
-	sql := fmt.Sprintf("INSERT OR IGNORE INTO assets(scan_id,type,value,parent,metadata) VALUES(%s,%s,%s,%s,%s);",
-		quote(asset.ScanID), quote(asset.Type), quote(asset.Value), quote(asset.Parent), quote(asset.Metadata))
-	return s.Exec(ctx, sql)
-}
-
-func (s SQLiteCLI) AddFinding(ctx context.Context, finding models.Finding) error {
-	refsJSON := "[]"
-	if len(finding.References) > 0 {
-		var parts []string
-		for _, ref := range finding.References {
-			parts = append(parts, quote(ref))
-		}
-		refsJSON = "[" + strings.Join(parts, ",") + "]"
-	}
-	kevInt := 0
+	kev := 0
 	if finding.KEV {
-		kevInt = 1
+		kev = 1
 	}
-	sql := fmt.Sprintf("INSERT INTO findings(scan_id,severity,confidence,asset,title,evidence,remediation,cwe,cve,cvss,epss,kev,references_json) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%f,%f,%d,%s);",
-		quote(finding.ScanID), quote(finding.Severity), quote(finding.Confidence), quote(finding.Asset), quote(finding.Title), quote(finding.Evidence), quote(finding.Remediation),
-		quote(finding.CWE), quote(finding.CVE), finding.CVSS, finding.EPSS, kevInt, quote(refsJSON))
-	return s.Exec(ctx, sql)
+	_, err = s.db.ExecContext(ctx, `INSERT INTO findings(scan_id,severity,confidence,asset,title,evidence,remediation,cwe,cve,cvss,epss,kev,references_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, finding.ScanID, finding.Severity, finding.Confidence, finding.Asset, finding.Title, finding.Evidence, finding.Remediation, finding.CWE, finding.CVE, finding.CVSS, finding.EPSS, kev, string(references))
+	return err
 }
 
-func (s SQLiteCLI) AddEvent(ctx context.Context, event models.Event) (int64, error) {
-	sql := fmt.Sprintf("INSERT INTO events(scan_id,type,target,data) VALUES(%s,%s,%s,%s) RETURNING id;",
-		quote(event.ScanID), quote(event.Type), quote(event.Target), quote(flatten(event.Data)))
-	rows, err := s.query(ctx, sql)
+func (s *SQLiteCLI) AddEvent(ctx context.Context, event models.Event) (int64, error) {
+	result, err := s.db.ExecContext(ctx, `INSERT INTO events(scan_id,type,target,data) VALUES(?,?,?,?)`, event.ScanID, event.Type, event.Target, flatten(event.Data))
 	if err != nil {
 		return 0, err
 	}
-	if len(rows) == 0 || len(rows[0]) == 0 {
-		return 0, nil
-	}
-	id, err := strconv.ParseInt(rows[0][0], 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return id, nil
+	return result.LastInsertId()
 }
 
-func (s SQLiteCLI) CheckpointStatus(ctx context.Context, scanID, module, eventType, target string) (string, error) {
-	rows, err := s.query(ctx, fmt.Sprintf("SELECT status FROM checkpoints WHERE scan_id=%s AND module=%s AND event_type=%s AND target=%s;",
-		quote(scanID), quote(module), quote(eventType), quote(target)))
-	if err != nil {
-		return "", err
-	}
-	if len(rows) == 0 || len(rows[0]) == 0 {
+func (s *SQLiteCLI) CheckpointStatus(ctx context.Context, scanID, module, eventType, target string) (string, error) {
+	var status string
+	err := s.db.QueryRowContext(ctx, `SELECT status FROM checkpoints WHERE scan_id=? AND module=? AND event_type=? AND target=?`, scanID, module, eventType, target).Scan(&status)
+	if err == sql.ErrNoRows {
 		return "", nil
 	}
-	return rows[0][0], nil
+	return status, err
 }
 
-func (s SQLiteCLI) UpsertCheckpoint(ctx context.Context, checkpoint models.Checkpoint) error {
-	sql := fmt.Sprintf(`INSERT INTO checkpoints(scan_id,module,event_type,target,status,error,updated_at)
-VALUES(%s,%s,%s,%s,%s,%s,CURRENT_TIMESTAMP)
-ON CONFLICT(scan_id,module,event_type,target) DO UPDATE SET
-  status=excluded.status,
-  error=excluded.error,
-  updated_at=CURRENT_TIMESTAMP;`,
-		quote(checkpoint.ScanID),
-		quote(checkpoint.Module),
-		quote(checkpoint.EventType),
-		quote(checkpoint.Target),
-		quote(checkpoint.Status),
-		quote(checkpoint.Error))
-	return s.Exec(ctx, sql)
+func (s *SQLiteCLI) UpsertCheckpoint(ctx context.Context, checkpoint models.Checkpoint) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO checkpoints(scan_id,module,event_type,target,status,error,updated_at) VALUES(?,?,?,?,?,?,CURRENT_TIMESTAMP)
+ON CONFLICT(scan_id,module,event_type,target) DO UPDATE SET status=excluded.status,error=excluded.error,updated_at=CURRENT_TIMESTAMP`, checkpoint.ScanID, checkpoint.Module, checkpoint.EventType, checkpoint.Target, checkpoint.Status, checkpoint.Error)
+	return err
 }
 
-func (s SQLiteCLI) Assets(ctx context.Context, scanID string) ([]models.Asset, error) {
-	rows, err := s.query(ctx, fmt.Sprintf("SELECT id,scan_id,type,value,parent,metadata,created_at FROM assets WHERE scan_id=%s ORDER BY type,value;", quote(scanID)))
+func (s *SQLiteCLI) Assets(ctx context.Context, scanID string) ([]models.Asset, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id,scan_id,type,value,parent,metadata,created_at FROM assets WHERE scan_id=? ORDER BY type,value`, scanID)
 	if err != nil {
 		return nil, err
 	}
-	assets := make([]models.Asset, 0, len(rows))
-	for _, row := range rows {
-		if len(row) < 7 {
-			continue
+	defer rows.Close()
+	var assets []models.Asset
+	for rows.Next() {
+		var a models.Asset
+		var created string
+		if err := rows.Scan(&a.ID, &a.ScanID, &a.Type, &a.Value, &a.Parent, &a.Metadata, &created); err != nil {
+			return nil, err
 		}
-		id, _ := strconv.ParseInt(row[0], 10, 64)
-		created := parseSQLiteTime(row[6])
-		assets = append(assets, models.Asset{ID: id, ScanID: row[1], Type: row[2], Value: row[3], Parent: row[4], Metadata: row[5], CreatedAt: created})
+		a.CreatedAt = parseSQLiteTime(created)
+		assets = append(assets, a)
 	}
-	return assets, nil
+	return assets, rows.Err()
 }
 
-func (s SQLiteCLI) Findings(ctx context.Context, scanID string) ([]models.Finding, error) {
-	rows, err := s.query(ctx, fmt.Sprintf("SELECT id,scan_id,severity,confidence,asset,title,evidence,remediation,cwe,cve,cvss,epss,kev,references_json,created_at FROM findings WHERE scan_id=%s ORDER BY cvss DESC, severity, title;", quote(scanID)))
+func (s *SQLiteCLI) Findings(ctx context.Context, scanID string) ([]models.Finding, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id,scan_id,severity,confidence,asset,title,evidence,remediation,cwe,cve,cvss,epss,kev,references_json,created_at FROM findings WHERE scan_id=? ORDER BY cvss DESC,severity,title`, scanID)
 	if err != nil {
 		return nil, err
 	}
-	findings := make([]models.Finding, 0, len(rows))
-	for _, row := range rows {
-		if len(row) < 9 {
-			continue
+	defer rows.Close()
+	var findings []models.Finding
+	for rows.Next() {
+		var f models.Finding
+		var kev int
+		var refs, created string
+		if err := rows.Scan(&f.ID, &f.ScanID, &f.Severity, &f.Confidence, &f.Asset, &f.Title, &f.Evidence, &f.Remediation, &f.CWE, &f.CVE, &f.CVSS, &f.EPSS, &kev, &refs, &created); err != nil {
+			return nil, err
 		}
-		id, _ := strconv.ParseInt(row[0], 10, 64)
-		cwe := ""
-		cve := ""
-		cvss := 0.0
-		epss := 0.0
-		kev := false
-		var refs []string
-		createdAtIdx := 8
-
-		if len(row) >= 15 {
-			cwe = row[8]
-			cve = row[9]
-			cvss, _ = strconv.ParseFloat(row[10], 64)
-			epss, _ = strconv.ParseFloat(row[11], 64)
-			kevInt, _ := strconv.Atoi(row[12])
-			kev = kevInt == 1
-			refs = parseSimpleJSONList(row[13])
-			createdAtIdx = 14
-		}
-
-		created := parseSQLiteTime(row[createdAtIdx])
-		findings = append(findings, models.Finding{
-			ID:          id,
-			ScanID:      row[1],
-			Severity:    row[2],
-			Confidence:  row[3],
-			Asset:       row[4],
-			Title:       row[5],
-			Evidence:    row[6],
-			Remediation: row[7],
-			CWE:         cwe,
-			CVE:         cve,
-			CVSS:        cvss,
-			EPSS:        epss,
-			KEV:         kev,
-			References:  refs,
-			CreatedAt:   created,
-		})
+		f.KEV = kev != 0
+		_ = json.Unmarshal([]byte(refs), &f.References)
+		f.CreatedAt = parseSQLiteTime(created)
+		findings = append(findings, f)
 	}
-	return findings, nil
+	return findings, rows.Err()
 }
 
 func (s *SQLiteCLI) Events(ctx context.Context, scanID string) ([]models.Event, error) {
-	rows, err := s.query(ctx, fmt.Sprintf("SELECT id,scan_id,type,target,data FROM events WHERE scan_id=%s ORDER BY id;", quote(scanID)))
+	rows, err := s.db.QueryContext(ctx, `SELECT id,scan_id,type,target,data FROM events WHERE scan_id=? ORDER BY id`, scanID)
 	if err != nil {
 		return nil, err
 	}
-	events := make([]models.Event, 0, len(rows))
-	for _, row := range rows {
-		if len(row) < 5 {
-			continue
+	defer rows.Close()
+	var events []models.Event
+	for rows.Next() {
+		var e models.Event
+		var data string
+		if err := rows.Scan(&e.ID, &e.ScanID, &e.Type, &e.Target, &data); err != nil {
+			return nil, err
 		}
-		id, _ := strconv.ParseInt(row[0], 10, 64)
-		events = append(events, models.Event{ID: id, ScanID: row[1], Type: row[2], Target: row[3], Data: inflate(row[4])})
+		e.Data = inflate(data)
+		events = append(events, e)
 	}
-	return events, nil
+	return events, rows.Err()
 }
 
-func (s *SQLiteCLI) Exec(ctx context.Context, sql string) error {
-	cmd := exec.CommandContext(ctx, "sqlite3", s.path, sql)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("sqlite3: %w: %s", err, strings.TrimSpace(string(out)))
-	}
-	return nil
-}
-
-func (s *SQLiteCLI) query(ctx context.Context, sql string) ([][]string, error) {
-	cmd := exec.CommandContext(ctx, "sqlite3", "-csv", s.path, sql)
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, err
-	}
-	if strings.TrimSpace(string(out)) == "" {
-		return nil, nil
-	}
-	return csv.NewReader(strings.NewReader(string(out))).ReadAll()
-}
-
-func quote(v string) string {
-	return "'" + strings.ReplaceAll(v, "'", "''") + "'"
+// Exec remains for controlled internal migration/import statements.
+func (s *SQLiteCLI) Exec(ctx context.Context, statement string) error {
+	_, err := s.db.ExecContext(ctx, statement)
+	return err
 }
 
 func flatten(data map[string]string) string {
@@ -302,43 +203,27 @@ func flatten(data map[string]string) string {
 		return ""
 	}
 	parts := make([]string, 0, len(data))
-	for k, v := range data {
-		parts = append(parts, k+"="+v)
+	for key, value := range data {
+		parts = append(parts, key+"="+value)
 	}
 	return strings.Join(parts, ";")
 }
-
 func inflate(raw string) map[string]string {
 	if raw == "" {
 		return nil
 	}
-	out := make(map[string]string)
+	data := map[string]string{}
 	for _, part := range strings.Split(raw, ";") {
-		key, value, ok := strings.Cut(part, "=")
-		if ok {
-			out[key] = value
+		if key, value, ok := strings.Cut(part, "="); ok {
+			data[key] = value
 		}
 	}
-	return out
+	return data
 }
-
-func parseSimpleJSONList(raw string) []string {
-	raw = strings.Trim(raw, "[]")
-	if strings.TrimSpace(raw) == "" {
-		return nil
-	}
-	parts := strings.Split(raw, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		out = append(out, strings.Trim(strings.TrimSpace(p), "'\""))
-	}
-	return out
-}
-
 func parseSQLiteTime(value string) time.Time {
-	for _, layout := range []string{time.RFC3339, "2006-01-02 15:04:05"} {
-		if t, err := time.Parse(layout, value); err == nil {
-			return t
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05"} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed
 		}
 	}
 	return time.Time{}

@@ -5,7 +5,7 @@ scope:
   allowed_targets: ["127.0.0.1", "localhost"]
 
 scheduler:
-  concurrency: 4
+  concurrency: 1
   global_rate_limit_ms: 100
   per_target_rate_limit_ms: 250
   module_timeout_ms: 10000
