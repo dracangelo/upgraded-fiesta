@@ -37,6 +37,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("open store: %v", err)
 	}
+	defer func() { _ = db.Close() }()
 
 	ctx := context.Background()
 	switch flag.Arg(0) {
