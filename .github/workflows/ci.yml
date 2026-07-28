@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.x"
+          check-latest: true
+      - name: Verify deterministic build, tests, and vet
+        run: make verify
+      - name: Vulnerability scan
+        run: make vulncheck
+      - uses: anchore/sbom-action@v0
+        with:
+          artifact-name: enumscan-sbom.cdx.json
+          format: cyclonedx-json
+          output-file: dist/enumscan-sbom.cdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence
+          path: dist/

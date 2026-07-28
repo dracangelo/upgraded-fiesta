@@ -12,32 +12,26 @@ import (
 func Default() models.Config {
 	return models.Config{
 		Database:  models.DatabaseConfig{Path: "data/enumscan.sqlite"},
-		Scheduler: models.SchedulerConfig{Concurrency: 4, GlobalRateLimitMS: 250, PerTargetRateLimitMS: 500, ModuleTimeoutMS: 10000},
-		Discovery: models.DiscoveryConfig{CIDRMaxHosts: 256, EnableReverseDNS: true, EnableWildcardDNS: true},
-		PortScan:  models.PortScanConfig{Profile: "quick", EnableTCP: true, EnableUDP: false, EnableBanner: true, BaseTimeoutMS: 750, MaxTimeoutMS: 3000},
+		Scheduler: models.SchedulerConfig{Concurrency: 1, GlobalRateLimitMS: 500, PerTargetRateLimitMS: 1000, ModuleTimeoutMS: 10000},
+		Discovery: models.DiscoveryConfig{CIDRMaxHosts: 64},
+		PortScan:  models.PortScanConfig{Profile: "quick", EnableTCP: false, EnableUDP: false, EnableBanner: false, BaseTimeoutMS: 750, MaxTimeoutMS: 3000},
 		Scope:     models.ScopeConfig{AllowedTargets: []string{"127.0.0.1", "localhost"}},
 		Scan:      models.ScanConfig{Targets: []string{"127.0.0.1"}},
 		HTTP: models.HTTPConfig{
 			MaxDepth:           1,
 			MaxPagesPerHost:    50,
-			EnableTLS:          true,
-			EnableCrawler:      true,
-			EnableJSAnalysis:   true,
-			EnableAPIDiscovery: true,
-			EnableScreenshots:  true,
+			EnableTLS:          false,
+			EnableCrawler:      false,
+			EnableJSAnalysis:   false,
+			EnableAPIDiscovery: false,
+			EnableScreenshots:  false,
 			APIPaths:           []string{"/openapi.json", "/swagger.json", "/swagger/v1/swagger.json", "/api-docs", "/graphql", "/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo", "/soap?wsdl"},
-			EnableDirectoryAPI: true,
+			EnableDirectoryAPI: false,
 			MaxDirectoryPaths:  80,
-			EnableSecretIntel:  true,
+			EnableSecretIntel:  false,
 		},
 		Specialized: models.SpecializedConfig{
-			EnableSMB:       true,
-			EnableLDAP:      true,
-			EnableSNMP:      true,
-			EnableCloud:     true,
-			EnableContainer: true,
-			EnableDatabase:  true,
-			SNMPCommunities: []string{"public", "private", "community"},
+			SNMPCommunities: []string{},
 		},
 		PassiveIntel: models.PassiveIntelConfig{Enabled: false},
 		Reporting:    models.ReportingConfig{OutputDir: "reports"},
@@ -82,6 +76,12 @@ func Load(path string) (models.Config, error) {
 	if len(cfg.Scan.Targets) == 0 {
 		return cfg, fmt.Errorf("scan.targets must contain at least one target")
 	}
+	if strings.TrimSpace(cfg.Scope.Authorization) == "" {
+		return cfg, fmt.Errorf("scope.authorization must identify the written authorization for this scan")
+	}
+	if strings.HasPrefix(cfg.Scope.Authorization, "REPLACE_") || strings.HasPrefix(cfg.Scope.AllowedTargets[0], "REPLACE_") || strings.HasPrefix(cfg.Scan.Targets[0], "REPLACE_") {
+		return cfg, fmt.Errorf("replace the production-profile authorization and placeholder targets before use")
+	}
 	return cfg, nil
 }
 
@@ -91,6 +91,8 @@ func assign(cfg *models.Config, section, key, value string) error {
 		cfg.Database.Path = value
 	case "scope.allowed_targets":
 		cfg.Scope.AllowedTargets = parseList(value)
+	case "scope.authorization":
+		cfg.Scope.Authorization = value
 	case "scheduler.concurrency":
 		n, err := strconv.Atoi(value)
 		if err != nil {
@@ -179,6 +181,9 @@ func assign(cfg *models.Config, section, key, value string) error {
 		enabled, err := strconv.ParseBool(value)
 		if err != nil {
 			return err
+		}
+		if enabled {
+			return fmt.Errorf("raw SYN scanning is disabled: this build only supports verified TCP connect scanning")
 		}
 		cfg.PortScan.EnableRawSYN = enabled
 	case "portscan.base_timeout_ms":

@@ -21,6 +21,9 @@ type DatabaseConfig struct {
 
 type ScopeConfig struct {
 	AllowedTargets []string
+	// Authorization is an operator-supplied reference to the written approval
+	// for the targets in this configuration (for example, a ticket number).
+	Authorization string
 }
 
 type SchedulerConfig struct {
@@ -104,21 +107,22 @@ type Asset struct {
 }
 
 type Finding struct {
-	ID          int64     `json:"id"`
-	ScanID      string    `json:"scan_id"`
-	Severity    string    `json:"severity"`
-	Confidence  string    `json:"confidence"`
-	Asset       string    `json:"asset"`
-	Title       string    `json:"title"`
-	Evidence    string    `json:"evidence"`
-	Remediation string    `json:"remediation"`
-	CWE         string    `json:"cwe,omitempty"`
-	CVE         string    `json:"cve,omitempty"`
-	CVSS        float64   `json:"cvss,omitempty"`
-	EPSS        float64   `json:"epss,omitempty"`
-	KEV         bool      `json:"kev,omitempty"`
-	References  []string  `json:"references,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID           int64     `json:"id"`
+	ScanID       string    `json:"scan_id"`
+	Severity     string    `json:"severity"`
+	Confidence   string    `json:"confidence"`
+	Verification string    `json:"verification,omitempty"`
+	Asset        string    `json:"asset"`
+	Title        string    `json:"title"`
+	Evidence     string    `json:"evidence"`
+	Remediation  string    `json:"remediation"`
+	CWE          string    `json:"cwe,omitempty"`
+	CVE          string    `json:"cve,omitempty"`
+	CVSS         float64   `json:"cvss,omitempty"`
+	EPSS         float64   `json:"epss,omitempty"`
+	KEV          bool      `json:"kev,omitempty"`
+	References   []string  `json:"references,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 type Event struct {
@@ -136,4 +140,25 @@ type Checkpoint struct {
 	Target    string
 	Status    string
 	Error     string
+}
+
+// ModuleRun is an auditable, structured outcome for one module invocation.
+// It deliberately records an error separately from scan findings so transport,
+// parsing, and storage failures cannot be mistaken for an empty result.
+type ModuleRun struct {
+	ScanID    string        `json:"scan_id"`
+	Module    string        `json:"module"`
+	EventType string        `json:"event_type"`
+	Target    string        `json:"target"`
+	Status    string        `json:"status"`
+	Duration  time.Duration `json:"duration"`
+	Error     string        `json:"error,omitempty"`
+}
+
+type ScanHealth struct {
+	ScanID        string `json:"scan_id"`
+	Status        string `json:"status"`
+	CompletedRuns int    `json:"completed_runs"`
+	FailedRuns    int    `json:"failed_runs"`
+	Healthy       bool   `json:"healthy"`
 }

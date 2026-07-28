@@ -39,37 +39,29 @@ func (m *BrowserScreenshotRenderer) Handle(ctx context.Context, evt models.Event
 	if !m.guard.Allowed(evt.Target) {
 		return nil, nil
 	}
-
-	shotPath := fmt.Sprintf("/tmp/shots/%x.png", sha256.Sum256([]byte(evt.Target)))
-	_ = m.db.AddAsset(ctx, models.Asset{
-		ScanID:   evt.ScanID,
-		Type:     "web_screenshot",
-		Value:    fmt.Sprintf("%s -> %s", evt.Target, shotPath),
-		Parent:   evt.Target,
-		Metadata: "resolution=1920x1080 engine=headless_chrome",
-	})
-
+	// Intentionally no synthetic screenshot asset: a renderer must write and
+	// verify a real image before this module may report one.
 	return nil, nil
 }
 
-type HTTP23Fingerprinter struct {
+type HTTP2Fingerprinter struct {
 	db    *store.SQLiteCLI
 	guard scope.Guard
 }
 
-func NewHTTP23Fingerprinter(db *store.SQLiteCLI, guard scope.Guard) *HTTP23Fingerprinter {
-	return &HTTP23Fingerprinter{db: db, guard: guard}
+func NewHTTP2Fingerprinter(db *store.SQLiteCLI, guard scope.Guard) *HTTP2Fingerprinter {
+	return &HTTP2Fingerprinter{db: db, guard: guard}
 }
 
-func (m *HTTP23Fingerprinter) Name() string {
-	return "http23_fingerprinter"
+func (m *HTTP2Fingerprinter) Name() string {
+	return "http2_fingerprinter"
 }
 
-func (m *HTTP23Fingerprinter) Subscriptions() []string {
+func (m *HTTP2Fingerprinter) Subscriptions() []string {
 	return []string{"port.open"}
 }
 
-func (m *HTTP23Fingerprinter) Handle(ctx context.Context, evt models.Event) ([]models.Event, error) {
+func (m *HTTP2Fingerprinter) Handle(ctx context.Context, evt models.Event) ([]models.Event, error) {
 	if !strings.HasSuffix(evt.Target, ":443") && !strings.HasSuffix(evt.Target, ":8443") {
 		return nil, nil
 	}
@@ -83,9 +75,10 @@ func (m *HTTP23Fingerprinter) Handle(ctx context.Context, evt models.Event) ([]m
 		return nil, nil
 	}
 
-	// ALPN Protocol Negotiation for HTTP/2 (h2) and HTTP/3 (h3)
+	// HTTP/3 requires QUIC/UDP. This TLS-over-TCP probe verifies only HTTP/2
+	// and HTTP/1.1 ALPN negotiation.
 	config := &tls.Config{
-		NextProtos:         []string{"h3", "h2", "http/1.1"},
+		NextProtos:         []string{"h2", "http/1.1"},
 		InsecureSkipVerify: true,
 	}
 
@@ -109,6 +102,12 @@ func (m *HTTP23Fingerprinter) Handle(ctx context.Context, evt models.Event) ([]m
 	})
 
 	return nil, nil
+}
+
+// NewHTTP23Fingerprinter is retained as a source-compatible alias. It no
+// longer advertises or records HTTP/3 support.
+func NewHTTP23Fingerprinter(db *store.SQLiteCLI, guard scope.Guard) *HTTP2Fingerprinter {
+	return NewHTTP2Fingerprinter(db, guard)
 }
 
 type FaviconFingerprinter struct {

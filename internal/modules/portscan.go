@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -54,9 +53,6 @@ func (p PortScan) Handle(ctx context.Context, event models.Event) ([]models.Even
 		return nil, nil
 	}
 	next := make([]models.Event, 0)
-	if p.config.EnableRawSYN {
-		p.recordRawSYNCapability(ctx, event.ScanID, event.Target)
-	}
 	timing := scanTiming{
 		timeout: time.Duration(p.config.BaseTimeoutMS) * time.Millisecond,
 		max:     time.Duration(p.config.MaxTimeoutMS) * time.Millisecond,
@@ -130,20 +126,6 @@ func (p PortScan) scanUDP(ctx context.Context, event models.Event, timing *scanT
 		next = append(next, models.Event{ScanID: event.ScanID, Type: EventPort, Target: address, Data: map[string]string{"port": strconv.Itoa(port), "protocol": "udp", "response": response}})
 	}
 	return next
-}
-
-func (p PortScan) recordRawSYNCapability(ctx context.Context, scanID, target string) {
-	status := "unavailable"
-	if os.Geteuid() == 0 {
-		status = "privileged_raw_socket_possible"
-	}
-	_ = p.db.AddAsset(ctx, models.Asset{
-		ScanID:   scanID,
-		Type:     "scan_capability",
-		Value:    "raw_syn",
-		Parent:   target,
-		Metadata: "status=" + status + ";note=dependency_free_scaffold_uses_tcp_connect_scan",
-	})
 }
 
 func (t *scanTiming) observe(success bool, latency time.Duration) {

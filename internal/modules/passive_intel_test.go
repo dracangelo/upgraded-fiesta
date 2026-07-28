@@ -31,3 +31,12 @@ func TestPassiveSourceCredentialGate(t *testing.T) {
 		t.Fatal("Shodan request must be disabled without a credential")
 	}
 }
+
+func TestPassiveResponseValidation(t *testing.T) {
+	if !validPassiveResponse("wayback", []byte(`[["url"],["https://example.test"]]`)) {
+		t.Fatal("expected JSON response to validate")
+	}
+	if validPassiveResponse("virustotal", []byte(`<html>rate limit</html>`)) {
+		t.Fatal("HTML error response must be rejected")
+	}
+}

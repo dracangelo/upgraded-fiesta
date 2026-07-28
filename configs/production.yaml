@@ -1,0 +1,70 @@
+# Production profile: replace both the authorization reference and target before use.
+# This profile performs only a conservative TCP connect scan of explicitly authorized
+# assets. All credentialed, cloud, container, UDP, directory, and third-party checks
+# remain off until an authorized operator changes their individual opt-in values.
+database:
+  path: "data/enumscan-production.sqlite"
+
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+
+scheduler:
+  concurrency: 1
+  global_rate_limit_ms: 1000
+  per_target_rate_limit_ms: 1500
+  module_timeout_ms: 10000
+
+discovery:
+  cidr_max_hosts: 64
+  enable_reverse_dns: false
+  enable_wildcard_dns: false
+  enable_rdap: false
+  passive_dns_files: []
+  certificate_transparency_files: []
+
+portscan:
+  profile: "authorized-conservative"
+  tcp_ports: [80, 443]
+  udp_ports: []
+  enable_tcp: true
+  enable_udp: false
+  enable_banner: false
+  enable_raw_syn: false
+  base_timeout_ms: 1000
+  max_timeout_ms: 3000
+
+http:
+  max_depth: 0
+  max_pages_per_host: 1
+  enable_tls: false
+  enable_crawler: false
+  enable_js_analysis: false
+  enable_api_discovery: false
+  enable_screenshots: false
+  enable_directory_api: false
+  enable_secret_intelligence: false
+  max_directory_paths: 0
+  directory_wordlist: []
+  api_paths: []
+
+specialized:
+  enable_smb: false
+  enable_ldap: false
+  enable_snmp: false
+  enable_cloud: false
+  enable_container: false
+  enable_database: false
+  snmp_communities: []
+
+passive_intel:
+  enabled: false
+  sources: []
+
+scan:
+  profile: "authorized-conservative"
+  targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+  ports: [80, 443]
+
+reporting:
+  output_dir: "reports"

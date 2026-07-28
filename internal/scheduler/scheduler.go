@@ -90,6 +90,7 @@ func (s *Scheduler) worker(ctx context.Context, db *store.SQLiteCLI, errs chan<-
 		if event.ID == 0 {
 			eventID, err := db.AddEvent(ctx, event)
 			if err != nil {
+				s.recordRun(ctx, db, event, "event_store", "failed", 0, err)
 				select {
 				case errs <- err:
 				default:
@@ -108,6 +109,7 @@ func (s *Scheduler) worker(ctx context.Context, db *store.SQLiteCLI, errs chan<-
 				)
 				status, err := db.CheckpointStatus(ctx, event.ScanID, module.Name(), event.Type, event.Target)
 				if err != nil {
+					s.recordRun(ctx, db, event, module.Name(), "failed", 0, err)
 					select {
 					case errs <- err:
 					default:
@@ -119,6 +121,7 @@ func (s *Scheduler) worker(ctx context.Context, db *store.SQLiteCLI, errs chan<-
 					continue
 				}
 				if err := db.UpsertCheckpoint(ctx, models.Checkpoint{ScanID: event.ScanID, Module: module.Name(), EventType: event.Type, Target: event.Target, Status: "running"}); err != nil {
+					s.recordRun(ctx, db, event, module.Name(), "failed", 0, err)
 					select {
 					case errs <- err:
 					default:
@@ -128,10 +131,13 @@ func (s *Scheduler) worker(ctx context.Context, db *store.SQLiteCLI, errs chan<-
 				s.limiter.Wait(ctx, event.Target)
 				moduleCtx, cancel := context.WithTimeout(ctx, s.moduleTimeout)
 				moduleLog.Info("module started")
+				started := time.Now()
 				next, err := module.Handle(moduleCtx, event)
+				duration := time.Since(started)
 				cancel()
 				if err != nil {
 					_ = db.UpsertCheckpoint(ctx, models.Checkpoint{ScanID: event.ScanID, Module: module.Name(), EventType: event.Type, Target: event.Target, Status: "failed", Error: err.Error()})
+					s.recordRun(ctx, db, event, module.Name(), "failed", duration, err)
 					moduleLog.Error("module failed", "error", err.Error())
 					select {
 					case errs <- err:
@@ -140,6 +146,7 @@ func (s *Scheduler) worker(ctx context.Context, db *store.SQLiteCLI, errs chan<-
 					continue
 				}
 				_ = db.UpsertCheckpoint(ctx, models.Checkpoint{ScanID: event.ScanID, Module: module.Name(), EventType: event.Type, Target: event.Target, Status: "completed"})
+				s.recordRun(ctx, db, event, module.Name(), "completed", duration, nil)
 				moduleLog.Info("module completed", "new_events", len(next))
 				for _, item := range next {
 					s.Enqueue(item)
@@ -153,6 +160,16 @@ func (s *Scheduler) worker(ctx context.Context, db *store.SQLiteCLI, errs chan<-
 			}
 		}
 		s.wg.Done()
+	}
+}
+
+func (s *Scheduler) recordRun(ctx context.Context, db *store.SQLiteCLI, event models.Event, module, status string, duration time.Duration, runErr error) {
+	message := ""
+	if runErr != nil {
+		message = runErr.Error()
+	}
+	if err := db.RecordModuleRun(ctx, models.ModuleRun{ScanID: event.ScanID, Module: module, EventType: event.Type, Target: event.Target, Status: status, Duration: duration, Error: message}); err != nil {
+		s.logger.Error("record module outcome", "scan_id", event.ScanID, "module", module, "error", err)
 	}
 }
 

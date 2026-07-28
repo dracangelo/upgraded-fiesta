@@ -26,7 +26,7 @@ func (h *HTTP) recordSecretIntelligence(ctx context.Context, scanID, target, bod
 		metadata := fmt.Sprintf("kind=%s;risk=%s;validated=%t;fingerprint=%s", match.Kind, match.Risk, match.Validated, match.Redacted)
 		_ = h.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "secret_exposure", Value: match.Kind + ":" + match.Redacted, Parent: target, Metadata: metadata})
 		_ = h.db.AddFinding(ctx, models.Finding{
-			ScanID: scanID, Severity: match.Risk, Confidence: match.Confidence, Asset: target,
+			ScanID: scanID, Severity: match.Risk, Confidence: match.Confidence, Verification: "heuristic", Asset: target,
 			Title:       "Potential " + secretTitle(match.Kind) + " exposed",
 			Evidence:    "Redacted fingerprint " + match.Redacted + "; local format validation=" + fmt.Sprint(match.Validated),
 			Remediation: "Remove the credential from client-accessible content, rotate it, and use a server-side secret manager.",

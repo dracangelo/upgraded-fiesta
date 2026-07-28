@@ -2,6 +2,7 @@ package modules
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -34,8 +35,8 @@ func TestRawTCPScannerTechniques(t *testing.T) {
 			Type:   "host.discovered",
 			Target: "127.0.0.1",
 		})
-		if err != nil {
-			t.Errorf("technique %s error: %v", tech, err)
+		if !errors.Is(err, ErrRawTCPUnavailable) {
+			t.Errorf("technique %s should be disabled, got: %v", tech, err)
 		}
 	}
 }

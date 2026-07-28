@@ -7,8 +7,8 @@ import (
 )
 
 type Migration struct {
-	Version     int
-	Name        string
+	Version      int
+	Name         string
 	SQLStatement string
 }
 
@@ -55,6 +55,35 @@ CREATE TABLE IF NOT EXISTS checkpoints (
 CREATE INDEX IF NOT EXISTS idx_assets_scan_type ON assets(scan_id, type);
 CREATE INDEX IF NOT EXISTS idx_findings_scan_severity ON findings(scan_id, cvss DESC, severity);
 CREATE INDEX IF NOT EXISTS idx_events_scan_id ON events(scan_id);
+`,
+	},
+	{
+		Version: 3,
+		Name:    "intelligence_quality_controls",
+		SQLStatement: `
+ALTER TABLE findings ADD COLUMN verification TEXT NOT NULL DEFAULT 'confirmed';
+CREATE TABLE IF NOT EXISTS intelligence_feeds (
+ source TEXT PRIMARY KEY, version TEXT NOT NULL, provenance TEXT NOT NULL, checksum TEXT NOT NULL,
+ fetched_at TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS finding_suppressions (
+ fingerprint TEXT PRIMARY KEY, reason TEXT NOT NULL, expires_at TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS evidence_records (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, scan_id TEXT NOT NULL, finding_fingerprint TEXT NOT NULL,
+ sha256 TEXT NOT NULL, classification TEXT NOT NULL, retained_until TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE(scan_id, finding_fingerprint, sha256));
+CREATE INDEX IF NOT EXISTS idx_evidence_scan ON evidence_records(scan_id);
+`,
+	},
+	{
+		Version: 4,
+		Name:    "operational_observability",
+		SQLStatement: `
+CREATE TABLE IF NOT EXISTS module_runs (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, scan_id TEXT NOT NULL, module TEXT NOT NULL,
+ event_type TEXT NOT NULL, target TEXT NOT NULL, status TEXT NOT NULL,
+ duration_ms INTEGER NOT NULL DEFAULT 0, error TEXT NOT NULL DEFAULT '',
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX IF NOT EXISTS idx_module_runs_scan_status ON module_runs(scan_id, status);
 `,
 	},
 }

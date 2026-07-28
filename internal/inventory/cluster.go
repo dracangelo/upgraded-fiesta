@@ -1,16 +1,17 @@
 package inventory
 
 import (
+	"net"
 	"strings"
 
 	"enumscan/internal/models"
 )
 
 type HostCluster struct {
-	ID         string   `json:"id"`
-	Name       string   `json:"name"`
-	ClusterType string  `json:"cluster_type"`
-	Members    []string `json:"members"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	ClusterType string   `json:"cluster_type"`
+	Members     []string `json:"members"`
 }
 
 type HostClusterer struct{}
@@ -23,16 +24,14 @@ func (hc *HostClusterer) ClusterAssets(assets []models.InventoryAsset) []HostClu
 	clusters := make(map[string][]string)
 
 	for _, a := range assets {
-		key := "subnet:other"
-		if strings.Contains(a.Value, ".") {
+		key := "asset:other"
+		if ip := net.ParseIP(a.Value); ip != nil && ip.To4() != nil {
 			parts := strings.Split(a.Value, ".")
-			if len(parts) == 4 {
-				key = "subnet:" + parts[0] + "." + parts[1] + "." + parts[2] + ".0/24"
-			}
-		} else if strings.Contains(a.Value, ":") {
+			key = "subnet:" + parts[0] + "." + parts[1] + "." + parts[2] + ".0/24"
+		} else if ip := net.ParseIP(a.Value); ip != nil && ip.To4() == nil {
 			key = "subnet:ipv6_group"
-		} else if strings.Contains(a.Value, "example.com") {
-			key = "domain:example.com"
+		} else if domain := registrableDomain(a.Value); domain != "" {
+			key = "domain:" + domain
 		}
 
 		clusters[key] = append(clusters[key], a.Value)
@@ -51,4 +50,12 @@ func (hc *HostClusterer) ClusterAssets(assets []models.InventoryAsset) []HostClu
 		})
 	}
 	return result
+}
+
+func registrableDomain(value string) string {
+	labels := strings.Split(strings.ToLower(strings.TrimSuffix(value, ".")), ".")
+	if len(labels) < 2 {
+		return ""
+	}
+	return labels[len(labels)-2] + "." + labels[len(labels)-1]
 }

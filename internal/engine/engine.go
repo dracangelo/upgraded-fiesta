@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"enumscan/internal/logging"
@@ -52,7 +53,6 @@ func (e Engine) Run(ctx context.Context, scanID string) error {
 		portScanConfig.TCPPorts = e.cfg.Scan.Ports
 	}
 	queue.Register(modules.NewPortScan(e.db, e.guard, portScanConfig))
-	queue.Register(modules.NewRawTCPScanner(e.db, e.guard, modules.ScanSYN))
 	queue.Register(modules.NewServiceFingerprint(e.db, e.guard))
 	queue.Register(modules.NewKerberosADFingerprint(e.db, e.guard))
 	queue.Register(modules.NewSNMPWalkFingerprint(e.db, e.guard))
@@ -62,8 +62,7 @@ func (e Engine) Run(ctx context.Context, scanID string) error {
 	if e.cfg.HTTP.EnableDirectoryAPI {
 		queue.Register(modules.NewDirectoryAPIEnumerator(e.db, e.guard, e.cfg.HTTP))
 	}
-	queue.Register(modules.NewBrowserScreenshotRenderer(e.db, e.guard))
-	queue.Register(modules.NewHTTP23Fingerprinter(e.db, e.guard))
+	queue.Register(modules.NewHTTP2Fingerprinter(e.db, e.guard))
 	queue.Register(modules.NewFaviconFingerprinter(e.db, e.guard))
 	queue.Register(modules.NewWasmAndSPADiscovery(e.db, e.guard))
 	queue.Register(modules.NewCMSEnumerator(e.db, e.guard))
@@ -94,7 +93,23 @@ func (e Engine) Run(ctx context.Context, scanID string) error {
 	}
 	if err := queue.Run(ctx, e.db); err != nil {
 		_ = e.db.FinishScan(ctx, scanID, "failed", err.Error())
+		slog.Error("scan failed; operator attention required", "scan_id", scanID, "error", err)
 		return err
 	}
-	return e.db.FinishScan(ctx, scanID, "completed", "")
+	if err := e.db.FinishScan(ctx, scanID, "completed", ""); err != nil {
+		slog.Error("scan completion could not be persisted; operator attention required", "scan_id", scanID, "error", err)
+		return err
+	}
+	health, err := e.db.ScanHealth(ctx, scanID)
+	if err != nil {
+		slog.Error("scan health unavailable; operator attention required", "scan_id", scanID, "error", err)
+		return err
+	}
+	if !health.Healthy {
+		err := fmt.Errorf("scan %s completed with %d failed module runs", scanID, health.FailedRuns)
+		_ = e.db.FinishScan(ctx, scanID, "failed", err.Error())
+		slog.Error("scan incomplete; operator attention required", "scan_id", scanID, "failed_module_runs", health.FailedRuns)
+		return err
+	}
+	return nil
 }

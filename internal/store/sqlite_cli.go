@@ -24,7 +24,7 @@ type SQLiteCLI struct {
 }
 
 func OpenSQLiteCLI(path string) (*SQLiteCLI, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return nil, err
 	}
 	dsn := "file:" + path + "?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)"
@@ -39,6 +39,12 @@ func OpenSQLiteCLI(path string) (*SQLiteCLI, error) {
 	if err := db.Ping(); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("ping SQLite database: %w", err)
+	}
+	// Scan state is confidential. This complements (but does not replace) the
+	// encrypted-volume requirement documented in DATA_HANDLING.md.
+	if err := os.Chmod(path, 0600); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("restrict SQLite database permissions: %w", err)
 	}
 	return &SQLiteCLI{path: path, db: db}, nil
 }
@@ -89,7 +95,11 @@ func (s *SQLiteCLI) AddFinding(ctx context.Context, finding models.Finding) erro
 	if finding.KEV {
 		kev = 1
 	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO findings(scan_id,severity,confidence,asset,title,evidence,remediation,cwe,cve,cvss,epss,kev,references_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, finding.ScanID, finding.Severity, finding.Confidence, finding.Asset, finding.Title, finding.Evidence, finding.Remediation, finding.CWE, finding.CVE, finding.CVSS, finding.EPSS, kev, string(references))
+	verification := finding.Verification
+	if verification == "" {
+		verification = "confirmed"
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO findings(scan_id,severity,confidence,verification,asset,title,evidence,remediation,cwe,cve,cvss,epss,kev,references_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, finding.ScanID, finding.Severity, finding.Confidence, verification, finding.Asset, finding.Title, finding.Evidence, finding.Remediation, finding.CWE, finding.CVE, finding.CVSS, finding.EPSS, kev, string(references))
 	return err
 }
 
@@ -136,7 +146,7 @@ func (s *SQLiteCLI) Assets(ctx context.Context, scanID string) ([]models.Asset, 
 }
 
 func (s *SQLiteCLI) Findings(ctx context.Context, scanID string) ([]models.Finding, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,scan_id,severity,confidence,asset,title,evidence,remediation,cwe,cve,cvss,epss,kev,references_json,created_at FROM findings WHERE scan_id=? ORDER BY cvss DESC,severity,title`, scanID)
+	rows, err := s.db.QueryContext(ctx, `SELECT id,scan_id,severity,confidence,verification,asset,title,evidence,remediation,cwe,cve,cvss,epss,kev,references_json,created_at FROM findings WHERE scan_id=? ORDER BY cvss DESC,severity,title`, scanID)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +156,7 @@ func (s *SQLiteCLI) Findings(ctx context.Context, scanID string) ([]models.Findi
 		var f models.Finding
 		var kev int
 		var refs, created string
-		if err := rows.Scan(&f.ID, &f.ScanID, &f.Severity, &f.Confidence, &f.Asset, &f.Title, &f.Evidence, &f.Remediation, &f.CWE, &f.CVE, &f.CVSS, &f.EPSS, &kev, &refs, &created); err != nil {
+		if err := rows.Scan(&f.ID, &f.ScanID, &f.Severity, &f.Confidence, &f.Verification, &f.Asset, &f.Title, &f.Evidence, &f.Remediation, &f.CWE, &f.CVE, &f.CVSS, &f.EPSS, &kev, &refs, &created); err != nil {
 			return nil, err
 		}
 		f.KEV = kev != 0

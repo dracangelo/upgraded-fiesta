@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -41,20 +42,9 @@ func TestPriorityQueueAndAdaptivePool(t *testing.T) {
 func TestCoordinatorAndRemoteAgent(t *testing.T) {
 	coord := NewCoordinator()
 	agent := NewRemoteAgent("agent-01", coord)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		_ = agent.Run(ctx)
-	}()
-
-	time.Sleep(50 * time.Millisecond)
-	if coord.AgentCount() != 1 {
-		t.Errorf("expected 1 registered agent, got %d", coord.AgentCount())
+	if err := agent.Run(context.Background()); !errors.Is(err, ErrRemoteAgentUnavailable) {
+		t.Fatalf("remote agent must be explicitly disabled, got %v", err)
 	}
-
-	coord.Dispatch(models.Event{ScanID: "scan-dist", Type: "port.open", Target: "127.0.0.1:80"})
-	time.Sleep(150 * time.Millisecond)
-	cancel()
 }
 
 func TestEventDeduplicationAndCache(t *testing.T) {

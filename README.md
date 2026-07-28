@@ -40,6 +40,7 @@ plugins              Plugin examples and future SDK surface
 - SQLite uses a native Go driver with WAL mode, a busy timeout, and serialized pooled writes for reliable concurrent scan persistence.
 - YAML support is intentionally constrained to the project config/template shapes in `configs/` and `templates/`.
 - Port scanning supports quick, standard, and exhaustive profiles; explicit TCP/UDP port overrides; TCP banner grabbing; UDP response probes; and adaptive timeouts.
+- Production builds expose verified TCP connect scanning only; raw-packet scan techniques are intentionally disabled pending a real packet implementation.
 - Service fingerprinting normalizes open-port evidence into `service`, `service_version`, and `cpe_candidate` assets for later vulnerability correlation.
 - Raw SYN packet scanning, advanced TLS tests, AD/SMB enumeration, and vulnerability correlation are planned in `todo.md`.
 
@@ -67,7 +68,7 @@ The `service_fingerprint` module subscribes to open-port events and combines por
 
 ## HTTP, TLS, and Crawling
 
-The HTTP module records response metadata, security-header findings, TLS certificates, SANs, supported TLS versions, negotiated ciphers, robots.txt and sitemap URLs, scoped crawl links, JavaScript endpoints, potential client-side secret hints, API discovery hits, and screenshot targets. Screenshot targets are queued as assets until a browser renderer such as Playwright or Chromedp is added.
+The HTTP module records response metadata, security-header findings, TLS certificates, SANs, supported TLS versions, negotiated ciphers, robots.txt and sitemap URLs, scoped crawl links, JavaScript endpoints, potential client-side secret hints, API discovery hits, and screenshot targets. Screenshot targets are queued as assets until a real browser renderer is added; no synthetic screenshot files are recorded as captures.
 
 ## Directory and API Enumeration
 
@@ -87,7 +88,11 @@ HTTP content can be scanned for AWS, Azure, GCP, JWT, generic API, and private-k
 
 ## Vulnerability Prioritization
 
-Run `analyze-vulnerabilities <scan-id>` after importing vulnerability reports. It correlates locally maintained KEV, EPSS, and public-exploit indicators, records a priority asset for every CVE finding, and applies built-in misconfiguration rules to discovered assets. Original findings are preserved unchanged for auditability.
+Run `analyze-vulnerabilities <scan-id>` after importing vulnerability reports and current intelligence feeds. It correlates feed-provided KEV, EPSS, and public-exploit indicators, records a priority asset for every CVE finding, and applies built-in misconfiguration rules to discovered assets. Original findings are preserved unchanged for auditability.
+
+## Intelligence Quality Controls
+
+NVD imports accept `-version` and `-provenance` and record a checksum and fetch time for feed traceability. Heuristic findings are explicitly labeled in reports, while reviewed false positives can be suppressed through the `vulnerability.ReviewWorkflow` API using a stable finding fingerprint. Secret evidence is retained only as redacted findings and evidence hashes; the scanner never validates credentials against external services.
 
 ## Evidence Correlation
 

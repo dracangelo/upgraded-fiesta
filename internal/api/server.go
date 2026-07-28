@@ -147,10 +147,23 @@ func (s *Server) auditLoggerMiddleware(next http.Handler) http.Handler {
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]string{
-		"status":    "ok",
-		"timestamp": time.Now().Format(time.RFC3339),
-	})
+	if err := s.db.Ping(r.Context()); err != nil {
+		http.Error(w, `{"status":"unhealthy","error":"database unavailable"}`, http.StatusServiceUnavailable)
+		return
+	}
+	response := map[string]any{"status": "ok", "timestamp": time.Now().UTC().Format(time.RFC3339)}
+	if scanID := r.URL.Query().Get("scan_id"); scanID != "" {
+		health, err := s.db.ScanHealth(r.Context(), scanID)
+		if err != nil {
+			http.Error(w, `{"status":"unhealthy","error":"scan health unavailable"}`, http.StatusServiceUnavailable)
+			return
+		}
+		response["scan"] = health
+		if !health.Healthy {
+			response["status"] = "degraded"
+		}
+	}
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func (s *Server) handleScans(w http.ResponseWriter, r *http.Request) {

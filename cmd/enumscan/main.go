@@ -109,6 +109,8 @@ func main() {
 	case "import-nvd":
 		importFlags := flag.NewFlagSet("import-nvd", flag.ExitOnError)
 		file := importFlags.String("file", "", "path to NVD CVE JSON feed file")
+		version := importFlags.String("version", "", "feed version or release timestamp")
+		provenance := importFlags.String("provenance", "operator-provided NVD feed", "feed source/provenance")
 		_ = importFlags.Parse(flag.Args()[1:])
 		if *file == "" {
 			log.Fatal("import-nvd requires -file <path>")
@@ -119,7 +121,7 @@ func main() {
 		}
 		defer f.Close()
 		importer := vulnerability.NewNVDImporter(db)
-		count, err := importer.ImportJSON(ctx, f)
+		count, err := importer.ImportJSONWithMetadata(ctx, f, store.FeedMetadata{Source: "nvd", Version: *version, Provenance: *provenance, FetchedAt: time.Now().UTC()})
 		if err != nil {
 			log.Fatalf("import NVD feed: %v", err)
 		}

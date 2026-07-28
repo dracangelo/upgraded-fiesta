@@ -3,6 +3,7 @@ database:
 
 scope:
   allowed_targets: ["127.0.0.1", "localhost"]
+  authorization: "LOCAL-DEVELOPMENT-ONLY"
 
 scheduler:
   concurrency: 1

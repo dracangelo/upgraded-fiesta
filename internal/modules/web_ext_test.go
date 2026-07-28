@@ -29,8 +29,8 @@ func TestBrowserScreenshotAndALPN(t *testing.T) {
 		Target: "http://example.com/index.html",
 	})
 
-	h23Mod := NewHTTP23Fingerprinter(db, guard)
-	if h23Mod.Name() != "http23_fingerprinter" {
+	h23Mod := NewHTTP2Fingerprinter(db, guard)
+	if h23Mod.Name() != "http2_fingerprinter" {
 		t.Errorf("unexpected name: %s", h23Mod.Name())
 	}
 }

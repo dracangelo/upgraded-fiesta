@@ -19,7 +19,7 @@ type report struct {
 }
 
 func Write(ctx context.Context, db *store.SQLiteCLI, scanID, format, outputDir string) (string, error) {
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		return "", err
 	}
 	assets, err := db.Assets(ctx, scanID)
@@ -38,34 +38,34 @@ func Write(ctx context.Context, db *store.SQLiteCLI, scanID, format, outputDir s
 		if err != nil {
 			return "", err
 		}
-		return path, os.WriteFile(path, data, 0644)
+		return path, os.WriteFile(path, data, 0600)
 	case "markdown", "md":
 		path := filepath.Join(outputDir, scanID+".md")
-		return path, os.WriteFile(path, []byte(markdown(r)), 0644)
+		return path, os.WriteFile(path, []byte(markdown(r)), 0600)
 	case "html":
 		path := filepath.Join(outputDir, scanID+".html")
-		return path, os.WriteFile(path, []byte(ExportHTML(r)), 0644)
+		return path, os.WriteFile(path, []byte(ExportHTML(r)), 0600)
 	case "pdf":
 		path := filepath.Join(outputDir, scanID+".pdf")
-		return path, os.WriteFile(path, ExportPDFText(r), 0644)
+		return path, os.WriteFile(path, ExportPDFText(r), 0600)
 	case "sarif":
 		path := filepath.Join(outputDir, scanID+".sarif")
 		data, err := ExportSARIF(r)
 		if err != nil {
 			return "", err
 		}
-		return path, os.WriteFile(path, data, 0644)
+		return path, os.WriteFile(path, data, 0600)
 	case "neo4j", "cypher":
 		path := filepath.Join(outputDir, scanID+".cypher")
 		cypherText := ExportNeo4jCypher(r)
-		return path, os.WriteFile(path, []byte(cypherText), 0644)
+		return path, os.WriteFile(path, []byte(cypherText), 0600)
 	case "neo4j-json":
 		path := filepath.Join(outputDir, scanID+".neo4j.json")
 		data, err := ExportNeo4jJSON(r)
 		if err != nil {
 			return "", err
 		}
-		return path, os.WriteFile(path, data, 0644)
+		return path, os.WriteFile(path, data, 0600)
 	default:
 		return "", fmt.Errorf("unsupported report format %q", format)
 	}
@@ -80,7 +80,11 @@ func markdown(r report) string {
 	}
 	for _, f := range r.Findings {
 		fmt.Fprintf(&b, "### %s\n\n", f.Title)
-		fmt.Fprintf(&b, "- Severity: %s\n- Confidence: %s\n- Asset: `%s`\n", f.Severity, f.Confidence, f.Asset)
+		verification := f.Verification
+		if verification == "" {
+			verification = "confirmed"
+		}
+		fmt.Fprintf(&b, "- Severity: %s\n- Confidence: %s\n- Verification: %s\n- Asset: `%s`\n", f.Severity, f.Confidence, verification, f.Asset)
 		if f.CVE != "" {
 			fmt.Fprintf(&b, "- CVE: %s\n", f.CVE)
 		}

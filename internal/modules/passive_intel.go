@@ -3,6 +3,8 @@ package modules
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -53,13 +55,13 @@ func (m *PassiveIntel) Handle(ctx context.Context, event models.Event) ([]models
 		if !ok {
 			continue // source is not credentialed/configured
 		}
-		resp, err := m.client.Do(req)
+		resp, err := m.doWithRetry(ctx, req)
 		if err != nil {
 			continue
 		}
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
 		_ = resp.Body.Close()
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 || !validPassiveResponse(source, body) {
 			continue
 		}
 		m.recordResponse(ctx, event.ScanID, host, source, string(body))
@@ -150,7 +152,8 @@ func (m *PassiveIntel) endpoint(source, fallback string) string {
 }
 
 func (m *PassiveIntel) recordResponse(ctx context.Context, scanID, host, source, body string) {
-	_ = m.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "passive_source", Value: source, Parent: host, Metadata: "response=received"})
+	_ = m.db.RecordFeed(ctx, store.FeedMetadata{Source: "passive:" + source, Provenance: "passive intelligence API response"}, []byte(body))
+	_ = m.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "passive_source", Value: source, Parent: host, Metadata: "response=validated;attribution=" + source})
 	for _, value := range passiveURLs(body) {
 		parsed, err := url.Parse(value)
 		if err != nil || parsed.Hostname() == "" {
@@ -164,6 +167,50 @@ func (m *PassiveIntel) recordResponse(ctx context.Context, scanID, host, source,
 		if m.guard.Allowed(domain) {
 			_ = m.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "passive_domain", Value: domain, Parent: host, Metadata: "source=" + source})
 		}
+	}
+}
+
+func (m *PassiveIntel) doWithRetry(ctx context.Context, req *http.Request) (*http.Response, error) {
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		current := req.Clone(ctx)
+		resp, err := m.client.Do(current)
+		if err == nil && resp.StatusCode != http.StatusTooManyRequests && resp.StatusCode < 500 {
+			return resp, nil
+		}
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
+		if err != nil {
+			lastErr = err
+		} else {
+			lastErr = fmt.Errorf("passive source returned HTTP %d", resp.StatusCode)
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(time.Duration(attempt+1) * 250 * time.Millisecond):
+		}
+	}
+	return nil, lastErr
+}
+
+func validPassiveResponse(source string, body []byte) bool {
+	source = strings.ToLower(source)
+	if source == "paste" {
+		return len(body) > 0
+	}
+	var payload any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return false
+	}
+	// Each supported provider returns JSON; accepting only a JSON object/array
+	// rejects HTML error pages and malformed intermediary responses.
+	switch payload.(type) {
+	case map[string]any, []any:
+		return true
+	default:
+		return false
 	}
 }
 
