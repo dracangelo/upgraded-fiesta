@@ -84,7 +84,7 @@ func TestHTMLAndPDFReporting(t *testing.T) {
 	_ = db.Migrate(context.Background())
 	scanID := "scan-reports"
 	_ = db.AddAsset(context.Background(), models.Asset{ScanID: scanID, Type: "host", Value: "127.0.0.1"})
-	_ = db.AddFinding(context.Background(), models.Finding{ScanID: scanID, Severity: "high", Confidence: "high", Asset: "127.0.0.1:80", Title: "Open Admin Interface"})
+	_ = db.AddFinding(context.Background(), models.Finding{ScanID: scanID, Severity: "high", Confidence: "high", Asset: "127.0.0.1:80", Title: "<script>alert(1)</script>"})
 
 	htmlPath, err := reporting.Write(context.Background(), db, scanID, "html", t.TempDir())
 	if err != nil || htmlPath == "" {
@@ -108,30 +108,40 @@ func TestAPIServer(t *testing.T) {
 	_ = db.AddFinding(context.Background(), models.Finding{ScanID: scanID, Severity: "critical", Confidence: "high", Asset: "10.0.0.1:22", Title: "SSH RCE"})
 
 	srv := NewServer(db, 8089)
+	srv.SetAPIKey("secret-token-123")
 
-	// Test REST Health Endpoint
+	// Test REST Health Endpoint (Unauthenticated)
 	reqHealth := httptest.NewRequest("GET", "/api/v1/health", nil)
 	wHealth := httptest.NewRecorder()
-	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "health") {
-			w.WriteHeader(200)
-			_, _ = w.Write([]byte(`{"status":"ok"}`))
-		}
-	}).ServeHTTP(wHealth, reqHealth)
+	srv.authMiddleware(http.HandlerFunc(srv.handleHealth)).ServeHTTP(wHealth, reqHealth)
 
 	if wHealth.Code != 200 {
 		t.Errorf("expected HTTP 200 for health endpoint, got %d", wHealth.Code)
 	}
 
+	// Test Unauthorized Endpoint
+	reqScansUnauth := httptest.NewRequest("GET", "/api/v1/scans?scan_id="+scanID, nil)
+	wScansUnauth := httptest.NewRecorder()
+	srv.authMiddleware(http.HandlerFunc(srv.handleScans)).ServeHTTP(wScansUnauth, reqScansUnauth)
+
+	if wScansUnauth.Code != 401 {
+		t.Errorf("expected HTTP 401 for unauthorized scan request, got %d", wScansUnauth.Code)
+	}
+
+	// Test Authorized Endpoint
+	reqScansAuth := httptest.NewRequest("GET", "/api/v1/scans?scan_id="+scanID, nil)
+	reqScansAuth.Header.Set("X-API-Key", "secret-token-123")
+	wScansAuth := httptest.NewRecorder()
+	srv.authMiddleware(http.HandlerFunc(srv.handleScans)).ServeHTTP(wScansAuth, reqScansAuth)
+
+	if wScansAuth.Code != 200 {
+		t.Errorf("expected HTTP 200 for authorized scan request, got %d", wScansAuth.Code)
+	}
+
 	// Test GraphQL Handler
 	reqGQL := httptest.NewRequest("POST", "/query?scan_id="+scanID, strings.NewReader(`{"query":"query { findings { title } assets { value } }"}`))
 	wGQL := httptest.NewRecorder()
-	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "query") {
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"data":{"findingsCount":1,"assetsCount":1}}`))
-		}
-	}).ServeHTTP(wGQL, reqGQL)
+	srv.handleGraphQL(wGQL, reqGQL)
 
 	if wGQL.Code != 200 || !strings.Contains(wGQL.Body.String(), "findingsCount") {
 		t.Errorf("unexpected GraphQL response: %s", wGQL.Body.String())

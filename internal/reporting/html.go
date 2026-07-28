@@ -2,6 +2,7 @@ package reporting
 
 import (
 	"fmt"
+	"html"
 	"strings"
 )
 
@@ -12,7 +13,7 @@ func ExportHTML(r report) string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>enumscan Report - ` + r.ScanID + `</title>
+    <title>enumscan Report - ` + html.EscapeString(r.ScanID) + `</title>
     <style>
         :root {
             --bg: #0d1117;
@@ -51,7 +52,7 @@ func ExportHTML(r report) string {
     <div class="container">
         <div class="header">
             <h1>enumscan Security Assessment Report</h1>
-            <p>Scan ID: <code>` + r.ScanID + `</code></p>
+            <p>Scan ID: <code>` + html.EscapeString(r.ScanID) + `</code></p>
         </div>
         <h2>Vulnerability Findings (` + fmt.Sprintf("%d", len(r.Findings)) + `)</h2>
 `)
@@ -74,14 +75,14 @@ func ExportHTML(r report) string {
 			fmt.Fprintf(&b, `<div class="card">
                 <h3>%s <span class="badge %s">%s</span></h3>
                 <p><strong>Asset:</strong> <code>%s</code> | <strong>Confidence:</strong> %s</p>
-`, f.Title, sevClass, f.Severity, f.Asset, f.Confidence)
+`, html.EscapeString(f.Title), sevClass, html.EscapeString(f.Severity), html.EscapeString(f.Asset), html.EscapeString(f.Confidence))
 
 			if f.CVE != "" {
-				fmt.Fprintf(&b, "<p><strong>CVE:</strong> %s | <strong>CWE:</strong> %s | <strong>CVSS:</strong> %.1f</p>\n", f.CVE, f.CWE, f.CVSS)
+				fmt.Fprintf(&b, "<p><strong>CVE:</strong> %s | <strong>CWE:</strong> %s | <strong>CVSS:</strong> %.1f</p>\n", html.EscapeString(f.CVE), html.EscapeString(f.CWE), f.CVSS)
 			}
 			fmt.Fprintf(&b, `<p><strong>Evidence:</strong> <code>%s</code></p>
                 <p><strong>Remediation:</strong> %s</p>
-            </div>`, f.Evidence, f.Remediation)
+            </div>`, html.EscapeString(f.Evidence), html.EscapeString(f.Remediation))
 		}
 	}
 
@@ -91,7 +92,7 @@ func ExportHTML(r report) string {
 `)
 
 	for _, a := range r.Assets {
-		fmt.Fprintf(&b, `<tr><td><code>%s</code></td><td><code>%s</code></td><td><code>%s</code></td></tr>`, a.Type, a.Value, a.Parent)
+		fmt.Fprintf(&b, `<tr><td><code>%s</code></td><td><code>%s</code></td><td><code>%s</code></td></tr>`, html.EscapeString(a.Type), html.EscapeString(a.Value), html.EscapeString(a.Parent))
 	}
 
 	b.WriteString(`</table>

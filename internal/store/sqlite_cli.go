@@ -51,33 +51,8 @@ func (s *SQLiteCLI) Close() error {
 }
 
 func (s *SQLiteCLI) Migrate(ctx context.Context) error {
-	const schema = `
-CREATE TABLE IF NOT EXISTS assets (
- id INTEGER PRIMARY KEY AUTOINCREMENT, scan_id TEXT NOT NULL, type TEXT NOT NULL, value TEXT NOT NULL,
- parent TEXT NOT NULL DEFAULT '', metadata TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
- UNIQUE(scan_id,type,value,parent));
-CREATE TABLE IF NOT EXISTS findings (
- id INTEGER PRIMARY KEY AUTOINCREMENT, scan_id TEXT NOT NULL, severity TEXT NOT NULL, confidence TEXT NOT NULL,
- asset TEXT NOT NULL, title TEXT NOT NULL, evidence TEXT NOT NULL, remediation TEXT NOT NULL,
- cwe TEXT NOT NULL DEFAULT '', cve TEXT NOT NULL DEFAULT '', cvss REAL NOT NULL DEFAULT 0.0,
- epss REAL NOT NULL DEFAULT 0.0, kev INTEGER NOT NULL DEFAULT 0, references_json TEXT NOT NULL DEFAULT '[]',
- created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
-CREATE TABLE IF NOT EXISTS nvd_cves (
- cve_id TEXT PRIMARY KEY, cwe_id TEXT NOT NULL DEFAULT '', cvss REAL NOT NULL DEFAULT 0.0,
- epss REAL NOT NULL DEFAULT 0.0, kev INTEGER NOT NULL DEFAULT 0, description TEXT NOT NULL DEFAULT '',
- cpe_configurations TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
-CREATE TABLE IF NOT EXISTS events (
- id INTEGER PRIMARY KEY AUTOINCREMENT, scan_id TEXT NOT NULL, type TEXT NOT NULL, target TEXT NOT NULL,
- data TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
-CREATE TABLE IF NOT EXISTS scan_runs (
- scan_id TEXT PRIMARY KEY, status TEXT NOT NULL, started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
- finished_at TEXT, error TEXT NOT NULL DEFAULT '');
-CREATE TABLE IF NOT EXISTS checkpoints (
- scan_id TEXT NOT NULL, module TEXT NOT NULL, event_type TEXT NOT NULL, target TEXT NOT NULL,
- status TEXT NOT NULL, error TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
- PRIMARY KEY(scan_id,module,event_type,target));`
-	_, err := s.db.ExecContext(ctx, schema)
-	return err
+	mm := NewMigrationManager(s.db)
+	return mm.RunMigrations(ctx)
 }
 
 func (s *SQLiteCLI) StartScan(ctx context.Context, scanID string) error {
@@ -89,6 +64,15 @@ ON CONFLICT(scan_id) DO UPDATE SET status='running', error='', finished_at=NULL`
 func (s *SQLiteCLI) FinishScan(ctx context.Context, scanID, status, message string) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE scan_runs SET status=?, error=?, finished_at=CURRENT_TIMESTAMP WHERE scan_id=?`, status, message, scanID)
 	return err
+}
+
+func (s *SQLiteCLI) GetScanStatus(ctx context.Context, scanID string) (string, error) {
+	var status string
+	err := s.db.QueryRowContext(ctx, `SELECT status FROM scan_runs WHERE scan_id=?`, scanID).Scan(&status)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return status, err
 }
 
 func (s *SQLiteCLI) AddAsset(ctx context.Context, asset models.Asset) error {

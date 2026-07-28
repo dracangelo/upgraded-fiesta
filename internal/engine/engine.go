@@ -69,6 +69,11 @@ func (e Engine) Run(ctx context.Context, scanID string) error {
 	queue.Register(modules.NewCMSEnumerator(e.db, e.guard))
 	queue.Register(modules.NewFrameworkEnumerator(e.db, e.guard))
 	queue.Register(modules.NewEnterpriseAppEnumerator(e.db, e.guard))
+	queue.Register(modules.NewSensitiveExposureScanner(e.db, e.guard))
+	queue.Register(modules.NewAPIProtocolScanner(e.db, e.guard))
+	queue.Register(modules.NewAuthProtocolScanner(e.db, e.guard))
+	queue.Register(modules.NewSessionJWTScanner(e.db, e.guard))
+	queue.Register(modules.NewAuthPoliciesDetector(e.db, e.guard))
 	queue.Register(modules.NewSpecialized(e.db, e.guard, e.cfg.Specialized))
 	if e.cfg.PassiveIntel.Enabled {
 		queue.Register(modules.NewPassiveIntel(e.db, e.guard, e.cfg.PassiveIntel))

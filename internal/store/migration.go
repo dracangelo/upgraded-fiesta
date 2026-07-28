@@ -1,0 +1,132 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+)
+
+type Migration struct {
+	Version     int
+	Name        string
+	SQLStatement string
+}
+
+var migrations = []Migration{
+	{
+		Version: 1,
+		Name:    "initial_schema",
+		SQLStatement: `
+CREATE TABLE IF NOT EXISTS assets (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, scan_id TEXT NOT NULL, type TEXT NOT NULL, value TEXT NOT NULL,
+ parent TEXT NOT NULL DEFAULT '', metadata TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE(scan_id,type,value,parent));
+
+CREATE TABLE IF NOT EXISTS findings (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, scan_id TEXT NOT NULL, severity TEXT NOT NULL, confidence TEXT NOT NULL,
+ asset TEXT NOT NULL, title TEXT NOT NULL, evidence TEXT NOT NULL, remediation TEXT NOT NULL,
+ cwe TEXT NOT NULL DEFAULT '', cve TEXT NOT NULL DEFAULT '', cvss REAL NOT NULL DEFAULT 0.0,
+ epss REAL NOT NULL DEFAULT 0.0, kev INTEGER NOT NULL DEFAULT 0, references_json TEXT NOT NULL DEFAULT '[]',
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+
+CREATE TABLE IF NOT EXISTS nvd_cves (
+ cve_id TEXT PRIMARY KEY, cwe_id TEXT NOT NULL DEFAULT '', cvss REAL NOT NULL DEFAULT 0.0,
+ epss REAL NOT NULL DEFAULT 0.0, kev INTEGER NOT NULL DEFAULT 0, description TEXT NOT NULL DEFAULT '',
+ cpe_configurations TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+
+CREATE TABLE IF NOT EXISTS events (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, scan_id TEXT NOT NULL, type TEXT NOT NULL, target TEXT NOT NULL,
+ data TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+
+CREATE TABLE IF NOT EXISTS scan_runs (
+ scan_id TEXT PRIMARY KEY, status TEXT NOT NULL, started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ finished_at TEXT, error TEXT NOT NULL DEFAULT '');
+
+CREATE TABLE IF NOT EXISTS checkpoints (
+ scan_id TEXT NOT NULL, module TEXT NOT NULL, event_type TEXT NOT NULL, target TEXT NOT NULL,
+ status TEXT NOT NULL, error TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ PRIMARY KEY(scan_id,module,event_type,target));
+`,
+	},
+	{
+		Version: 2,
+		Name:    "performance_indices",
+		SQLStatement: `
+CREATE INDEX IF NOT EXISTS idx_assets_scan_type ON assets(scan_id, type);
+CREATE INDEX IF NOT EXISTS idx_findings_scan_severity ON findings(scan_id, cvss DESC, severity);
+CREATE INDEX IF NOT EXISTS idx_events_scan_id ON events(scan_id);
+`,
+	},
+}
+
+type MigrationManager struct {
+	db *sql.DB
+}
+
+func NewMigrationManager(db *sql.DB) *MigrationManager {
+	return &MigrationManager{db: db}
+}
+
+func (m *MigrationManager) RunMigrations(ctx context.Context) error {
+	if m.db == nil {
+		return fmt.Errorf("database connection is nil")
+	}
+
+	// 1. Ensure migrations tracking table exists
+	const trackingTable = `
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    version INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);`
+	if _, err := m.db.ExecContext(ctx, trackingTable); err != nil {
+		return fmt.Errorf("create schema_migrations table: %w", err)
+	}
+
+	// 2. Get currently applied migration version
+	var currentVersion int
+	err := m.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(version), 0) FROM schema_migrations`).Scan(&currentVersion)
+	if err != nil {
+		currentVersion = 0
+	}
+
+	// 3. Execute pending migrations sequentially inside a transaction
+	for _, mig := range migrations {
+		if mig.Version <= currentVersion {
+			continue
+		}
+
+		tx, err := m.db.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("begin transaction for migration v%d: %w", mig.Version, err)
+		}
+
+		if _, err := tx.ExecContext(ctx, mig.SQLStatement); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("execute migration v%d (%s): %w", mig.Version, mig.Name, err)
+		}
+
+		if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations(version, name) VALUES(?, ?)`, mig.Version, mig.Name); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("record migration v%d: %w", mig.Version, err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit migration v%d: %w", mig.Version, err)
+		}
+	}
+
+	return nil
+}
+
+func (m *MigrationManager) CurrentVersion(ctx context.Context) (int, error) {
+	if m.db == nil {
+		return 0, nil
+	}
+	var version int
+	err := m.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(version), 0) FROM schema_migrations`).Scan(&version)
+	if err == sql.ErrNoRows {
+		return 0, nil
+	}
+	return version, err
+}

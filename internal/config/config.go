@@ -9,16 +9,14 @@ import (
 	"enumscan/internal/models"
 )
 
-func Load(path string) (models.Config, error) {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return models.Config{}, err
-	}
-	cfg := models.Config{
+func Default() models.Config {
+	return models.Config{
 		Database:  models.DatabaseConfig{Path: "data/enumscan.sqlite"},
 		Scheduler: models.SchedulerConfig{Concurrency: 4, GlobalRateLimitMS: 250, PerTargetRateLimitMS: 500, ModuleTimeoutMS: 10000},
 		Discovery: models.DiscoveryConfig{CIDRMaxHosts: 256, EnableReverseDNS: true, EnableWildcardDNS: true},
 		PortScan:  models.PortScanConfig{Profile: "quick", EnableTCP: true, EnableUDP: false, EnableBanner: true, BaseTimeoutMS: 750, MaxTimeoutMS: 3000},
+		Scope:     models.ScopeConfig{AllowedTargets: []string{"127.0.0.1", "localhost"}},
+		Scan:      models.ScanConfig{Targets: []string{"127.0.0.1"}},
 		HTTP: models.HTTPConfig{
 			MaxDepth:           1,
 			MaxPagesPerHost:    50,
@@ -44,6 +42,14 @@ func Load(path string) (models.Config, error) {
 		PassiveIntel: models.PassiveIntelConfig{Enabled: false},
 		Reporting:    models.ReportingConfig{OutputDir: "reports"},
 	}
+}
+
+func Load(path string) (models.Config, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return models.Config{}, err
+	}
+	cfg := Default()
 
 	section := ""
 	for lineNo, rawLine := range strings.Split(string(raw), "\n") {

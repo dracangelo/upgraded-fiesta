@@ -222,15 +222,15 @@
 
 # 12. Authentication Intelligence
 
-- [ ] OAuth detection.
-- [ ] OIDC detection.
-- [ ] SAML detection.
-- [ ] JWT detection.
-- [ ] MFA detection.
-- [ ] Password policy detection.
-- [ ] Account lockout detection.
-- [ ] Session management analysis.
-- [ ] SSO provider detection.
+- [x] OAuth detection.
+- [x] OIDC detection.
+- [x] SAML detection.
+- [x] JWT detection.
+- [x] MFA detection.
+- [x] Password policy detection.
+- [x] Account lockout detection.
+- [x] Session management analysis.
+- [x] SSO provider detection.
 
 ---
 
@@ -325,10 +325,10 @@
 - [x] Permissions.
 - [x] Event subscriptions.
 - [x] Sample plugin.
-- [ ] Plugin marketplace.
-- [ ] Plugin signing.
-- [ ] Plugin sandboxing.
-- [ ] Hot plugin reload.
+- [x] Plugin marketplace.
+- [x] Plugin signing.
+- [x] Plugin sandboxing.
+- [x] Hot plugin reload.
 
 ---
 
