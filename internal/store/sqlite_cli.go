@@ -86,6 +86,36 @@ func (s *SQLiteCLI) AddAsset(ctx context.Context, asset models.Asset) error {
 	return err
 }
 
+func (s *SQLiteCLI) DeleteAssets(ctx context.Context, ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := fmt.Sprintf("DELETE FROM assets WHERE id IN (%s)", strings.Join(placeholders, ","))
+	_, err := s.db.ExecContext(ctx, query, args...)
+	return err
+}
+
+func (s *SQLiteCLI) DeleteFindings(ctx context.Context, ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := fmt.Sprintf("DELETE FROM findings WHERE id IN (%s)", strings.Join(placeholders, ","))
+	_, err := s.db.ExecContext(ctx, query, args...)
+	return err
+}
+
 func (s *SQLiteCLI) AddFinding(ctx context.Context, finding models.Finding) error {
 	references, err := json.Marshal(finding.References)
 	if err != nil {
@@ -127,7 +157,13 @@ ON CONFLICT(scan_id,module,event_type,target) DO UPDATE SET status=excluded.stat
 }
 
 func (s *SQLiteCLI) Assets(ctx context.Context, scanID string) ([]models.Asset, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,scan_id,type,value,parent,metadata,created_at FROM assets WHERE scan_id=? ORDER BY type,value`, scanID)
+	var rows *sql.Rows
+	var err error
+	if scanID == "" {
+		rows, err = s.db.QueryContext(ctx, `SELECT id,scan_id,type,value,parent,metadata,created_at FROM assets ORDER BY id DESC`)
+	} else {
+		rows, err = s.db.QueryContext(ctx, `SELECT id,scan_id,type,value,parent,metadata,created_at FROM assets WHERE scan_id=? ORDER BY type,value`, scanID)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +182,13 @@ func (s *SQLiteCLI) Assets(ctx context.Context, scanID string) ([]models.Asset, 
 }
 
 func (s *SQLiteCLI) Findings(ctx context.Context, scanID string) ([]models.Finding, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,scan_id,severity,confidence,verification,asset,title,evidence,remediation,cwe,cve,cvss,epss,kev,references_json,created_at FROM findings WHERE scan_id=? ORDER BY cvss DESC,severity,title`, scanID)
+	var rows *sql.Rows
+	var err error
+	if scanID == "" {
+		rows, err = s.db.QueryContext(ctx, `SELECT id,scan_id,severity,confidence,verification,asset,title,evidence,remediation,cwe,cve,cvss,epss,kev,references_json,created_at FROM findings ORDER BY id DESC`)
+	} else {
+		rows, err = s.db.QueryContext(ctx, `SELECT id,scan_id,severity,confidence,verification,asset,title,evidence,remediation,cwe,cve,cvss,epss,kev,references_json,created_at FROM findings WHERE scan_id=? ORDER BY cvss DESC,severity,title`, scanID)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +210,13 @@ func (s *SQLiteCLI) Findings(ctx context.Context, scanID string) ([]models.Findi
 }
 
 func (s *SQLiteCLI) Events(ctx context.Context, scanID string) ([]models.Event, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,scan_id,type,target,data FROM events WHERE scan_id=? ORDER BY id`, scanID)
+	var rows *sql.Rows
+	var err error
+	if scanID == "" {
+		rows, err = s.db.QueryContext(ctx, `SELECT id,scan_id,type,target,data FROM events ORDER BY id DESC`)
+	} else {
+		rows, err = s.db.QueryContext(ctx, `SELECT id,scan_id,type,target,data FROM events WHERE scan_id=? ORDER BY id`, scanID)
+	}
 	if err != nil {
 		return nil, err
 	}

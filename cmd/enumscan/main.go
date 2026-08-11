@@ -23,9 +23,9 @@ func main() {
 	cfgPath := flag.String("config", "configs/example.yaml", "path to YAML config")
 	flag.Parse()
 
-	if flag.NArg() < 1 {
-		usage()
-		os.Exit(2)
+	subcmd := "server"
+	if flag.NArg() >= 1 {
+		subcmd = flag.Arg(0)
 	}
 
 	cfg, err := config.Load(*cfgPath)
@@ -40,7 +40,7 @@ func main() {
 	defer func() { _ = db.Close() }()
 
 	ctx := context.Background()
-	switch flag.Arg(0) {
+	switch subcmd {
 	case "init-db":
 		if err := db.Migrate(ctx); err != nil {
 			log.Fatalf("migrate db: %v", err)
@@ -175,11 +175,14 @@ func main() {
 			log.Fatalf("write change report: %v", err)
 		}
 		fmt.Printf("Wrote scan change report to %s\n", path)
-	case "server":
+	case "server", "serve", "start", "dashboard":
 		serverFlags := flag.NewFlagSet("server", flag.ExitOnError)
 		port := serverFlags.Int("port", 8080, "API server port")
-		_ = serverFlags.Parse(flag.Args()[1:])
+		if flag.NArg() > 1 {
+			_ = serverFlags.Parse(flag.Args()[1:])
+		}
 		srv := api.NewServer(db, *port)
+		srv.SetConfig(cfg)
 		fmt.Printf("Starting enumscan API server (REST, WebSocket, GraphQL) on port %d...\n", *port)
 		if err := srv.ListenAndServe(ctx); err != nil {
 			log.Fatalf("API server error: %v", err)

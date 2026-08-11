@@ -23,6 +23,7 @@
 - [x] Add HTML reports.
 - [x] Add PDF reports.
 - [x] Add SARIF export.
+- [ ] Add CSV report export.
 - [x] Add REST API.
 - [x] Add WebSocket event stream.
 - [x] Add GraphQL API.
@@ -83,6 +84,10 @@
 - [x] ARP discovery.
 - [x] Virtual host discovery.
 - [x] Host clustering.
+- [ ] ICMP ping sweep host discovery.
+- [ ] TCP SYN & ACK live host probing.
+- [ ] UDP live host discovery probes (DNS, NTP, SNMP).
+- [ ] Passive network packet capture & live traffic discovery.
 
 ---
 
@@ -103,6 +108,10 @@
 - [x] Scan profiles.
 - [x] Differential port scanning.
 - [x] Port history tracking.
+- [ ] TCP Window scanning.
+- [ ] TCP Maimon scanning.
+- [ ] Two-phase port scan pipeline (fast raw-socket sweep followed by deep service probe).
+- [ ] UDP service-specific probes (TFTP, SIP, IKE, RPC, NetBIOS, mDNS, SSDP, RADIUS).
 
 ---
 
@@ -122,6 +131,8 @@
 - [x] Confidence scoring.
 - [x] Passive fingerprinting.
 - [x] OS fingerprint improvements.
+- [ ] TCP/IP stack OS fingerprinting (TTL, TCP window size, option ordering analysis).
+- [ ] Application runtime version fingerprinting (OpenSSL, Python, Go, Java, Ruby, Node.js, Gunicorn, Werkzeug, Jetty).
 
 ---
 
@@ -149,6 +160,14 @@
 - [x] WebAssembly analysis.
 - [x] SPA route discovery.
 - [x] Dynamic rendering.
+- [ ] SSL/TLS vulnerability checks (Heartbleed, ROBOT, CRIME, BREACH).
+- [ ] OCSP status checking.
+- [ ] HPKP (Public Key Pinning) header audit.
+- [ ] Web Application Manifest (manifest.json) analysis.
+- [ ] Redirect chain & canonical URL tracking.
+- [ ] Allowed HTTP Verbs/Methods enumeration (OPTIONS, TRACE, PUT, DELETE).
+- [ ] Error page & default page fingerprinting.
+- [ ] Response timing & compression (gzip, brotli, deflate) audit.
 
 ---
 
@@ -169,6 +188,8 @@
 - [x] Elasticsearch detection.
 - [x] Redis exposure checks.
 - [x] MongoDB exposure checks.
+- [ ] Frontend framework detection (React, Vue, Angular, Next.js, jQuery, Bootstrap, Tailwind).
+- [ ] E-commerce & CMS technology fingerprinting (Magento, Ghost, Symfony).
 
 ---
 
@@ -185,6 +206,10 @@
 - [x] SOAP enumeration.
 - [x] gRPC reflection.
 - [x] OpenAPI validation.
+- [ ] Mercurial (.hg) repository exposure detection.
+- [ ] Source map (.map) parsing and endpoint/secret extraction.
+- [ ] Temporary files (.swp, ~, .bak, .old, .tmp) detection.
+- [ ] API rate limit & JSON schema analysis.
 
 ---
 
@@ -202,6 +227,21 @@
 - [x] Container runtime enumeration.
 - [x] Docker Compose discovery.
 - [x] Kubernetes secrets discovery.
+- [ ] Full DNS Record enumeration (SOA, NS, MX, TXT, CAA, SRV, CNAME).
+- [ ] DNS Zone Transfer (AXFR) testing & DNSSEC NSEC/NSEC3 zone walking.
+- [ ] DNS cache snooping.
+- [ ] SMB share permissions & anonymous session auditing.
+- [ ] LDAP naming contexts & anonymous bind inspection.
+- [ ] Kerberoasting target identification (SPN enumeration).
+- [ ] LAPS (Local Administrator Password Solution) detection & ACL delegation audit.
+- [ ] SSH host key, cipher suite, and authentication method enumeration.
+- [ ] FTP writable directory auditing & anonymous login checks.
+- [ ] SMTP VRFY/EXPN user enumeration and open relay testing.
+- [ ] SNMP MIB walk for system processes, installed software, network routes, ARP tables, and storage devices.
+- [ ] Database Engine Enumeration (Cassandra, ClickHouse, InfluxDB, MSSQL, Oracle) checking authentication, configuration, and privileges.
+- [ ] Podman & Containerd runtime enumeration.
+- [ ] Cloud Instance Metadata Service (IMDSv1 / IMDSv2) reachability auditing.
+- [ ] Serverless function endpoints discovery.
 
 ---
 
@@ -244,6 +284,7 @@
 - [x] Private key discovery.
 - [x] Secret validation.
 - [x] Secret risk scoring.
+- [ ] Secret extraction from Git commit history.
 
 ---
 
@@ -260,6 +301,10 @@
 - [x] Exploit availability tracking.
 - [x] Misconfiguration engine.
 - [x] Detection rules engine.
+- [ ] Web Vulnerability Engine (SQLi, XSS, SSRF, LFI/RFI, XXE, SSTI, CORS, Host Header Injection, HTTP Request Smuggling, Prototype Pollution).
+- [ ] CIS Benchmark & Security Hardening compliance checks.
+- [ ] Credentialed scanning engine (SSH / WinRM authenticated patch & package auditing).
+- [ ] Local offline NVD JSON feed mirror & version backporting analysis.
 
 ---
 
@@ -274,6 +319,7 @@
 - [x] Lateral movement graph.
 - [x] Business impact scoring.
 - [x] Attack chain visualization.
+- [ ] Multi-step attack path correlation rules (linking web findings to cloud credentials & data exposures).
 
 ---
 
@@ -334,15 +380,15 @@
 
 # 20. Operator Experience
 
-- [ ] Web dashboard.
-- [ ] Live scan progress.
-- [ ] Asset explorer.
-- [ ] Graph explorer.
-- [ ] Screenshot gallery.
-- [ ] Timeline view.
-- [ ] Search engine.
-- [ ] Saved queries.
-- [ ] Dark mode.
+- [x] Web dashboard.
+- [x] Live scan progress.
+- [x] Asset explorer.
+- [x] Graph explorer.
+- [x] Screenshot gallery.
+- [x] Timeline view.
+- [x] Search engine.
+- [x] Saved queries.
+- [x] Dark mode.
 
 ---
 
@@ -383,15 +429,15 @@
 
 # 24. Documentation
 
-- [ ] Architecture documentation.
-- [ ] Module developer guide.
-- [ ] Plugin SDK documentation.
-- [ ] REST API documentation.
-- [ ] Operator guide.
-- [ ] Configuration reference.
-- [ ] Authorized-use guidance.
-- [ ] Threat model.
-- [ ] Performance tuning guide.
+- [x] Architecture documentation.
+- [x] Module developer guide.
+- [x] Plugin SDK documentation.
+- [x] REST API documentation.
+- [x] Operator guide.
+- [x] Configuration reference.
+- [x] Authorized-use guidance.
+- [x] Threat model.
+- [x] Performance tuning guide.
 
 ---
 

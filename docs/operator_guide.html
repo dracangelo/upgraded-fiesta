@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EnumScan Documentation — Operator Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #090d16;
+            --bg-surface: #111726;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #3b82f6;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        nav.doc-nav {
+            display: flex; gap: 1rem; flex-wrap: wrap; padding-bottom: 1.5rem;
+            margin-bottom: 2rem; border-bottom: 1px solid var(--border-color);
+        }
+        nav.doc-nav a {
+            color: var(--text-muted); text-decoration: none; font-size: 0.85rem;
+            font-weight: 500; padding: 0.4rem 0.8rem; border-radius: 6px;
+            background-color: var(--bg-surface); border: 1px solid var(--border-color); transition: all 0.2s;
+        }
+        nav.doc-nav a:hover, nav.doc-nav a.active {
+            color: #fff; border-color: var(--primary); background-color: rgba(59, 130, 246, 0.15);
+        }
+        h1, h2, h3 { color: #fff; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        h1 { font-size: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.4rem; color: var(--primary); }
+        p { margin-bottom: 1rem; color: var(--text-muted); }
+        pre, code {
+            font-family: 'JetBrains Mono', monospace; background-color: #070a11;
+            border-radius: 6px; border: 1px solid var(--border-color);
+        }
+        code { padding: 0.2rem 0.4rem; font-size: 0.85rem; color: #60a5fa; }
+        pre { padding: 1.25rem; overflow-x: auto; font-size: 0.85rem; color: #d1d5db; margin-bottom: 1.5rem; }
+    </style>
+</head>
+<body>
+    <nav class="doc-nav">
+        <a href="architecture.html">Architecture</a>
+        <a href="module_developer_guide.html">Module Guide</a>
+        <a href="plugin_sdk.html">Plugin SDK</a>
+        <a href="api_reference.html">API Reference</a>
+        <a href="operator_guide.html" class="active">Operator Guide</a>
+        <a href="configuration_reference.html">Config Reference</a>
+        <a href="authorized_use.html">Authorized Use</a>
+        <a href="threat_model.html">Threat Model</a>
+        <a href="performance_tuning.html">Performance</a>
+    </nav>
+
+    <h1>Operator Guide</h1>
+    <p>This guide provides operational guidance for security engineers running EnumScan during authorized security assessments.</p>
+
+    <h2>1. Quick Start Execution</h2>
+    <p>Run a local scan using a YAML configuration file:</p>
+    <pre>
+go run ./cmd/enumscan -config configs/example.yaml run my-first-scan
+    </pre>
+
+    <h2>2. Generating Reports</h2>
+    <p>Export scan results into HTML, PDF, JSON, SARIF, or Markdown reports:</p>
+    <pre>
+# Export HTML Report
+go run ./cmd/enumscan -config configs/example.yaml report my-first-scan -format html -out ./reports
+
+# Export SARIF for CI/CD Integration
+go run ./cmd/enumscan -config configs/example.yaml report my-first-scan -format sarif -out ./reports
+    </pre>
+
+    <h2>3. Launching Web Operator Dashboard</h2>
+    <p>Start the embedded REST API server and operator dashboard:</p>
+    <pre>
+go run ./cmd/enumscan -config configs/example.yaml serve -port 8080
+    </pre>
+    <p>Navigate to <code>http://localhost:8080</code> in your web browser to open the dark-mode dashboard.</p>
+
+    <h2>4. Maintenance & Backups</h2>
+    <h3>Create Database Backup</h3>
+    <pre>
+go run ./cmd/enumscan -config configs/example.yaml backup -out ./backups/snapshot.sqlite
+    </pre>
+
+    <h3>Restore Database</h3>
+    <pre>
+go run ./cmd/enumscan -config configs/example.yaml restore -file ./backups/snapshot.sqlite
+    </pre>
+</body>
+</html>

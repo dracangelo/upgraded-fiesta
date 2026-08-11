@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EnumScan Documentation — Threat Model</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #090d16;
+            --bg-surface: #111726;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #3b82f6;
+            --sev-critical: #ef4444;
+            --sev-high: #f97316;
+            --sev-medium: #eab308;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        nav.doc-nav {
+            display: flex; gap: 1rem; flex-wrap: wrap; padding-bottom: 1.5rem;
+            margin-bottom: 2rem; border-bottom: 1px solid var(--border-color);
+        }
+        nav.doc-nav a {
+            color: var(--text-muted); text-decoration: none; font-size: 0.85rem;
+            font-weight: 500; padding: 0.4rem 0.8rem; border-radius: 6px;
+            background-color: var(--bg-surface); border: 1px solid var(--border-color); transition: all 0.2s;
+        }
+        nav.doc-nav a:hover, nav.doc-nav a.active {
+            color: #fff; border-color: var(--primary); background-color: rgba(59, 130, 246, 0.15);
+        }
+        h1, h2, h3 { color: #fff; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        h1 { font-size: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.4rem; color: var(--primary); }
+        p { margin-bottom: 1rem; color: var(--text-muted); }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; font-size: 0.85rem; }
+        th { background-color: rgba(0,0,0,0.25); text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border-color); color: var(--text-muted); }
+        td { padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border-color); }
+        ul { margin-left: 1.5rem; margin-bottom: 1rem; color: var(--text-muted); }
+        li { margin-bottom: 0.4rem; }
+        code { font-family: 'JetBrains Mono', monospace; color: #60a5fa; }
+    </style>
+</head>
+<body>
+    <nav class="doc-nav">
+        <a href="architecture.html">Architecture</a>
+        <a href="module_developer_guide.html">Module Guide</a>
+        <a href="plugin_sdk.html">Plugin SDK</a>
+        <a href="api_reference.html">API Reference</a>
+        <a href="operator_guide.html">Operator Guide</a>
+        <a href="configuration_reference.html">Config Reference</a>
+        <a href="authorized_use.html">Authorized Use</a>
+        <a href="threat_model.html" class="active">Threat Model</a>
+        <a href="performance_tuning.html">Performance</a>
+    </nav>
+
+    <h1>Threat Model & Risk Assessment</h1>
+    <h2>Threat Matrix</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Asset</th>
+                <th>Threat Vector</th>
+                <th>Risk Level</th>
+                <th>Mitigation Strategy</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>API Endpoints</strong></td>
+                <td>Unauthorized Access</td>
+                <td><span style="color:var(--sev-high)">High</span></td>
+                <td>API key verification, TLS enforcement, rate limiting middleware.</td>
+            </tr>
+            <tr>
+                <td><strong>Scan Database</strong></td>
+                <td>SQLite Lock Contention</td>
+                <td><span style="color:var(--sev-medium)">Medium</span></td>
+                <td>Native Go driver with WAL mode and <code>busy_timeout</code> handling.</td>
+            </tr>
+            <tr>
+                <td><strong>Report Content</strong></td>
+                <td>Cross-Site Scripting (XSS)</td>
+                <td><span style="color:var(--sev-high)">High</span></td>
+                <td>HTML entity escaping in reporting engines (<code>internal/reporting</code>).</td>
+            </tr>
+            <tr>
+                <td><strong>Plugin Subsystem</strong></td>
+                <td>Arbitrary Code Execution</td>
+                <td><span style="color:var(--sev-high)">High</span></td>
+                <td>Sandboxed Lua environment; plugin signature validation.</td>
+            </tr>
+            <tr>
+                <td><strong>Secret Findings</strong></td>
+                <td>Data Leakage</td>
+                <td><span style="color:var(--sev-medium)">Medium</span></td>
+                <td>Secret redaction before generating output reports or API responses.</td>
+            </tr>
+            <tr>
+                <td><strong>Target Scope</strong></td>
+                <td>Unintended Target Scan</td>
+                <td><span style="color:var(--sev-critical)">Critical</span></td>
+                <td>Mandatory <code>Guard</code> scope checking on every event dispatch.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Defensive Security Controls</h2>
+    <ul>
+        <li><strong>Input Sanitization</strong>: All untrusted targets, headers, and banners are escaped before HTML template rendering.</li>
+        <li><strong>Audit Logging</strong>: All administrative API endpoints generate audit log entries (<code>[AUDIT]</code>) recording requesting IP, HTTP method, path, and duration.</li>
+        <li><strong>Least Privilege</strong>: SQLite file permissions are restricted (<code>0600</code>), and process handles run without superuser privileges.</li>
+    </ul>
+</body>
+</html>

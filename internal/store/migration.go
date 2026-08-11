@@ -86,6 +86,15 @@ CREATE TABLE IF NOT EXISTS module_runs (
 CREATE INDEX IF NOT EXISTS idx_module_runs_scan_status ON module_runs(scan_id, status);
 `,
 	},
+	{
+		Version: 5,
+		Name:    "operator_saved_queries",
+		SQLStatement: `
+CREATE TABLE IF NOT EXISTS saved_queries (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, query TEXT NOT NULL,
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+`,
+	},
 }
 
 type MigrationManager struct {

@@ -109,3 +109,7 @@ Run `compare-scans <baseline-scan-id> <current-scan-id>` to generate a Markdown 
 ## Automation
 
 Modules automatically chain by emitting events for later subscribers. An `asset.changed` event triggers scoped re-enumeration of the affected host or URL. The engine also exposes `RunRecurring(ctx, interval)` for programmatic recurring scans, creating a fresh scan ID for every scheduled run.
+
+## Operator Console
+
+Start the local API with `go run ./cmd/enumscan -config configs/example.yaml server` and open `http://127.0.0.1:8080/`. The dashboard provides scan health/progress, asset and relationship explorers, an event timeline, server-side asset/finding search, saved queries, and a dark/light theme. It refreshes scan state every five seconds. The screenshot gallery shows only verified `screenshot` artifacts; queued targets and unavailable captures are deliberately not displayed as evidence.

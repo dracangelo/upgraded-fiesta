@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EnumScan Documentation — Configuration Reference</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #090d16;
+            --bg-surface: #111726;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #3b82f6;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        nav.doc-nav {
+            display: flex; gap: 1rem; flex-wrap: wrap; padding-bottom: 1.5rem;
+            margin-bottom: 2rem; border-bottom: 1px solid var(--border-color);
+        }
+        nav.doc-nav a {
+            color: var(--text-muted); text-decoration: none; font-size: 0.85rem;
+            font-weight: 500; padding: 0.4rem 0.8rem; border-radius: 6px;
+            background-color: var(--bg-surface); border: 1px solid var(--border-color); transition: all 0.2s;
+        }
+        nav.doc-nav a:hover, nav.doc-nav a.active {
+            color: #fff; border-color: var(--primary); background-color: rgba(59, 130, 246, 0.15);
+        }
+        h1, h2, h3 { color: #fff; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        h1 { font-size: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.4rem; color: var(--primary); }
+        p { margin-bottom: 1rem; color: var(--text-muted); }
+        pre, code {
+            font-family: 'JetBrains Mono', monospace; background-color: #070a11;
+            border-radius: 6px; border: 1px solid var(--border-color);
+        }
+        code { padding: 0.2rem 0.4rem; font-size: 0.85rem; color: #60a5fa; }
+        pre { padding: 1.25rem; overflow-x: auto; font-size: 0.85rem; color: #d1d5db; margin-bottom: 1.5rem; }
+        table {
+            width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; font-size: 0.85rem;
+        }
+        th {
+            background-color: rgba(0,0,0,0.25); text-align: left; padding: 0.6rem 0.8rem;
+            border-bottom: 1px solid var(--border-color); color: var(--text-muted);
+        }
+        td { padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border-color); }
+    </style>
+</head>
+<body>
+    <nav class="doc-nav">
+        <a href="architecture.html">Architecture</a>
+        <a href="module_developer_guide.html">Module Guide</a>
+        <a href="plugin_sdk.html">Plugin SDK</a>
+        <a href="api_reference.html">API Reference</a>
+        <a href="operator_guide.html">Operator Guide</a>
+        <a href="configuration_reference.html" class="active">Config Reference</a>
+        <a href="authorized_use.html">Authorized Use</a>
+        <a href="threat_model.html">Threat Model</a>
+        <a href="performance_tuning.html">Performance</a>
+    </nav>
+
+    <h1>Configuration Reference</h1>
+    <p>EnumScan is configured using YAML files located in <code>configs/</code>.</p>
+
+    <h2>Configuration File Schema (<code>configs/example.yaml</code>)</h2>
+    <pre>
+version: "1.0"
+
+# Target Scope Policy
+scope:
+  allowed:
+    - "127.0.0.1"
+    - "10.0.0.0/24"
+    - "example.com"
+  denied:
+    - "10.0.0.1"
+
+# Engine & Concurrency Settings
+engine:
+  min_workers: 2
+  max_workers: 8
+  rate_limit_per_second: 10
+  timeout_seconds: 30
+
+# Persistence Settings
+database:
+  driver: "sqlite" # Options: sqlite, postgres
+  path: "data/scan.sqlite"
+  busy_timeout_ms: 5000
+
+# API & Server Options
+api:
+  port: 8080
+  api_key: "" # Leave empty for localhost development
+  tls_cert: ""
+  tls_key: ""
+    </pre>
+
+    <h2>Field Descriptions</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Setting</th>
+                <th>Type</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>scope.allowed</code></td>
+                <td>List[String]</td>
+                <td>Authorized IP addresses, CIDR ranges, or subdomains.</td>
+            </tr>
+            <tr>
+                <td><code>scope.denied</code></td>
+                <td>List[String]</td>
+                <td>Blacklisted targets excluded from all network probes.</td>
+            </tr>
+            <tr>
+                <td><code>engine.max_workers</code></td>
+                <td>Integer</td>
+                <td>Cap on concurrent worker routines.</td>
+            </tr>
+            <tr>
+                <td><code>database.driver</code></td>
+                <td>String</td>
+                <td>Storage backend (<code>sqlite</code> or <code>postgres</code>).</td>
+            </tr>
+            <tr>
+                <td><code>database.busy_timeout_ms</code></td>
+                <td>Integer</td>
+                <td>SQLite lock wait timeout in milliseconds.</td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+</html>

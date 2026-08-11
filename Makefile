@@ -1,7 +1,13 @@
 GOFLAGS ?= -trimpath -buildvcs=true
 GOCACHE ?= /tmp/enumscan-go-build
 
-.PHONY: test vet build verify reproducible sbom vulncheck
+.PHONY: test vet build serve run verify reproducible sbom vulncheck
+
+serve:
+	GOCACHE=$(GOCACHE) go run ./cmd/enumscan server
+
+run:
+	GOCACHE=$(GOCACHE) go run ./cmd/enumscan run demo-scan
 
 test:
 	GOCACHE=$(GOCACHE) go test ./...

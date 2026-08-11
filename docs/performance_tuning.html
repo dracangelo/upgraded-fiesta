@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EnumScan Documentation — Performance Tuning</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #090d16;
+            --bg-surface: #111726;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #3b82f6;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        nav.doc-nav {
+            display: flex; gap: 1rem; flex-wrap: wrap; padding-bottom: 1.5rem;
+            margin-bottom: 2rem; border-bottom: 1px solid var(--border-color);
+        }
+        nav.doc-nav a {
+            color: var(--text-muted); text-decoration: none; font-size: 0.85rem;
+            font-weight: 500; padding: 0.4rem 0.8rem; border-radius: 6px;
+            background-color: var(--bg-surface); border: 1px solid var(--border-color); transition: all 0.2s;
+        }
+        nav.doc-nav a:hover, nav.doc-nav a.active {
+            color: #fff; border-color: var(--primary); background-color: rgba(59, 130, 246, 0.15);
+        }
+        h1, h2, h3 { color: #fff; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        h1 { font-size: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.4rem; color: var(--primary); }
+        p { margin-bottom: 1rem; color: var(--text-muted); }
+        pre, code {
+            font-family: 'JetBrains Mono', monospace; background-color: #070a11;
+            border-radius: 6px; border: 1px solid var(--border-color);
+        }
+        code { padding: 0.2rem 0.4rem; font-size: 0.85rem; color: #60a5fa; }
+        pre { padding: 1.25rem; overflow-x: auto; font-size: 0.85rem; color: #d1d5db; margin-bottom: 1.5rem; }
+        ul { margin-left: 1.5rem; margin-bottom: 1rem; color: var(--text-muted); }
+        li { margin-bottom: 0.4rem; }
+    </style>
+</head>
+<body>
+    <nav class="doc-nav">
+        <a href="architecture.html">Architecture</a>
+        <a href="module_developer_guide.html">Module Guide</a>
+        <a href="plugin_sdk.html">Plugin SDK</a>
+        <a href="api_reference.html">API Reference</a>
+        <a href="operator_guide.html">Operator Guide</a>
+        <a href="configuration_reference.html">Config Reference</a>
+        <a href="authorized_use.html">Authorized Use</a>
+        <a href="threat_model.html">Threat Model</a>
+        <a href="performance_tuning.html" class="active">Performance</a>
+    </nav>
+
+    <h1>Performance & Concurrency Tuning Guide</h1>
+    <p>Optimizing EnumScan performance ensures fast scan completion times while preventing database lock contention and host resource exhaustion.</p>
+
+    <h2>1. Concurrency Tuning</h2>
+    <p>Adjust worker pool parameters in <code>configs/example.yaml</code>:</p>
+    <pre>
+engine:
+  min_workers: 4
+  max_workers: 16
+  rate_limit_per_second: 50
+    </pre>
+    <ul>
+        <li><strong>Adaptive Scaling</strong>: EnumScan automatically monitors network RTT. If response latency exceeds 500ms, concurrency is dialed back automatically to avoid network congestion.</li>
+    </ul>
+
+    <h2>2. Database Tuning</h2>
+    <h3>SQLite WAL Mode & Connection Pool</h3>
+    <p>To achieve high-throughput writes without locking issues:</p>
+    <pre>
+PRAGMA journal_mode = WAL;
+PRAGMA busy_timeout = 5000;
+PRAGMA synchronous = NORMAL;
+    </pre>
+    <p>When scanning thousands of targets concurrently, ensure Go's <code>db.SetMaxOpenConns(1)</code> is maintained on write handles to serialize database transactions safely.</p>
+
+    <h2>3. Distributed & Agent Scanning</h2>
+    <p>For enterprise networks spanning multiple subnets, deploy remote EnumScan agents using job leasing and centralized PostgreSQL state stores to distribute execution load evenly across worker nodes.</p>
+</body>
+</html>

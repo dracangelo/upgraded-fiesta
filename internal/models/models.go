@@ -162,3 +162,10 @@ type ScanHealth struct {
 	FailedRuns    int    `json:"failed_runs"`
 	Healthy       bool   `json:"healthy"`
 }
+
+type SavedQuery struct {
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	Query     string    `json:"query"`
+	CreatedAt time.Time `json:"created_at"`
+}

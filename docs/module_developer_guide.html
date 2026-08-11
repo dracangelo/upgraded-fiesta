@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EnumScan Documentation — Module Developer Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #090d16;
+            --bg-surface: #111726;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #3b82f6;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        nav.doc-nav {
+            display: flex; gap: 1rem; flex-wrap: wrap; padding-bottom: 1.5rem;
+            margin-bottom: 2rem; border-bottom: 1px solid var(--border-color);
+        }
+        nav.doc-nav a {
+            color: var(--text-muted); text-decoration: none; font-size: 0.85rem;
+            font-weight: 500; padding: 0.4rem 0.8rem; border-radius: 6px;
+            background-color: var(--bg-surface); border: 1px solid var(--border-color); transition: all 0.2s;
+        }
+        nav.doc-nav a:hover, nav.doc-nav a.active {
+            color: #fff; border-color: var(--primary); background-color: rgba(59, 130, 246, 0.15);
+        }
+        h1, h2, h3 { color: #fff; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        h1 { font-size: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.4rem; color: var(--primary); }
+        p { margin-bottom: 1rem; color: var(--text-muted); }
+        pre, code {
+            font-family: 'JetBrains Mono', monospace; background-color: #070a11;
+            border-radius: 6px; border: 1px solid var(--border-color);
+        }
+        code { padding: 0.2rem 0.4rem; font-size: 0.85rem; color: #60a5fa; }
+        pre { padding: 1.25rem; overflow-x: auto; font-size: 0.85rem; color: #d1d5db; margin-bottom: 1.5rem; }
+        ol { margin-left: 1.5rem; margin-bottom: 1rem; color: var(--text-muted); }
+        li { margin-bottom: 0.4rem; }
+    </style>
+</head>
+<body>
+    <nav class="doc-nav">
+        <a href="architecture.html">Architecture</a>
+        <a href="module_developer_guide.html" class="active">Module Guide</a>
+        <a href="plugin_sdk.html">Plugin SDK</a>
+        <a href="api_reference.html">API Reference</a>
+        <a href="operator_guide.html">Operator Guide</a>
+        <a href="configuration_reference.html">Config Reference</a>
+        <a href="authorized_use.html">Authorized Use</a>
+        <a href="threat_model.html">Threat Model</a>
+        <a href="performance_tuning.html">Performance</a>
+    </nav>
+
+    <h1>Module Developer Guide</h1>
+    <p>EnumScan uses a modular design where individual security scanning features are implemented as self-contained Go packages under <code>internal/modules/</code>.</p>
+
+    <h2>Module Interface Contract</h2>
+    <p>Every module must implement the standard <code>Module</code> interface defined in <code>internal/models/models.go</code>:</p>
+    <pre>
+type Module interface {
+    Name() string
+    SubscribedEvents() []string
+    Execute(ctx context.Context, evt Event, bus EventBus) error
+}
+    </pre>
+
+    <h2>Step-by-Step Implementation Guide</h2>
+    <ol>
+        <li><strong>Create Module Package</strong>: Create a new file in <code>internal/modules/</code> (e.g., <code>my_module.go</code>).</li>
+        <li><strong>Implement the Interface</strong>:</li>
+    </ol>
+    <pre>
+package modules
+
+import (
+    "context"
+    "fmt"
+
+    "enumscan/internal/models"
+)
+
+type MyCustomModule struct{}
+
+func NewMyCustomModule() *MyCustomModule {
+    return &MyCustomModule{}
+}
+
+func (m *MyCustomModule) Name() string {
+    return "my_custom_module"
+}
+
+func (m *MyCustomModule) SubscribedEvents() []string {
+    return []string{"host.discovered", "port.open"}
+}
+
+func (m *MyCustomModule) Execute(ctx context.Context, evt models.Event, bus models.EventBus) error {
+    if evt.Target == "" {
+        return nil
+    }
+
+    result := fmt.Sprintf("analyzed %s", evt.Target)
+
+    bus.Publish(models.Event{
+        ScanID: evt.ScanID,
+        Type:   "asset.discovered",
+        Target: result,
+        Module: m.Name(),
+    })
+
+    return nil
+}
+    </pre>
+    <ol start="3">
+        <li><strong>Register Module in Engine</strong>: Register the new module instance inside <code>internal/engine/engine.go</code> during engine initialization.</li>
+    </ol>
+
+    <h2>Developer Best Practices</h2>
+    <ol>
+        <li><strong>Context Cancellation</strong>: Always honor <code>ctx.Done()</code> within long-running network connections to support graceful scan cancellation.</li>
+        <li><strong>Error Isolation</strong>: Failures within a single module execution should return an error to log telemetry without crashing the scan run.</li>
+        <li><strong>No Intrusive Exploitation</strong>: Modules must perform passive enumeration or standard protocol handshake analysis only.</li>
+    </ol>
+</body>
+</html>

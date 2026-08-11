@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EnumScan Documentation — System Architecture</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #090d16;
+            --bg-surface: #111726;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #3b82f6;
+            --accent: #10b981;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        nav.doc-nav {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        nav.doc-nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            transition: all 0.2s;
+        }
+        nav.doc-nav a:hover, nav.doc-nav a.active {
+            color: #fff;
+            border-color: var(--primary);
+            background-color: rgba(59, 130, 246, 0.15);
+        }
+        h1, h2, h3 { color: #fff; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        h1 { font-size: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.4rem; color: var(--primary); }
+        p { margin-bottom: 1rem; color: var(--text-muted); }
+        pre, code {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: #070a11;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+        code { padding: 0.2rem 0.4rem; font-size: 0.85rem; color: #60a5fa; }
+        pre { padding: 1.25rem; overflow-x: auto; font-size: 0.85rem; color: #d1d5db; margin-bottom: 1.5rem; }
+        ul { margin-left: 1.5rem; margin-bottom: 1rem; color: var(--text-muted); }
+        li { margin-bottom: 0.4rem; }
+    </style>
+</head>
+<body>
+    <nav class="doc-nav">
+        <a href="architecture.html" class="active">Architecture</a>
+        <a href="module_developer_guide.html">Module Guide</a>
+        <a href="plugin_sdk.html">Plugin SDK</a>
+        <a href="api_reference.html">API Reference</a>
+        <a href="operator_guide.html">Operator Guide</a>
+        <a href="configuration_reference.html">Config Reference</a>
+        <a href="authorized_use.html">Authorized Use</a>
+        <a href="threat_model.html">Threat Model</a>
+        <a href="performance_tuning.html">Performance</a>
+    </nav>
+
+    <h1>System Architecture Documentation</h1>
+    <p>EnumScan is an event-driven, modular reconnaissance and asset intelligence platform written in Go. It is designed for authorized security assessments, continuous attack surface management, and enterprise asset inventory.</p>
+
+    <h2>High-Level System Diagram</h2>
+    <pre>
++-------------------------------------------------------------------+
+|                        Operator Experience                        |
+|   CLI (cmd/enumscan)  |  Web Dashboard  |  REST / WS / GraphQL    |
++-------------------------------------------------------------------+
+                                  |
+                                  v
++-------------------------------------------------------------------+
+|                      Engine & Event Dispatcher                    |
+|   Adaptive Worker Pool  |  Event Bus  |  Scope Guard Controller   |
++-------------------------------------------------------------------+
+          |                       |                      |
+          v                       v                      v
++-------------------+   +--------------------+   +------------------+
+| Inbuilt Modules   |   | Plugin SDK         |   | Vulnerability    |
+| - Discovery       |   | - Lua Scripts      |   | - NVD / CPE      |
+| - Port Scanning   |   | - gRPC Plugins     |   | - EPSS / KEV     |
+| - Web / HTTP      |   | - Sandboxing       |   | - Risk Engine    |
++-------------------+   +--------------------+   +------------------+
+          |                       |                      |
+          +-----------------------+----------------------+
+                                  |
+                                  v
++-------------------------------------------------------------------+
+|                         Persistence Layer                         |
+|   SQLite Native Driver (WAL)  |  PostgreSQL  |  Neo4j Graph Store  |
++-------------------------------------------------------------------+
+    </pre>
+
+    <h2>Core Component Design</h2>
+    <h3>1. Engine & Event Bus (<code>internal/engine</code>)</h3>
+    <p>The core scan engine coordinates scanning execution across modules. It uses an asynchronous event bus to process discovered targets (IPs, subdomains, ports, URLs, credentials). Each event published to the bus triggers matching modules that subscribe to that event type.</p>
+
+    <h3>2. Scope Guard (<code>internal/scope</code>)</h3>
+    <p>Scope enforcement is mandatory. The <code>Guard</code> component validates targets against an authorized CIDR, IP list, or domain mask prior to dispatching any network requests. If a target is outside the configured scope, it is blocked immediately.</p>
+
+    <h3>3. Persistence Layer (<code>internal/store</code>)</h3>
+    <ul>
+        <li><strong>SQLite (Native Go Driver)</strong>: Primary local database using <code>modernc.org/sqlite</code> in Write-Ahead Logging (<code>WAL</code>) mode with busy timeout handling to eliminate concurrent <code>database is locked</code> errors.</li>
+        <li><strong>Postgres Store</strong>: High-concurrency enterprise backend for centralized scan repositories.</li>
+        <li><strong>Neo4j Store</strong>: Knowledge graph datastore powering asset relationship graphs, trust boundaries, and lateral movement analysis.</li>
+    </ul>
+
+    <h3>4. Vulnerability & Risk Engine (<code>internal/vulnerability</code>)</h3>
+    <p>Evaluates imported CVEs against active asset inventories using CVSS, EPSS (Exploit Prediction Scoring System), and CISA KEV (Known Exploited Vulnerabilities) signals. Calculates explainable composite risk scores without performing intrusive exploitation.</p>
+
+    <h2>Concurrency & Performance Model</h2>
+    <ul>
+        <li><strong>Adaptive Worker Pools</strong>: Scales concurrency workers up or down based on real-time network latency measurements.</li>
+        <li><strong>Priority Queueing</strong>: Ensures high-priority critical events are evaluated ahead of background discovery tasks.</li>
+        <li><strong>Thread-Safe Data Structures</strong>: Mutex-guarded maps and serialized database writes protect shared state during high-volume scans.</li>
+    </ul>
+</body>
+</html>

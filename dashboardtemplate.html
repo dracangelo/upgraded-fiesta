@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="EnumScan — Enterprise Reconnaissance, Asset Intelligence & Vulnerability Management Dashboard">
+    <title>EnumScan Platform — Enterprise Security Operator Dashboard</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-base: #090d16;
+            --bg-surface: #111726;
+            --bg-surface-elevated: #1a2337;
+            --bg-glass: rgba(17, 23, 38, 0.85);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(255, 255, 255, 0.18);
+            
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --text-dim: #6b7280;
+
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.25);
+            --accent: #10b981;
+            --accent-glow: rgba(16, 185, 129, 0.25);
+            --purple: #8b5cf6;
+            --purple-glow: rgba(139, 92, 246, 0.25);
+
+            --sev-critical: #ef4444;
+            --sev-critical-bg: rgba(239, 68, 68, 0.15);
+            --sev-high: #f97316;
+            --sev-high-bg: rgba(249, 115, 22, 0.15);
+            --sev-medium: #eab308;
+            --sev-medium-bg: rgba(234, 179, 8, 0.15);
+            --sev-low: #3b82f6;
+            --sev-low-bg: rgba(59, 130, 246, 0.15);
+            --sev-info: #6b7280;
+            --sev-info-bg: rgba(107, 114, 128, 0.15);
+
+            --sidebar-width: 270px;
+            --transition-speed: 0.2s;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.06) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.06) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(16, 185, 129, 0.03) 0px, transparent 50%);
+        }
+
+        /* Sidebar Navigation */
+        aside.sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--bg-surface);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 1.25rem 0.85rem;
+            position: fixed;
+            top: 0; bottom: 0; left: 0;
+            z-index: 100;
+            backdrop-filter: blur(16px);
+            overflow-y: auto;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0 0.5rem 1.25rem 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+
+        .brand-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--primary), var(--purple));
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 1.25rem; color: #fff;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .brand-text h2 {
+            font-size: 1.1rem; font-weight: 700; letter-spacing: -0.5px;
+            background: linear-gradient(to right, #ffffff, #9ca3af);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .brand-text span {
+            font-size: 0.675rem; color: var(--accent); font-weight: 600;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        .nav-section-label {
+            font-size: 0.675rem; font-weight: 700; color: var(--text-dim);
+            text-transform: uppercase; letter-spacing: 1px;
+            padding: 0.75rem 0.75rem 0.35rem 0.75rem; margin-top: 0.5rem;
+        }
+
+        nav.nav-menu { display: flex; flex-direction: column; gap: 0.25rem; }
+
+        .nav-item {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.65rem 0.85rem; color: var(--text-muted);
+            text-decoration: none; border-radius: 8px;
+            font-size: 0.85rem; font-weight: 500;
+            transition: all var(--transition-speed); cursor: pointer;
+        }
+
+        .nav-item:hover { color: var(--text-main); background-color: rgba(255, 255, 255, 0.04); }
+        .nav-item.active {
+            color: #fff;
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.18), rgba(59, 130, 246, 0.04));
+            border-left: 3px solid var(--primary);
+        }
+
+        .nav-item svg {
+            width: 17px; height: 17px; fill: none; stroke: currentColor;
+            stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+        }
+
+        .system-status {
+            padding: 0.85rem; background-color: rgba(0, 0, 0, 0.25);
+            border-radius: 8px; border: 1px solid var(--border-color);
+            margin-top: 1.5rem;
+        }
+
+        .status-header {
+            display: flex; align-items: center; justify-content: space-between;
+            font-size: 0.725rem; color: var(--text-muted); margin-bottom: 0.35rem;
+        }
+
+        .pulse-indicator {
+            display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+            background-color: var(--accent); box-shadow: 0 0 8px var(--accent);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.25); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        /* Main Content Layout */
+        main.main-content {
+            margin-left: var(--sidebar-width); flex: 1; padding: 2rem;
+            max-width: calc(100vw - var(--sidebar-width));
+        }
+
+        header.top-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 1.75rem; padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 1rem;
+        }
+
+        .page-title h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
+        .page-title p { font-size: 0.825rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+        .top-actions { display: flex; align-items: center; gap: 0.85rem; }
+
+        .project-selector {
+            background-color: var(--bg-surface); border: 1px solid var(--border-color);
+            border-radius: 8px; color: var(--text-main); padding: 0.55rem 0.85rem;
+            font-size: 0.825rem; outline: none; font-family: inherit; cursor: pointer;
+        }
+
+        .search-box { position: relative; width: 300px; }
+        .search-box input {
+            width: 100%; padding: 0.55rem 0.85rem 0.55rem 2.4rem;
+            background-color: var(--bg-surface); border: 1px solid var(--border-color);
+            border-radius: 8px; color: var(--text-main); font-size: 0.825rem;
+            outline: none; transition: border-color var(--transition-speed);
+        }
+        .search-box input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+        .search-box svg {
+            position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%);
+            width: 15px; height: 15px; stroke: var(--text-muted); fill: none; stroke-width: 2;
+        }
+
+        /* Metrics Cards */
+        .metrics-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 1rem; margin-bottom: 1.75rem;
+        }
+
+        .metric-card {
+            background-color: var(--bg-surface); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 1.15rem; position: relative; overflow: hidden;
+            transition: transform var(--transition-speed), border-color var(--transition-speed);
+        }
+        .metric-card:hover { transform: translateY(-2px); border-color: var(--border-hover); }
+        .metric-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--purple));
+        }
+
+        .metric-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem; }
+        .metric-value { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.5px; color: var(--text-main); }
+        .metric-subtext { font-size: 0.725rem; color: var(--accent); margin-top: 0.35rem; display: flex; align-items: center; gap: 0.3rem; }
+
+        /* Panels & Tabs */
+        .tab-panel { display: none; animation: fadeIn 0.25s ease-in-out; }
+        .tab-panel.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Enhanced PC Desktop Responsiveness & Scrollbars */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(59, 130, 246, 0.5); }
+
+        .table-responsive {
+            width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;
+            border-radius: 8px; border: 1px solid var(--border-color);
+        }
+
+        .card {
+            background-color: var(--bg-surface); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 1.35rem; margin-bottom: 1.35rem;
+        }
+        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; }
+        .card-title { font-size: 1.05rem; font-weight: 600; }
+
+        table.data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left; }
+        table.data-table th {
+            padding: 0.65rem 0.85rem; background-color: rgba(0, 0, 0, 0.25);
+            color: var(--text-muted); font-weight: 600; text-transform: uppercase;
+            font-size: 0.7rem; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+        table.data-table th.sortable {
+            cursor: pointer; user-select: none; transition: color 0.15s ease;
+        }
+        table.data-table th.sortable:hover {
+            color: var(--text-main); background-color: rgba(255, 255, 255, 0.05);
+        }
+        table.data-table td { padding: 0.75rem 0.85rem; border-bottom: 1px solid var(--border-color); vertical-align: middle; white-space: nowrap; }
+        table.data-table tr:hover td { background-color: rgba(255, 255, 255, 0.02); }
+
+        .sort-icon { display: inline-block; margin-left: 0.25rem; font-size: 0.65rem; color: var(--primary); }
+
+        .btn-icon-danger {
+            background: rgba(239, 68, 68, 0.12); color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 6px;
+            padding: 0.3rem 0.5rem; cursor: pointer; transition: all 0.2s ease;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .btn-icon-danger:hover {
+            background: #ef4444; color: #ffffff; transform: scale(1.05);
+        }
+        .btn-danger {
+            background-color: #ef4444; color: #ffffff; border: none;
+            border-radius: 6px; padding: 0.45rem 0.85rem; font-size: 0.825rem;
+            font-weight: 600; cursor: pointer; transition: background-color var(--transition-speed);
+        }
+        .btn-danger:hover { background-color: #dc2626; }
+
+        input[type="checkbox"] {
+            accent-color: var(--primary); cursor: pointer; width: 15px; height: 15px; vertical-align: middle;
+        }
+
+        .badge {
+            display: inline-flex; align-items: center; padding: 0.2rem 0.55rem;
+            border-radius: 9999px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .badge-critical { background-color: var(--sev-critical-bg); color: var(--sev-critical); border: 1px solid rgba(239,68,68,0.3); }
+        .badge-high { background-color: var(--sev-high-bg); color: var(--sev-high); border: 1px solid rgba(249,115,22,0.3); }
+        .badge-medium { background-color: var(--sev-medium-bg); color: var(--sev-medium); border: 1px solid rgba(234,179,8,0.3); }
+        .badge-low { background-color: var(--sev-low-bg); color: var(--sev-low); border: 1px solid rgba(59,130,246,0.3); }
+        .badge-info { background-color: var(--sev-info-bg); color: var(--sev-info); border: 1px solid rgba(107,114,128,0.3); }
+
+        .type-tag {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.725rem;
+            padding: 0.18rem 0.45rem; background-color: rgba(255, 255, 255, 0.06);
+            border-radius: 4px; color: var(--text-muted);
+        }
+
+        #graphCanvas {
+            width: 100%; height: 460px; background-color: #0c101a;
+            border-radius: 8px; border: 1px solid var(--border-color); display: block;
+        }
+
+        .event-console {
+            background-color: #070a11; border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 1rem; font-family: 'JetBrains Mono', monospace;
+            font-size: 0.775rem; height: 380px; overflow-y: auto; color: #d1d5db;
+        }
+        .event-entry { margin-bottom: 0.35rem; line-height: 1.4; display: flex; gap: 0.65rem; }
+        .event-time { color: var(--text-dim); }
+        .event-type { color: var(--accent); font-weight: 500; }
+        .event-target { color: var(--primary); }
+
+        .btn {
+            display: inline-flex; align-items: center; gap: 0.45rem;
+            padding: 0.45rem 0.85rem; background-color: var(--primary);
+            color: #fff; border: none; border-radius: 6px; font-size: 0.825rem;
+            font-weight: 500; cursor: pointer; transition: background-color var(--transition-speed);
+        }
+        .btn:hover { background-color: #2563eb; }
+        .btn-secondary { background-color: rgba(255, 255, 255, 0.08); color: var(--text-main); }
+        .btn-secondary:hover { background-color: rgba(255, 255, 255, 0.14); }
+
+        .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+
+        @media (min-width: 1600px) {
+            main.main-content { padding: 2.5rem 3.5rem; }
+            .metrics-grid { grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+        }
+
+        @media (max-width: 1400px) {
+            .grid-2col { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 1200px) {
+            aside.sidebar { width: 240px; }
+            main.main-content { margin-left: 240px; max-width: calc(100vw - 240px); padding: 1.5rem; }
+            .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        /* Modal Launcher */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);
+            display: none; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box {
+            background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color);
+            border-radius: 12px; width: 500px; max-width: 90vw; padding: 1.5rem;
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .modal-header h3 { font-size: 1.1rem; }
+        .close-btn { cursor: pointer; font-size: 1.2rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">E</div>
+            <div class="brand-text">
+                <h2>EnumScan</h2>
+                <span>Recon OS v2.0</span>
+            </div>
+        </div>
+
+        <div class="nav-section-label">Core Navigation</div>
+        <nav class="nav-menu">
+            <a class="nav-item active" data-tab="overview" id="nav-overview">
+                <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                Overview Dashboard
+            </a>
+            <a class="nav-item" data-tab="assets" id="nav-assets">
+                <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+                Asset Inventory
+            </a>
+            <a class="nav-item" data-tab="findings" id="nav-findings">
+                <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                Vulnerabilities
+            </a>
+            <a class="nav-item" data-tab="secrets" id="nav-secrets">
+                <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                Secrets Intel
+            </a>
+            <a class="nav-item" data-tab="graph" id="nav-graph">
+                <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                Knowledge Graph
+            </a>
+            <a class="nav-item" data-tab="timeline" id="nav-timeline">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                Timeline & Drift
+            </a>
+        </nav>
+
+        <div class="nav-section-label">Specialized Modules</div>
+        <nav class="nav-menu">
+            <a class="nav-item" data-tab="web-enum" id="nav-web-enum">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                Web & Screenshots
+            </a>
+            <a class="nav-item" data-tab="passive-intel" id="nav-passive-intel">
+                <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                Passive Intel & OSINT
+            </a>
+            <a class="nav-item" data-tab="auth-intel" id="nav-auth-intel">
+                <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                Auth Intelligence
+            </a>
+            <a class="nav-item" data-tab="ai-analyst" id="nav-ai-analyst">
+                <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"></path><path d="M12 6v6l4 2"></path></svg>
+                AI Assistance
+            </a>
+        </nav>
+
+        <div class="nav-section-label">Operations & Admin</div>
+        <nav class="nav-menu">
+            <a class="nav-item" data-tab="events" id="nav-events">
+                <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 14 15 20 9"></polyline><polyline points="14 9 20 9 20 15"></polyline></svg>
+                Live Monitoring
+            </a>
+            <a class="nav-item" data-tab="integrations" id="nav-integrations">
+                <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path></svg>
+                API Keys & Vault
+            </a>
+            <a class="nav-item" data-tab="plugins" id="nav-plugins">
+                <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                Plugin SDK
+            </a>
+        </nav>
+
+        <div class="system-status">
+            <div class="status-header">
+                <span>Engine Execution</span>
+                <span class="pulse-indicator"></span>
+            </div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: #fff;" id="engine-status-text">Active / Operational</div>
+            <div style="font-size: 0.725rem; color: var(--text-dim); margin-top: 0.2rem;">Scope Guard Enforced</div>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <header class="top-bar">
+            <div class="page-title">
+                <h1 id="view-title">Overview Dashboard</h1>
+                <p id="view-subtitle">Event-driven reconnaissance & vulnerability intelligence platform</p>
+            </div>
+
+            <div class="top-actions">
+                <select class="project-selector" id="projectSelector" onchange="switchProject(this.value)">
+                    <option value="default">Workspace: Primary Scope</option>
+                    <option value="external">Workspace: External Infrastructure</option>
+                    <option value="cloud">Workspace: Cloud Scope</option>
+                </select>
+
+                <button class="btn" onclick="openScanModal()">+ New Scan Profile</button>
+
+                <div class="search-box">
+                    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" id="globalSearchInput" placeholder="Search target assets or rules..." oninput="handleGlobalSearch(this.value)">
+                </div>
+            </div>
+        </header>
+
+        <!-- Top Metrics Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Discovered Assets</div>
+                <div class="metric-value" id="metric-assets-count">0</div>
+                <div class="metric-subtext" id="metric-assets-subtext">✦ Live inventory count</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Vulnerabilities</div>
+                <div class="metric-value" id="metric-findings-count" style="color: var(--sev-critical)">0</div>
+                <div class="metric-subtext" id="metric-findings-subtext">0 Critical &bull; 0 High</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Secrets Intelligence</div>
+                <div class="metric-value" id="metric-secrets-count" style="color: var(--sev-high)">0</div>
+                <div class="metric-subtext" id="metric-secrets-subtext">Exposed secrets detected</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Engine Health</div>
+                <div class="metric-value" id="metric-scan-status">Operational</div>
+                <div class="metric-subtext">Native SQLite WAL Engine</div>
+            </div>
+        </div>
+
+        <!-- TAB 1: OVERVIEW -->
+        <section id="panel-overview" class="tab-panel active">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Recent Scan Findings & Vulnerabilities</h3>
+                    <button class="btn btn-secondary" onclick="switchTab('findings')">View All Findings</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" onclick="sortFindings('severity')">Severity <span id="sort-icon-overview-finding-severity"></span></th>
+                                <th class="sortable" onclick="sortFindings('title')">Title / Rule ID <span id="sort-icon-overview-finding-title"></span></th>
+                                <th class="sortable" onclick="sortFindings('asset')">Asset Target <span id="sort-icon-overview-finding-asset"></span></th>
+                                <th class="sortable" onclick="sortFindings('cve')">CVE <span id="sort-icon-overview-finding-cve"></span></th>
+                                <th class="sortable" onclick="sortFindings('remediation')">Remediation <span id="sort-icon-overview-finding-remediation"></span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="overview-findings-body">
+                            <tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No vulnerability findings recorded yet. Run a scan to populate results.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Discovered Asset Inventory</h3>
+                    <button class="btn btn-secondary" onclick="switchTab('assets')">Explore Inventory</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" onclick="sortAssets('type')">Asset Type <span id="sort-icon-overview-asset-type"></span></th>
+                                <th class="sortable" onclick="sortAssets('value')">Value / Target <span id="sort-icon-overview-asset-value"></span></th>
+                                <th class="sortable" onclick="sortAssets('parent')">Parent Scope <span id="sort-icon-overview-asset-parent"></span></th>
+                                <th class="sortable" onclick="sortAssets('metadata')">Metadata <span id="sort-icon-overview-asset-metadata"></span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="overview-assets-body">
+                            <tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No assets discovered yet. Run a scan to populate inventory.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: ASSET INVENTORY -->
+        <section id="panel-assets" class="tab-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Asset Inventory & Service Fingerprinting</h3>
+                    <button id="btnBulkDeleteAssets" class="btn btn-danger" style="display:none;" onclick="deleteSelectedAssets()">Delete Selected (<span id="countSelectedAssets">0</span>)</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px; text-align:center;"><input type="checkbox" id="selectAllAssets" onchange="toggleSelectAllAssets(this.checked)"></th>
+                                <th class="sortable" onclick="sortAssets('type')">Asset Type <span id="sort-icon-asset-type"></span></th>
+                                <th class="sortable" onclick="sortAssets('value')">Value <span id="sort-icon-asset-value"></span></th>
+                                <th class="sortable" onclick="sortAssets('parent')">Parent Scope <span id="sort-icon-asset-parent"></span></th>
+                                <th class="sortable" onclick="sortAssets('metadata')">Metadata / CPE <span id="sort-icon-asset-metadata"></span></th>
+                                <th style="width: 80px; text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assets-table-body">
+                            <tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No assets in inventory. Run a scan to populate data.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: VULNERABILITIES -->
+        <section id="panel-findings" class="tab-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Vulnerability Intelligence & Prioritization Engine</h3>
+                    <button id="btnBulkDeleteFindings" class="btn btn-danger" style="display:none;" onclick="deleteSelectedFindings()">Delete Selected (<span id="countSelectedFindings">0</span>)</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px; text-align:center;"><input type="checkbox" id="selectAllFindings" onchange="toggleSelectAllFindings(this.checked)"></th>
+                                <th class="sortable" onclick="sortFindings('severity')">Severity <span id="sort-icon-finding-severity"></span></th>
+                                <th class="sortable" onclick="sortFindings('title')">Title <span id="sort-icon-finding-title"></span></th>
+                                <th class="sortable" onclick="sortFindings('asset')">Asset Target <span id="sort-icon-finding-asset"></span></th>
+                                <th class="sortable" onclick="sortFindings('cve')">CVE <span id="sort-icon-finding-cve"></span></th>
+                                <th class="sortable" onclick="sortFindings('remediation')">Remediation <span id="sort-icon-finding-remediation"></span></th>
+                                <th style="width: 80px; text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="findings-table-body">
+                            <tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No vulnerabilities detected. Run a scan to analyze targets.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: SECRETS INTEL -->
+        <section id="panel-secrets" class="tab-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Secret Intelligence & Exposure Detector</h3>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Secret Type</th>
+                                <th>Target Asset</th>
+                                <th>Risk Score</th>
+                                <th>Redacted Sample</th>
+                            </tr>
+                        </thead>
+                        <tbody id="secrets-table-body">
+                            <tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No exposed credentials or secrets detected.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: KNOWLEDGE GRAPH -->
+        <section id="panel-graph" class="tab-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Knowledge Graph & Attack Path Visualizer</h3>
+                    <button class="btn btn-secondary" onclick="renderGraph()">Redraw Graph</button>
+                </div>
+                <canvas id="graphCanvas"></canvas>
+            </div>
+        </section>
+
+        <!-- TAB 6: TIMELINE & DRIFT -->
+        <section id="panel-timeline" class="tab-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Differential Analysis & Configuration Drift</h3>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Change Type</th>
+                                <th>Asset / Service</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="timeline-table-body">
+                            <tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No recent configuration drift or timeline changes recorded.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 7: WEB & SCREENSHOTS ENUMERATION -->
+        <section id="panel-web-enum" class="tab-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Web Application & Endpoint Discoveries</h3>
+                </div>
+                <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:1rem;">Includes crawler endpoints, discovered URLs, tech signatures, and web services.</p>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Endpoint / Asset URL</th>
+                                <th>Asset Type</th>
+                                <th>Parent Target</th>
+                                <th>Response & Metadata</th>
+                            </tr>
+                        </thead>
+                        <tbody id="web-enum-table-body">
+                            <tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No web endpoints enumerated yet. Run a scan to discover web services.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Visual Reconnaissance & Screenshot Queue</h3>
+                </div>
+                <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:1rem;">Queued & captured web page targets for visual inspection.</p>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Target URL</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                                <th>Backend Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="screenshots-table-body">
+                            <tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No screenshot targets queued yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 8: PASSIVE INTEL -->
+        <section id="panel-passive-intel" class="tab-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Passive Intelligence & OSINT</h3>
+                </div>
+                <div class="grid-2col">
+                    <div>
+                        <h4 style="margin-bottom:0.5rem;">Shodan & Censys Signals</h4>
+                        <p style="font-size:0.8rem; color:var(--text-muted);">Historical port exposure and service banners imported passively.</p>
+                    </div>
+                    <div>
+                        <h4 style="margin-bottom:0.5rem;">Wayback & Bucket Monitoring</h4>
+                        <p style="font-size:0.8rem; color:var(--text-muted);">Harvested archive URLs and public cloud bucket exposures.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 9: AUTH INTEL -->
+        <section id="panel-auth-intel" class="tab-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Authentication & Identity Intelligence</h3>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Protocol</th>
+                            <th>Issuer / Endpoint</th>
+                            <th>MFA Status</th>
+                            <th>Password Policy</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auth-intel-table-body">
+                        <tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No authentication endpoints detected in scan scope.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- TAB 10: AI ASSISTANT -->
+        <section id="panel-ai-analyst" class="tab-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">AI Security Assistant & Risk Justification</h3>
+                </div>
+                <div style="background-color:rgba(0,0,0,0.2); padding:1rem; border-radius:8px; border:1px solid var(--border-color); font-size:0.875rem;" id="ai-summary-box">
+                    <strong>Executive Summary:</strong> No active findings or risks to evaluate. Run a scan profile to generate AI risk analysis.
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 11: LIVE MONITORING & EVENTS -->
+        <section id="panel-events" class="tab-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Live Scan Monitoring & Event Console</h3>
+                </div>
+                <div class="event-console" id="eventStreamConsole">
+                    <div class="event-entry"><span class="event-time">[System]</span> <span class="event-type">engine.ready</span> <span class="event-target">Monitoring initialized — awaiting events</span></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 12: INTEGRATIONS & API KEYS -->
+        <section id="panel-integrations" class="tab-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Integrations & API Credentials Vault</h3>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Provider</th>
+                            <th>API Key Status</th>
+                            <th>Quota / Rate Limit</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="integrations-table-body">
+                        <tr>
+                            <td>Shodan API</td>
+                            <td><span class="badge badge-info" id="shodan-status">Not Configured</span></td>
+                            <td>—</td>
+                            <td><button class="btn btn-secondary" style="padding:0.2rem 0.5rem;" onclick="testIntegration('shodan')">Configure</button></td>
+                        </tr>
+                        <tr>
+                            <td>VirusTotal API</td>
+                            <td><span class="badge badge-info" id="vt-status">Not Configured</span></td>
+                            <td>—</td>
+                            <td><button class="btn btn-secondary" style="padding:0.2rem 0.5rem;" onclick="testIntegration('virustotal')">Configure</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- TAB 13: PLUGINS -->
+        <section id="panel-plugins" class="tab-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Plugin SDK & Marketplace</h3>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Plugin Name</th>
+                            <th>Type</th>
+                            <th>Sandbox Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="plugins-table-body">
+                        <tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No external or Lua plugins loaded. Place custom scripts in <code>plugins/</code>.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Scan Profile Launcher Modal -->
+    <div class="modal-overlay" id="scanModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Launch New Scan Profile</h3>
+                <span class="close-btn" onclick="closeScanModal()">&times;</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                <label style="font-size:0.825rem; font-weight:600;">Target Scope (IP / Domain / CIDR)</label>
+                <input type="text" id="scanScopeInput" placeholder="e.g. 10.0.0.0/24 or example.com" style="padding:0.5rem; background:#111726; border:1px solid var(--border-color); color:#fff; border-radius:6px;">
+
+                <label style="font-size:0.825rem; font-weight:600;">Select Scan Profile</label>
+                <select id="scanProfileSelect" style="padding:0.5rem; background:#111726; border:1px solid var(--border-color); color:#fff; border-radius:6px;">
+                    <option value="standard">Standard Enumeration</option>
+                    <option value="quick">Quick Discovery</option>
+                    <option value="exhaustive">Exhaustive Web & Port Scan</option>
+                </select>
+
+                <button class="btn" style="margin-top:0.5rem;" onclick="launchScan()">Launch Scan Profile</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allAssets = [];
+        let allFindings = [];
+
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                switchTab(item.getAttribute('data-tab'));
+            });
+        });
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+
+            const navItem = document.getElementById('nav-' + tabId);
+            const panelItem = document.getElementById('panel-' + tabId);
+
+            if (navItem && panelItem) {
+                navItem.classList.add('active');
+                panelItem.classList.add('active');
+
+                if (tabId === 'graph') {
+                    setTimeout(renderGraph, 50);
+                }
+            }
+        }
+
+        let loggedEventIDs = new Set();
+
+        async function loadDashboardData() {
+            try {
+                const [assetsRes, findingsRes, eventsRes] = await Promise.all([
+                    fetch('/api/v1/assets').then(r => r.ok ? r.json() : []).catch(() => []),
+                    fetch('/api/v1/findings').then(r => r.ok ? r.json() : []).catch(() => []),
+                    fetch('/api/v1/events').then(r => r.ok ? r.json() : []).catch(() => [])
+                ]);
+
+                const rawAssets = Array.isArray(assetsRes) ? assetsRes : [];
+                const rawFindings = Array.isArray(findingsRes) ? findingsRes : [];
+
+                allAssets = rawAssets.filter(a => {
+                    const val = (a.value || a.Value || '').toLowerCase();
+                    const parent = (a.parent || a.Parent || '').toLowerCase();
+                    return !val.includes('127.0.0.1') && !val.includes('localhost') &&
+                           !parent.includes('127.0.0.1') && !parent.includes('localhost');
+                });
+
+                allFindings = rawFindings.filter(f => {
+                    const asset = (f.asset || f.Asset || '').toLowerCase();
+                    return !asset.includes('127.0.0.1') && !asset.includes('localhost');
+                });
+
+                renderAssetsTable(allAssets);
+                renderFindingsTable(allFindings);
+                renderSecretsTable(allFindings);
+                renderWebEnumTable(allAssets);
+                renderScreenshotsTable(allAssets);
+                updateMetrics();
+                
+                if (Array.isArray(eventsRes) && eventsRes.length > 0) {
+                    eventsRes.forEach(e => {
+                        const eventKey = `${e.id || ''}-${e.type || ''}-${e.target || ''}`;
+                        if (!loggedEventIDs.has(eventKey)) {
+                            loggedEventIDs.add(eventKey);
+                            logEvent(e.type || 'event', e.target || 'system');
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error("Dashboard data load error:", err);
+            }
+        }
+
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/api/v1/events/ws`;
+            try {
+                const ws = new WebSocket(wsUrl);
+                ws.onmessage = (evt) => {
+                    try {
+                        const data = JSON.parse(evt.data);
+                        logEvent(data.type || 'ws.event', data.target || 'live');
+                        loadDashboardData();
+                    } catch (e) {}
+                };
+                ws.onclose = () => { setTimeout(initWebSocket, 5000); };
+            } catch (e) {
+                console.warn("WebSocket stream fallback to polling");
+            }
+        }
+
+        let currentSortAssets = { key: null, asc: true };
+        let currentSortFindings = { key: null, asc: true };
+        let selectedAssetIDs = new Set();
+        let selectedFindingIDs = new Set();
+
+        const severityRank = {
+            'critical': 5,
+            'high': 4,
+            'medium': 3,
+            'low': 2,
+            'info': 1
+        };
+
+        function sortAssets(key) {
+            if (currentSortAssets.key === key) {
+                currentSortAssets.asc = !currentSortAssets.asc;
+            } else {
+                currentSortAssets.key = key;
+                currentSortAssets.asc = true;
+            }
+            renderAssetsTable(allAssets);
+            updateSortIcons('asset', currentSortAssets);
+        }
+
+        function sortFindings(key) {
+            if (currentSortFindings.key === key) {
+                currentSortFindings.asc = !currentSortFindings.asc;
+            } else {
+                currentSortFindings.key = key;
+                currentSortFindings.asc = true;
+            }
+            renderFindingsTable(allFindings);
+            updateSortIcons('finding', currentSortFindings);
+        }
+
+        function updateSortIcons(type, sortState) {
+            const keys = type === 'asset' ? ['type', 'value', 'parent', 'metadata'] : ['severity', 'title', 'asset', 'cve', 'remediation'];
+            keys.forEach(k => {
+                const iconElem = document.getElementById(`sort-icon-${type}-${k}`);
+                const overviewIconElem = document.getElementById(`sort-icon-overview-${type}-${k}`);
+                const arrow = (sortState.key === k) ? (sortState.asc ? ' ▲' : ' ▼') : '';
+                if (iconElem) iconElem.innerText = arrow;
+                if (overviewIconElem) overviewIconElem.innerText = arrow;
+            });
+        }
+
+        function getSortedAssets(assets) {
+            if (!currentSortAssets.key) return assets;
+            const k = currentSortAssets.key;
+            const asc = currentSortAssets.asc;
+            return [...assets].sort((a, b) => {
+                const valA = (a[k] || a[k.charAt(0).toUpperCase() + k.slice(1)] || '').toString().toLowerCase();
+                const valB = (b[k] || b[k.charAt(0).toUpperCase() + k.slice(1)] || '').toString().toLowerCase();
+                if (valA < valB) return asc ? -1 : 1;
+                if (valA > valB) return asc ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function getSortedFindings(findings) {
+            if (!currentSortFindings.key) return findings;
+            const k = currentSortFindings.key;
+            const asc = currentSortFindings.asc;
+            return [...findings].sort((a, b) => {
+                if (k === 'severity') {
+                    const sevA = (a.severity || a.Severity || 'info').toLowerCase();
+                    const sevB = (b.severity || b.Severity || 'info').toLowerCase();
+                    const rankA = severityRank[sevA] || 0;
+                    const rankB = severityRank[sevB] || 0;
+                    return asc ? rankA - rankB : rankB - rankA;
+                }
+                const valA = (a[k] || a[k.charAt(0).toUpperCase() + k.slice(1)] || '').toString().toLowerCase();
+                const valB = (b[k] || b[k.charAt(0).toUpperCase() + k.slice(1)] || '').toString().toLowerCase();
+                if (valA < valB) return asc ? -1 : 1;
+                if (valA > valB) return asc ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function toggleSelectAsset(id, checked) {
+            if (checked) selectedAssetIDs.add(id);
+            else selectedAssetIDs.delete(id);
+            updateAssetsBulkButton();
+        }
+
+        function toggleSelectAllAssets(checked) {
+            if (checked) {
+                allAssets.forEach(a => { if (a.id) selectedAssetIDs.add(a.id); });
+            } else {
+                selectedAssetIDs.clear();
+            }
+            renderAssetsTable(allAssets);
+        }
+
+        function updateAssetsBulkButton() {
+            const btn = document.getElementById('btnBulkDeleteAssets');
+            const count = document.getElementById('countSelectedAssets');
+            if (btn && count) {
+                count.innerText = selectedAssetIDs.size;
+                btn.style.display = selectedAssetIDs.size > 0 ? 'inline-flex' : 'none';
+            }
+            const selectAll = document.getElementById('selectAllAssets');
+            if (selectAll) {
+                selectAll.checked = allAssets.length > 0 && selectedAssetIDs.size === allAssets.length;
+            }
+        }
+
+        function toggleSelectFinding(id, checked) {
+            if (checked) selectedFindingIDs.add(id);
+            else selectedFindingIDs.delete(id);
+            updateFindingsBulkButton();
+        }
+
+        function toggleSelectAllFindings(checked) {
+            if (checked) {
+                allFindings.forEach(f => { if (f.id) selectedFindingIDs.add(f.id); });
+            } else {
+                selectedFindingIDs.clear();
+            }
+            renderFindingsTable(allFindings);
+        }
+
+        function updateFindingsBulkButton() {
+            const btn = document.getElementById('btnBulkDeleteFindings');
+            const count = document.getElementById('countSelectedFindings');
+            if (btn && count) {
+                count.innerText = selectedFindingIDs.size;
+                btn.style.display = selectedFindingIDs.size > 0 ? 'inline-flex' : 'none';
+            }
+            const selectAll = document.getElementById('selectAllFindings');
+            if (selectAll) {
+                selectAll.checked = allFindings.length > 0 && selectedFindingIDs.size === allFindings.length;
+            }
+        }
+
+        async function deleteSingleAsset(id) {
+            if (!confirm(`Are you sure you want to delete asset #${id}?`)) return;
+            try {
+                const res = await fetch(`/api/v1/assets?id=${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    allAssets = allAssets.filter(a => a.id !== id);
+                    selectedAssetIDs.delete(id);
+                    renderAssetsTable(allAssets);
+                    updateMetrics();
+                    logEvent('asset.deleted', `Asset #${id}`);
+                } else {
+                    alert('Failed to delete asset');
+                }
+            } catch (e) {
+                console.error('Delete asset error:', e);
+            }
+        }
+
+        async function deleteSelectedAssets() {
+            const ids = Array.from(selectedAssetIDs);
+            if (ids.length === 0) return;
+            if (!confirm(`Are you sure you want to delete ${ids.length} selected asset(s)?`)) return;
+            try {
+                const res = await fetch('/api/v1/assets', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: ids })
+                });
+                if (res.ok) {
+                    const idSet = new Set(ids);
+                    allAssets = allAssets.filter(a => !idSet.has(a.id));
+                    selectedAssetIDs.clear();
+                    renderAssetsTable(allAssets);
+                    updateMetrics();
+                    logEvent('assets.bulk_deleted', `${ids.length} assets`);
+                } else {
+                    alert('Failed to bulk delete assets');
+                }
+            } catch (e) {
+                console.error('Bulk delete assets error:', e);
+            }
+        }
+
+        async function deleteSingleFinding(id) {
+            if (!confirm(`Are you sure you want to delete finding #${id}?`)) return;
+            try {
+                const res = await fetch(`/api/v1/findings?id=${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    allFindings = allFindings.filter(f => f.id !== id);
+                    selectedFindingIDs.delete(id);
+                    renderFindingsTable(allFindings);
+                    renderSecretsTable(allFindings);
+                    updateMetrics();
+                    logEvent('finding.deleted', `Finding #${id}`);
+                } else {
+                    alert('Failed to delete finding');
+                }
+            } catch (e) {
+                console.error('Delete finding error:', e);
+            }
+        }
+
+        async function deleteSelectedFindings() {
+            const ids = Array.from(selectedFindingIDs);
+            if (ids.length === 0) return;
+            if (!confirm(`Are you sure you want to delete ${ids.length} selected finding(s)?`)) return;
+            try {
+                const res = await fetch('/api/v1/findings', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: ids })
+                });
+                if (res.ok) {
+                    const idSet = new Set(ids);
+                    allFindings = allFindings.filter(f => !idSet.has(f.id));
+                    selectedFindingIDs.clear();
+                    renderFindingsTable(allFindings);
+                    renderSecretsTable(allFindings);
+                    updateMetrics();
+                    logEvent('findings.bulk_deleted', `${ids.length} findings`);
+                } else {
+                    alert('Failed to bulk delete findings');
+                }
+            } catch (e) {
+                console.error('Bulk delete findings error:', e);
+            }
+        }
+
+        function renderAssetsTable(assets) {
+            const overviewBody = document.getElementById('overview-assets-body');
+            const mainBody = document.getElementById('assets-table-body');
+            
+            if (!assets || assets.length === 0) {
+                const emptyOverview = `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No assets discovered yet. Run a scan to populate inventory.</td></tr>`;
+                const emptyMain = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No assets in inventory. Run a scan to populate data.</td></tr>`;
+                if (overviewBody) overviewBody.innerHTML = emptyOverview;
+                if (mainBody) mainBody.innerHTML = emptyMain;
+                updateAssetsBulkButton();
+                return;
+            }
+
+            const sorted = getSortedAssets(assets);
+
+            const overviewHTML = sorted.map(a => {
+                const type = a.type || a.Type || 'asset';
+                const value = a.value || a.Value || 'N/A';
+                const parent = a.parent || a.Parent || '—';
+                const metadata = a.metadata || a.Metadata || 'N/A';
+                return `
+                <tr>
+                    <td><span class="type-tag">${escapeHTML(type)}</span></td>
+                    <td><code>${escapeHTML(value)}</code></td>
+                    <td>${escapeHTML(parent)}</td>
+                    <td><span style="color: var(--text-muted); font-size: 0.8rem;">${escapeHTML(metadata)}</span></td>
+                </tr>`;
+            }).join('');
+
+            const mainHTML = sorted.map(a => {
+                const id = a.id || a.ID || 0;
+                const type = a.type || a.Type || 'asset';
+                const value = a.value || a.Value || 'N/A';
+                const parent = a.parent || a.Parent || '—';
+                const metadata = a.metadata || a.Metadata || 'N/A';
+                const checked = selectedAssetIDs.has(id) ? 'checked' : '';
+                return `
+                <tr>
+                    <td style="text-align:center;"><input type="checkbox" ${checked} onchange="toggleSelectAsset(${id}, this.checked)"></td>
+                    <td><span class="type-tag">${escapeHTML(type)}</span></td>
+                    <td><code>${escapeHTML(value)}</code></td>
+                    <td>${escapeHTML(parent)}</td>
+                    <td><span style="color: var(--text-muted); font-size: 0.8rem;">${escapeHTML(metadata)}</span></td>
+                    <td style="text-align:center;">
+                        <button class="btn-icon-danger" onclick="deleteSingleAsset(${id})" title="Delete asset">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            if (overviewBody) overviewBody.innerHTML = overviewHTML;
+            if (mainBody) mainBody.innerHTML = mainHTML;
+            updateAssetsBulkButton();
+        }
+
+        function renderFindingsTable(findings) {
+            const overviewBody = document.getElementById('overview-findings-body');
+            const mainBody = document.getElementById('findings-table-body');
+
+            if (!findings || findings.length === 0) {
+                const emptyOverview = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No vulnerability findings recorded yet. Run a scan to populate results.</td></tr>`;
+                const emptyMain = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No vulnerabilities detected. Run a scan to analyze targets.</td></tr>`;
+                if (overviewBody) overviewBody.innerHTML = emptyOverview;
+                if (mainBody) mainBody.innerHTML = emptyMain;
+                updateFindingsBulkButton();
+                return;
+            }
+
+            const sorted = getSortedFindings(findings);
+
+            const overviewHTML = sorted.map(f => {
+                const severity = f.severity || f.Severity || 'info';
+                const title = f.title || f.Title || 'Finding';
+                const asset = f.asset || f.Asset || 'N/A';
+                const cve = f.cve || f.CVE || '';
+                const remediation = f.remediation || f.Remediation || 'N/A';
+                return `
+                <tr>
+                    <td><span class="badge badge-${severity.toLowerCase()}">${escapeHTML(severity)}</span></td>
+                    <td><strong>${escapeHTML(title)}</strong></td>
+                    <td><code>${escapeHTML(asset)}</code></td>
+                    <td>${cve ? `<span class="type-tag">${escapeHTML(cve)}</span>` : '—'}</td>
+                    <td><span style="font-size:0.8rem; color: var(--text-muted);">${escapeHTML(remediation)}</span></td>
+                </tr>`;
+            }).join('');
+
+            const mainHTML = sorted.map(f => {
+                const id = f.id || f.ID || 0;
+                const severity = f.severity || f.Severity || 'info';
+                const title = f.title || f.Title || 'Finding';
+                const asset = f.asset || f.Asset || 'N/A';
+                const cve = f.cve || f.CVE || '';
+                const remediation = f.remediation || f.Remediation || 'N/A';
+                const checked = selectedFindingIDs.has(id) ? 'checked' : '';
+                return `
+                <tr>
+                    <td style="text-align:center;"><input type="checkbox" ${checked} onchange="toggleSelectFinding(${id}, this.checked)"></td>
+                    <td><span class="badge badge-${severity.toLowerCase()}">${escapeHTML(severity)}</span></td>
+                    <td><strong>${escapeHTML(title)}</strong></td>
+                    <td><code>${escapeHTML(asset)}</code></td>
+                    <td>${cve ? `<span class="type-tag">${escapeHTML(cve)}</span>` : '—'}</td>
+                    <td><span style="font-size:0.8rem; color: var(--text-muted);">${escapeHTML(remediation)}</span></td>
+                    <td style="text-align:center;">
+                        <button class="btn-icon-danger" onclick="deleteSingleFinding(${id})" title="Delete finding">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            if (overviewBody) overviewBody.innerHTML = overviewHTML;
+            if (mainBody) mainBody.innerHTML = mainHTML;
+            updateFindingsBulkButton();
+        }
+
+        function renderSecretsTable(findings) {
+            const secretsBody = document.getElementById('secrets-table-body');
+            if (!secretsBody) return;
+
+            const secretFindings = (findings || []).filter(f => {
+                const title = (f.title || f.Title || '').toLowerCase();
+                return title.includes('secret') || title.includes('key') || title.includes('credential');
+            });
+
+            if (secretFindings.length === 0) {
+                secretsBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No exposed credentials or secrets detected.</td></tr>`;
+                return;
+            }
+
+            secretsBody.innerHTML = secretFindings.map(s => {
+                const title = s.title || s.Title || 'Exposed Secret';
+                const asset = s.asset || s.Asset || 'N/A';
+                const remediation = s.remediation || s.Remediation || 'Redacted';
+                return `
+                <tr>
+                    <td><span class="badge badge-critical">${escapeHTML(title)}</span></td>
+                    <td><code>${escapeHTML(asset)}</code></td>
+                    <td>90 / 100</td>
+                    <td><code>${escapeHTML(remediation)}</code></td>
+                </tr>`;
+            }).join('');
+        }
+
+        function renderWebEnumTable(assets) {
+            const webBody = document.getElementById('web-enum-table-body');
+            if (!webBody) return;
+
+            const webAssets = (assets || []).filter(a => {
+                const type = (a.type || a.Type || '').toLowerCase();
+                return type.includes('url') || type.includes('api') || type.includes('http') || type.includes('js') || type.includes('web');
+            });
+
+            if (webAssets.length === 0) {
+                webBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No web endpoints enumerated yet. Run a scan to discover web services.</td></tr>`;
+                return;
+            }
+
+            webBody.innerHTML = webAssets.map(w => {
+                const value = w.value || w.Value || 'N/A';
+                const type = w.type || w.Type || 'url';
+                const parent = w.parent || w.Parent || '—';
+                const metadata = w.metadata || w.Metadata || '—';
+                return `
+                <tr>
+                    <td><code>${escapeHTML(value)}</code></td>
+                    <td><span class="type-tag">${escapeHTML(type)}</span></td>
+                    <td>${escapeHTML(parent)}</td>
+                    <td><span style="font-size:0.8rem; color:var(--text-muted);">${escapeHTML(metadata)}</span></td>
+                </tr>`;
+            }).join('');
+        }
+
+        function renderScreenshotsTable(assets) {
+            const ssBody = document.getElementById('screenshots-table-body');
+            if (!ssBody) return;
+
+            const ssAssets = (assets || []).filter(a => {
+                const type = (a.type || a.Type || '').toLowerCase();
+                return type === 'screenshot_target';
+            });
+
+            if (ssAssets.length === 0) {
+                ssBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No screenshot targets queued yet.</td></tr>`;
+                return;
+            }
+
+            ssBody.innerHTML = ssAssets.map(s => {
+                const value = s.value || s.Value || 'N/A';
+                const metadata = s.metadata || s.Metadata || 'priority=normal;status=queued';
+                const priorityMatch = metadata.match(/priority=([^;]+)/);
+                const priority = priorityMatch ? priorityMatch[1] : 'normal';
+                return `
+                <tr>
+                    <td><code>${escapeHTML(value)}</code></td>
+                    <td><span class="badge badge-${priority === 'high' ? 'high' : 'info'}">${escapeHTML(priority)}</span></td>
+                    <td><span class="badge badge-low">queued</span></td>
+                    <td><span style="font-size:0.8rem; color:var(--text-muted);">${escapeHTML(metadata)}</span></td>
+                </tr>`;
+            }).join('');
+        }
+
+        function updateMetrics() {
+            document.getElementById('metric-assets-count').innerText = allAssets.length;
+            document.getElementById('metric-findings-count').innerText = allFindings.length;
+            
+            const secrets = allFindings.filter(f => {
+                const title = (f.title || f.Title || '').toLowerCase();
+                return title.includes('secret') || title.includes('key');
+            });
+            document.getElementById('metric-secrets-count').innerText = secrets.length;
+        }
+
+        function handleGlobalSearch(query) {
+            const q = query.toLowerCase();
+            const filteredAssets = allAssets.filter(a => {
+                const str = ((a.value||a.Value||'') + (a.type||a.Type||'') + (a.parent||a.Parent||'') + (a.metadata||a.Metadata||'')).toLowerCase();
+                return str.includes(q);
+            });
+            const filteredFindings = allFindings.filter(f => {
+                const str = ((f.title||f.Title||'') + (f.asset||f.Asset||'') + (f.severity||f.Severity||'') + (f.cve||f.CVE||'')).toLowerCase();
+                return str.includes(q);
+            });
+
+            renderAssetsTable(filteredAssets);
+            renderFindingsTable(filteredFindings);
+        }
+
+        function renderGraph() {
+            const canvas = document.getElementById('graphCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.parentElement.clientWidth - 40;
+            canvas.height = 420;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (allAssets.length === 0) {
+                ctx.fillStyle = '#6b7280';
+                ctx.font = '14px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('No asset nodes found in active scan scope. Run a scan profile to populate knowledge graph.', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            const nodes = allAssets.slice(0, 10).map((a, i) => {
+                const val = a.value || a.Value || `Asset-${i}`;
+                const type = a.type || a.Type || 'host';
+                return {
+                    id: val,
+                    type: type,
+                    x: (canvas.width / (Math.min(allAssets.length, 10) + 1)) * (i + 1),
+                    y: canvas.height / 2 + (i % 2 === 0 ? -40 : 40)
+                };
+            });
+
+            nodes.forEach(n => {
+                ctx.beginPath(); ctx.arc(n.x, n.y, 20, 0, Math.PI * 2);
+                ctx.fillStyle = n.type === 'service' ? '#ef4444' : (n.type === 'host' ? '#3b82f6' : '#10b981');
+                ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+                ctx.fillStyle = '#f3f4f6'; ctx.font = '12px Inter, sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText(n.id, n.x, n.y + 34);
+            });
+        }
+
+        function logEvent(type, target) {
+            const consoleEl = document.getElementById('eventStreamConsole');
+            if (!consoleEl) return;
+            const entry = document.createElement('div');
+            entry.className = 'event-entry';
+            entry.innerHTML = `<span class="event-time">[${new Date().toLocaleTimeString()}]</span> <span class="event-type">${escapeHTML(type)}</span> <span class="event-target">${escapeHTML(target)}</span>`;
+            consoleEl.prepend(entry);
+        }
+
+        function openScanModal() { document.getElementById('scanModal').classList.add('active'); }
+        function closeScanModal() { document.getElementById('scanModal').classList.remove('active'); }
+        async function launchScan() {
+            const scope = document.getElementById('scanScopeInput').value.trim();
+            const profile = document.getElementById('scanProfileSelect').value;
+
+            if (!scope) {
+                alert('Please enter a valid IP address or CIDR range (e.g. 192.168.56.101)');
+                return;
+            }
+
+            closeScanModal();
+            logEvent('scan.dispatching', `Target Scope: ${scope}`);
+
+            try {
+                const res = await fetch('/api/v1/scans/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ target: scope, profile: profile })
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    logEvent('scan.error', errData.error || 'Failed to dispatch scan');
+                    alert('Scan error: ' + (errData.error || 'Could not start scan'));
+                    return;
+                }
+
+                const data = await res.json();
+                logEvent('scan.started', `Scan ID: ${data.scan_id} for target: ${data.target}`);
+                await loadDashboardData();
+            } catch (err) {
+                console.error("Launch scan error:", err);
+                logEvent('scan.failed', err.message);
+            }
+        }
+        function switchProject(val) { logEvent('workspace.switched', 'Active Workspace: ' + val); }
+        function testIntegration(name) { alert(`Testing ${name} API key integration...`); }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        loadDashboardData();
+        initWebSocket();
+        setInterval(loadDashboardData, 2500);
+        window.addEventListener('resize', renderGraph);
+    </script>
+</body>
+</html>
