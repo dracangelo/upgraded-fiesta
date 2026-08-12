@@ -12,6 +12,8 @@ func TestContainerChecksCoverTaskTenEndpoints(t *testing.T) {
 		{2375, "runtime"},
 		{2375, "compose"},
 		{6443, "kubernetes_secrets"},
+		{8080, "podman"},
+		{10010, "containerd"},
 	}
 	for _, tc := range cases {
 		found := false
@@ -22,6 +24,14 @@ func TestContainerChecksCoverTaskTenEndpoints(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("port %d missing %s check", tc.port, tc.kind)
+		}
+	}
+}
+
+func TestExtendedDatabasePorts(t *testing.T) {
+	for _, port := range []int{8123, 9000, 9042, 8086} {
+		if !isDatabasePort(port, "") {
+			t.Fatalf("port %d should be recognized as a database endpoint", port)
 		}
 	}
 }

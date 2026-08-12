@@ -17,11 +17,19 @@ scheduler:
 
 discovery:
   cidr_max_hosts: 64
+  enable_dns_discovery: false
+  enable_dns_records: false
   enable_reverse_dns: false
   enable_wildcard_dns: false
   enable_rdap: false
+  enable_icmp_sweep: false
+  enable_tcp_host_probes: false
+  tcp_probe_ports: [80, 443]
+  enable_udp_live_probes: false
+  udp_probe_ports: [53, 123]
   passive_dns_files: []
   certificate_transparency_files: []
+  passive_capture_files: []
 
 portscan:
   profile: "authorized-conservative"
@@ -31,6 +39,8 @@ portscan:
   enable_udp: false
   enable_banner: false
   enable_raw_syn: false
+  max_concurrent_ports: 2
+  record_closed_ports: false
   base_timeout_ms: 1000
   max_timeout_ms: 3000
 
@@ -44,11 +54,17 @@ http:
   enable_screenshots: false
   enable_directory_api: false
   enable_secret_intelligence: false
+  enable_web_manifest: false
+  enable_redirect_tracking: false
+  enable_method_enumeration: false
+  enable_source_map_analysis: false
   max_directory_paths: 0
   directory_wordlist: []
   api_paths: []
 
 specialized:
+  # Enable only when read-only protocol enumeration is authorized.
+  enable_protocol_enumeration: false
   enable_smb: false
   enable_ldap: false
   enable_snmp: false

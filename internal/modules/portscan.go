@@ -2,11 +2,16 @@ package modules
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	"enumscan/internal/models"
@@ -21,9 +26,19 @@ type PortScan struct {
 }
 
 type scanTiming struct {
+	mu       sync.Mutex
 	timeout  time.Duration
 	max      time.Duration
 	failures int
+}
+
+type tcpScanResult struct {
+	port     int
+	address  string
+	state    string
+	latency  time.Duration
+	timeout  time.Duration
+	evidence string
 }
 
 func NewPortScan(db *store.SQLiteCLI, guard scope.Guard, config models.PortScanConfig) PortScan {
@@ -36,8 +51,8 @@ func NewPortScan(db *store.SQLiteCLI, guard scope.Guard, config models.PortScanC
 	if config.MaxTimeoutMS <= 0 {
 		config.MaxTimeoutMS = 3000
 	}
-	if !config.EnableTCP && !config.EnableUDP {
-		config.EnableTCP = true
+	if config.MaxConcurrentPorts <= 0 {
+		config.MaxConcurrentPorts = 4
 	}
 	config.TCPPorts = resolveTCPPorts(config.Profile, config.TCPPorts)
 	config.UDPPorts = resolveUDPPorts(config.Profile, config.UDPPorts)
@@ -67,33 +82,89 @@ func (p PortScan) Handle(ctx context.Context, event models.Event) ([]models.Even
 }
 
 func (p PortScan) scanTCP(ctx context.Context, event models.Event, timing *scanTiming) []models.Event {
+	// Phase one is a bounded TCP-connect sweep. Only confirmed open ports reach
+	// phase two, preventing banner probes from being sent to every candidate.
+	jobs := make(chan int)
+	results := make(chan tcpScanResult, len(p.config.TCPPorts))
+	workers := p.config.MaxConcurrentPorts
+	if workers > len(p.config.TCPPorts) {
+		workers = len(p.config.TCPPorts)
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for port := range jobs {
+				results <- p.connectProbe(ctx, event.Target, port, timing)
+			}
+		}()
+	}
+	go func() {
+		for _, port := range p.config.TCPPorts {
+			select {
+			case jobs <- port:
+			case <-ctx.Done():
+				close(jobs)
+				wg.Wait()
+				close(results)
+				return
+			}
+		}
+		close(jobs)
+		wg.Wait()
+		close(results)
+	}()
+	all := make([]tcpScanResult, 0, len(p.config.TCPPorts))
+	for result := range results {
+		all = append(all, result)
+	}
+	sort.Slice(all, func(i, j int) bool { return all[i].port < all[j].port })
 	next := make([]models.Event, 0)
-	for _, port := range p.config.TCPPorts {
-		address := net.JoinHostPort(event.Target, strconv.Itoa(port))
-		start := time.Now()
-		dialer := net.Dialer{Timeout: timing.timeout}
-		conn, err := dialer.DialContext(ctx, "tcp", address)
-		latency := time.Since(start)
-		timing.observe(err == nil, latency)
-		if err != nil {
+	for _, result := range all {
+		if result.state != "open" {
+			if p.config.RecordClosedPorts {
+				_ = p.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "port_state", Value: fmt.Sprintf("%s/tcp", result.address), Parent: event.Target, Metadata: fmt.Sprintf("state=%s;latency_ms=%d", result.state, result.latency.Milliseconds())})
+			}
 			continue
 		}
 		banner := ""
 		if p.config.EnableBanner {
-			banner = grabBanner(conn, port, timing.timeout)
+			banner = p.enrichTCP(ctx, result.address, result.port, timing.current())
 		}
-		_ = conn.Close()
-
-		metadata := fmt.Sprintf("protocol=tcp;latency_ms=%d;timeout_ms=%d", latency.Milliseconds(), timing.timeout.Milliseconds())
+		metadata := fmt.Sprintf("protocol=tcp;state=open;phase=connect;latency_ms=%d;timeout_ms=%d", result.latency.Milliseconds(), result.timeout.Milliseconds())
 		if banner != "" {
 			metadata += ";banner=" + sanitizeMeta(banner)
 		}
-		value := fmt.Sprintf("%s/tcp", address)
+		value := fmt.Sprintf("%s/tcp", result.address)
 		_ = p.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "open_port", Value: value, Parent: event.Target, Metadata: metadata})
-		next = append(next, models.Event{ScanID: event.ScanID, Type: EventPort, Target: address, Data: map[string]string{"port": strconv.Itoa(port), "protocol": "tcp", "banner": banner}})
-		next = append(next, webEvents(event.ScanID, address, port)...)
+		_ = p.db.AddPortObservation(ctx, models.PortObservation{ScanID: event.ScanID, Host: event.Target, Port: result.port, Protocol: "tcp", State: "open", LatencyMS: result.latency.Milliseconds(), Evidence: sanitizeMeta(banner)})
+		next = append(next, models.Event{ScanID: event.ScanID, Type: EventPort, Target: result.address, Data: map[string]string{"port": strconv.Itoa(result.port), "protocol": "tcp", "banner": banner, "state": "open"}})
+		next = append(next, webEvents(event.ScanID, result.address, result.port)...)
 	}
 	return next
+}
+
+func (p PortScan) connectProbe(ctx context.Context, host string, port int, timing *scanTiming) tcpScanResult {
+	address, timeout := net.JoinHostPort(host, strconv.Itoa(port)), timing.current()
+	start := time.Now()
+	conn, err := (&net.Dialer{Timeout: timeout}).DialContext(ctx, "tcp", address)
+	latency := time.Since(start)
+	state := classifyTCPState(err)
+	timing.observe(state == "open", latency)
+	if conn != nil {
+		_ = conn.Close()
+	}
+	return tcpScanResult{port: port, address: address, state: state, latency: latency, timeout: timeout, evidence: errorText(err)}
+}
+
+func (p PortScan) enrichTCP(ctx context.Context, address string, port int, timeout time.Duration) string {
+	conn, err := (&net.Dialer{Timeout: timeout}).DialContext(ctx, "tcp", address)
+	if err != nil {
+		return ""
+	}
+	defer conn.Close()
+	return grabBanner(conn, port, timeout)
 }
 
 func (p PortScan) scanUDP(ctx context.Context, event models.Event, timing *scanTiming) []models.Event {
@@ -116,19 +187,22 @@ func (p PortScan) scanUDP(ctx context.Context, event models.Event, timing *scanT
 		_ = conn.Close()
 		latency := time.Since(start)
 		timing.observe(readErr == nil, latency)
-		if readErr != nil {
+		if readErr != nil || !validUDPResponse(port, buf[:n]) {
 			continue
 		}
 		response := sanitizeMeta(string(buf[:n]))
 		value := fmt.Sprintf("%s/udp", address)
-		metadata := fmt.Sprintf("protocol=udp;latency_ms=%d;response=%s", latency.Milliseconds(), response)
+		metadata := fmt.Sprintf("protocol=udp;state=open;probe=%s;latency_ms=%d;response=%s", udpProbeName(port), latency.Milliseconds(), response)
 		_ = p.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "open_port", Value: value, Parent: event.Target, Metadata: metadata})
-		next = append(next, models.Event{ScanID: event.ScanID, Type: EventPort, Target: address, Data: map[string]string{"port": strconv.Itoa(port), "protocol": "udp", "response": response}})
+		_ = p.db.AddPortObservation(ctx, models.PortObservation{ScanID: event.ScanID, Host: event.Target, Port: port, Protocol: "udp", State: "open", LatencyMS: latency.Milliseconds(), Evidence: response})
+		next = append(next, models.Event{ScanID: event.ScanID, Type: EventPort, Target: address, Data: map[string]string{"port": strconv.Itoa(port), "protocol": "udp", "response": response, "state": "open", "probe": udpProbeName(port)}})
 	}
 	return next
 }
 
 func (t *scanTiming) observe(success bool, latency time.Duration) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	if success {
 		t.failures = 0
 		next := latency * 4
@@ -148,6 +222,28 @@ func (t *scanTiming) observe(success bool, latency time.Duration) {
 			t.timeout = t.max
 		}
 	}
+}
+
+func (t *scanTiming) current() time.Duration { t.mu.Lock(); defer t.mu.Unlock(); return t.timeout }
+
+func classifyTCPState(err error) string {
+	if err == nil {
+		return "open"
+	}
+	if errors.Is(err, syscall.ECONNREFUSED) {
+		return "closed"
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, syscall.ETIMEDOUT) {
+		return "filtered"
+	}
+	return "unreachable"
+}
+
+func errorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	return sanitizeMeta(err.Error())
 }
 
 func grabBanner(conn net.Conn, port int, timeout time.Duration) string {
@@ -186,10 +282,74 @@ func udpProbe(port int) []byte {
 		return []byte{0x30, 0x26, 0x02, 0x01, 0x01, 0x04, 0x06, 'p', 'u', 'b', 'l', 'i', 'c', 0xa0, 0x19, 0x02, 0x04, 0x70, 0x65, 0x6e, 0x01, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00, 0x30, 0x0b, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x06, 0x01, 0x02, 0x01, 0x05, 0x00}
 	case 500:
 		return []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01, 0x10, 0x02, 0x00, 0, 0, 0, 0, 0, 0, 0, 0}
+	case 69:
+		return []byte{0, 1, 'e', 'n', 'u', 'm', 's', 'c', 'a', 'n', 0, 'o', 'c', 't', 'e', 't', 0} // TFTP RRQ
+	case 111:
+		return []byte{0x65, 0x6e, 0x75, 0x6d, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 0x86, 0xa0, 0, 0, 0, 2, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	case 137:
+		return []byte{0x12, 0x34, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0x20, 'C', 'K', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 0, 0, 0x21, 0, 1}
+	case 5060:
+		return []byte("OPTIONS sip:scan@enumscan.invalid SIP/2.0\r\nVia: SIP/2.0/UDP enumscan.invalid;branch=z9hG4bK-enumscan\r\nFrom: <sip:scan@enumscan.invalid>;tag=1\r\nTo: <sip:scan@enumscan.invalid>\r\nCall-ID: enumscan\r\nCSeq: 1 OPTIONS\r\nMax-Forwards: 1\r\nContent-Length: 0\r\n\r\n")
+	case 5353:
+		return []byte{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 5, '_', 'h', 't', 't', 'p', 4, '_', 't', 'c', 'p', 5, 'l', 'o', 'c', 'a', 'l', 0, 0, 12, 0, 1}
+	case 1812:
+		return []byte{1, 1, 0, 20, 0x65, 0x6e, 0x75, 0x6d, 0x73, 0x63, 0x61, 0x6e, 0, 1, 2, 3, 4, 5, 6, 7}
 	case 1900:
 		return []byte("M-SEARCH * HTTP/1.1\r\nHOST:239.255.255.250:1900\r\nMAN:\"ssdp:discover\"\r\nMX:1\r\nST:ssdp:all\r\n\r\n")
 	default:
 		return []byte("\r\n")
+	}
+}
+
+func udpProbeName(port int) string {
+	switch port {
+	case 53:
+		return "dns"
+	case 69:
+		return "tftp_rrq"
+	case 111:
+		return "rpcbind"
+	case 123:
+		return "ntp"
+	case 137:
+		return "netbios_name"
+	case 161:
+		return "snmp_get"
+	case 500:
+		return "ike"
+	case 1812:
+		return "radius_access_request"
+	case 1900:
+		return "ssdp"
+	case 5060:
+		return "sip_options"
+	case 5353:
+		return "mdns_ptr"
+	default:
+		return "generic"
+	}
+}
+
+func validUDPResponse(port int, response []byte) bool {
+	switch port {
+	case 53, 5353:
+		return len(response) >= 12 && (port == 5353 || response[2]&0x80 != 0)
+	case 69:
+		return len(response) >= 4 && response[0] == 0 && (response[1] == 3 || response[1] == 5)
+	case 111:
+		return len(response) >= 24
+	case 123:
+		return len(response) >= 48
+	case 137:
+		return len(response) >= 12 && response[0] == 0x12 && response[1] == 0x34
+	case 1812:
+		return len(response) >= 20 && (response[0] == 2 || response[0] == 3 || response[0] == 11)
+	case 5060:
+		return bytes.HasPrefix(response, []byte("SIP/2.0"))
+	case 1900:
+		return bytes.HasPrefix(response, []byte("HTTP/1.1"))
+	default:
+		return len(response) > 0
 	}
 }
 

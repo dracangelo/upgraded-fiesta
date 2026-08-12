@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -23,12 +24,13 @@ type ServiceFingerprint struct {
 }
 
 type serviceID struct {
-	Name       string
-	Version    string
-	Product    string
-	CPE        string
-	Confidence string
-	Evidence   string
+	Name         string
+	Version      string
+	Product      string
+	CPE          string
+	Confidence   string
+	Evidence     string
+	Verification string
 }
 
 func NewServiceFingerprint(db *store.SQLiteCLI, guard scope.Guard) ServiceFingerprint {
@@ -68,9 +70,16 @@ func (s ServiceFingerprint) Handle(ctx context.Context, event models.Event) ([]m
 		_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "service_version", Value: fp.Version, Parent: event.Target, Metadata: metadata})
 	}
 	if fp.CPE != "" {
-		_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "cpe_candidate", Value: fp.CPE, Parent: event.Target, Metadata: "confidence=" + fp.Confidence + ";evidence=" + cleanEvidence(fp.Evidence)})
+		_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "cpe_candidate", Value: fp.CPE, Parent: event.Target, Metadata: "confidence=" + fp.Confidence + ";verification=" + fp.Verification + ";evidence=" + cleanEvidence(fp.Evidence)})
 	}
-	return []models.Event{{ScanID: event.ScanID, Type: EventService, Target: event.Target, Data: map[string]string{"service": fp.Name, "version": fp.Version, "cpe": fp.CPE, "confidence": fp.Confidence}}}, nil
+	for _, runtime := range runtimeFingerprints(fp.Evidence) {
+		metadata := "confidence=" + runtime.Confidence + ";verification=observed;evidence=" + cleanEvidence(runtime.Evidence)
+		_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "runtime", Value: runtime.Product, Parent: event.Target, Metadata: metadata})
+		if runtime.CPE != "" {
+			_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "cpe_candidate", Value: runtime.CPE, Parent: event.Target, Metadata: metadata})
+		}
+	}
+	return []models.Event{{ScanID: event.ScanID, Type: EventService, Target: event.Target, Data: map[string]string{"service": fp.Name, "version": fp.Version, "cpe": fp.CPE, "confidence": fp.Confidence, "verification": fp.Verification}}}, nil
 }
 
 func fingerprintFromPort(port int, protocol string) serviceID {
@@ -132,6 +141,7 @@ func fingerprintFromPort(port int, protocol string) serviceID {
 	fp := table[port]
 	if fp.Evidence == "" && fp.Name != "" {
 		fp.Evidence = fmt.Sprintf("port=%d/%s", port, protocol)
+		fp.Verification = "heuristic"
 	}
 	return fp
 }
@@ -175,6 +185,9 @@ func refineFromEvidence(fp serviceID, evidence string) serviceID {
 		fp.Evidence = evidence
 	} else {
 		fp.Evidence += " | " + evidence
+	}
+	if strings.TrimSpace(evidence) != "" {
+		fp.Verification = "observed"
 	}
 	if fp.Confidence == "" {
 		fp.Confidence = "low"
@@ -296,6 +309,9 @@ func mergeFingerprint(base, active serviceID) serviceID {
 			base.Evidence += " | " + active.Evidence
 		}
 	}
+	if active.Verification != "" {
+		base.Verification = active.Verification
+	}
 	return base
 }
 
@@ -304,6 +320,7 @@ func serviceMetadata(fp serviceID, port int, protocol string) string {
 		"port=" + strconv.Itoa(port),
 		"protocol=" + protocol,
 		"confidence=" + firstNonEmpty(fp.Confidence, "low"),
+		"verification=" + firstNonEmpty(fp.Verification, "heuristic"),
 	}
 	if fp.Product != "" {
 		parts = append(parts, "product="+cleanEvidence(fp.Product))
@@ -312,6 +329,38 @@ func serviceMetadata(fp serviceID, port int, protocol string) string {
 		parts = append(parts, "evidence="+cleanEvidence(fp.Evidence))
 	}
 	return strings.Join(parts, ";")
+}
+
+type runtimeID struct{ Product, Version, CPE, Confidence, Evidence string }
+
+var runtimePatterns = []struct{ pattern, product, vendor, name string }{
+	{`(?i)openssl[ /]([0-9][a-z0-9._-]*)`, "OpenSSL", "openssl", "openssl"},
+	{`(?i)python[ /]([0-9][a-z0-9._-]*)`, "Python", "python", "python"},
+	{`(?i)\bgo([0-9]+\.[0-9]+(?:\.[0-9]+)?)`, "Go", "golang", "go"},
+	{`(?i)java[ /]([0-9][a-z0-9._-]*)`, "Java", "oracle", "java"},
+	{`(?i)ruby[ /]([0-9][a-z0-9._-]*)`, "Ruby", "ruby-lang", "ruby"},
+	{`(?i)node(?:\.js)?[ /]v?([0-9][a-z0-9._-]*)`, "Node.js", "nodejs", "node.js"},
+	{`(?i)gunicorn[ /]([0-9][a-z0-9._-]*)`, "Gunicorn", "gunicorn", "gunicorn"},
+	{`(?i)werkzeug[ /]([0-9][a-z0-9._-]*)`, "Werkzeug", "palletsprojects", "werkzeug"},
+	{`(?i)jetty[(/ ]([0-9][a-z0-9._-]*)`, "Jetty", "eclipse", "jetty"},
+}
+
+func runtimeFingerprints(evidence string) []runtimeID {
+	seen, out := map[string]bool{}, make([]runtimeID, 0)
+	for _, pattern := range runtimePatterns {
+		match := regexp.MustCompile(pattern.pattern).FindStringSubmatch(evidence)
+		if len(match) < 2 || match[1] == "" {
+			continue
+		}
+		version := strings.Trim(match[1], "()")
+		key := pattern.name + ":" + version
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, runtimeID{Product: pattern.product + " " + version, Version: version, CPE: fmt.Sprintf("cpe:2.3:a:%s:%s:%s:*:*:*:*:*:*:*", pattern.vendor, pattern.name, version), Confidence: "medium", Evidence: match[0]})
+	}
+	return out
 }
 
 func firstNonEmpty(values ...string) string {

@@ -80,6 +80,7 @@ func (h *HTTP) Handle(ctx context.Context, event models.Event) ([]models.Event, 
 	if err != nil {
 		return nil, nil
 	}
+	started := time.Now()
 	resp, err := h.client.Do(req)
 	if err != nil {
 		return nil, nil
@@ -90,14 +91,26 @@ func (h *HTTP) Handle(ctx context.Context, event models.Event) ([]models.Event, 
 	body := string(bodyBytes)
 	meta := responseMetadata(resp)
 	_ = h.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "url", Value: event.Target, Metadata: meta})
+	h.recordResponseProfile(ctx, event.ScanID, event.Target, resp, len(bodyBytes), time.Since(started))
 	h.auditSecurityHeaders(ctx, event.ScanID, event.Target, resp)
 	h.recordTechnologies(ctx, event.ScanID, event.Target, resp)
+	h.recordCanonicalURL(ctx, event.ScanID, event.Target, resp, body)
+	h.recordErrorPage(ctx, event.ScanID, event.Target, resp, body)
 	if h.config.EnableScreenshots {
 		h.recordScreenshotTarget(ctx, event.ScanID, event.Target, resp.StatusCode)
 	}
 
 	next := make([]models.Event, 0)
 	root := rootURL(parsed)
+	if depth == 0 && h.config.EnableRedirectTracking {
+		h.recordRedirectChain(ctx, event.ScanID, event.Target)
+	}
+	if depth == 0 && h.config.EnableMethodEnumeration {
+		h.enumerateAllowedMethods(ctx, event.ScanID, event.Target)
+	}
+	if depth == 0 && h.config.EnableWebManifest {
+		h.discoverWebManifest(ctx, event.ScanID, root)
+	}
 	if h.config.EnableCrawler && depth == 0 {
 		next = append(next, h.fetchRobotsAndSitemap(ctx, event.ScanID, root)...)
 	}
@@ -224,6 +237,10 @@ func (h *HTTP) auditSecurityHeaders(ctx context.Context, scanID, target string, 
 	}
 	if strings.HasPrefix(target, "https://") && resp.Header.Get("Strict-Transport-Security") == "" {
 		_ = h.db.AddFinding(ctx, models.Finding{ScanID: scanID, Severity: "low", Confidence: "medium", Asset: target, Title: "Missing HSTS header", Evidence: "HTTPS response did not include Strict-Transport-Security", Remediation: "Set a Strict-Transport-Security policy after validating HTTPS is deployed across the site."})
+	}
+	if hpkp := resp.Header.Get("Public-Key-Pins"); hpkp != "" {
+		_ = h.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "hpkp_header", Value: target, Parent: target, Metadata: "value=" + cleanEvidence(hpkp)})
+		_ = h.db.AddFinding(ctx, models.Finding{ScanID: scanID, Severity: "info", Confidence: "observed", Verification: "observed", Asset: target, Title: "Deprecated HPKP header present", Evidence: "Public-Key-Pins was observed", Remediation: "Remove HPKP; modern browsers deprecated it due to operational recovery risk."})
 	}
 	for _, check := range checks {
 		if resp.Header.Get(check.header) == "" {

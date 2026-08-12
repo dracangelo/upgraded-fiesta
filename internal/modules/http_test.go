@@ -3,8 +3,19 @@ package modules
 import (
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 )
+
+func TestHTTPQualityParsers(t *testing.T) {
+	match := canonicalPattern.FindStringSubmatch(`<link rel="canonical" href="https://app.example.test/home">`)
+	if len(match) != 2 || match[1] != "https://app.example.test/home" {
+		t.Fatalf("unexpected canonical match: %#v", match)
+	}
+	if !strings.Contains(normalizeAllowedMethods("GET, OPTIONS, TRACE"), ",TRACE,") {
+		t.Fatal("expected normalized method set")
+	}
+}
 
 func TestExtractLinksKeepsScopedRelativeURLs(t *testing.T) {
 	base, _ := url.Parse("https://example.test/app/index.html")

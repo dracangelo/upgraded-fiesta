@@ -26,6 +26,16 @@ func TestDirectoryAPIWordlistIsTechnologyAwareAndBounded(t *testing.T) {
 	}
 }
 
+func TestDirectoryQualityParsers(t *testing.T) {
+	if !validMercurialRequires("revlogv1\nstore") || validMercurialRequires("<html>not found</html>") {
+		t.Fatal("unexpected Mercurial metadata validation")
+	}
+	match := sourceMapReference.FindStringSubmatch("//# sourceMappingURL=app.js.map")
+	if len(match) != 2 || match[1] != "app.js.map" {
+		t.Fatalf("unexpected source map reference: %#v", match)
+	}
+}
+
 func TestScopedPathRejectsExternalTargets(t *testing.T) {
 	root, _ := url.Parse("https://example.test")
 	if item, ok := scopedPath(root, "/api"); !ok || item.String() != "https://example.test/api" {

@@ -1,14 +1,17 @@
 package modules
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -87,9 +90,139 @@ func (s Specialized) Handle(ctx context.Context, event models.Event) ([]models.E
 			newEvts := s.probeDatabase(ctx, event, host, port)
 			results = append(results, newEvts...)
 		}
+		if s.cfg.EnableProtocolEnumeration && protocol == "tcp" && isProtocolEnumerationPort(port, serviceName) {
+			results = append(results, s.probeProtocolCapabilities(ctx, event, host, port)...)
+		}
 	}
 
 	return results, nil
+}
+
+// -----------------------------------------------------------------------------
+// 0. Read-only SSH, FTP, and SMTP capability enumeration
+// -----------------------------------------------------------------------------
+
+func isProtocolEnumerationPort(port int, service string) bool {
+	return port == 21 || port == 22 || port == 25 || port == 587 || service == "ftp" || service == "ssh" || service == "smtp" || service == "smtp-submission"
+}
+
+func (s Specialized) probeProtocolCapabilities(ctx context.Context, event models.Event, host string, port int) []models.Event {
+	address := net.JoinHostPort(host, strconv.Itoa(port))
+	conn, err := (&net.Dialer{Timeout: 2 * time.Second}).DialContext(ctx, "tcp", address)
+	if err != nil {
+		return nil
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
+	reader := bufio.NewReader(io.LimitReader(conn, 32*1024))
+
+	switch {
+	case port == 22 || serviceName(event) == "ssh":
+		return s.enumerateSSH(ctx, event, address, conn, reader)
+	case port == 21 || serviceName(event) == "ftp":
+		return s.enumerateFTP(ctx, event, address, conn, reader)
+	default:
+		return s.enumerateSMTP(ctx, event, address, conn, reader)
+	}
+}
+
+func serviceName(event models.Event) string { return strings.ToLower(event.Data["service"]) }
+
+func (s Specialized) enumerateSSH(ctx context.Context, event models.Event, address string, conn net.Conn, reader *bufio.Reader) []models.Event {
+	serverID, err := reader.ReadString('\n')
+	if err != nil || !strings.HasPrefix(serverID, "SSH-") {
+		return nil
+	}
+	if _, err := io.WriteString(conn, "SSH-2.0-enumscan_0.1\r\n"); err != nil {
+		return nil
+	}
+	algorithms := readSSHKEXAlgorithms(reader)
+	metadata := "server_identification=" + cleanEvidence(strings.TrimSpace(serverID)) + ";verification=observed"
+	if len(algorithms) > 0 {
+		metadata += ";kex_algorithms=" + strings.Join(algorithms, ",")
+	}
+	_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "ssh_capabilities", Value: address, Parent: event.Target, Metadata: metadata})
+	return []models.Event{{ScanID: event.ScanID, Type: EventSpecializedDiscovered, Target: address, Data: map[string]string{"category": "ssh", "capabilities": strconv.Itoa(len(algorithms))}}}
+}
+
+func readSSHKEXAlgorithms(reader *bufio.Reader) []string {
+	header := make([]byte, 5)
+	if _, err := io.ReadFull(reader, header); err != nil {
+		return nil
+	}
+	packetLength := int(binary.BigEndian.Uint32(header[:4]))
+	paddingLength := int(header[4])
+	if packetLength < paddingLength+2 || packetLength > 32*1024 {
+		return nil
+	}
+	payload := make([]byte, packetLength-paddingLength-1)
+	if _, err := io.ReadFull(reader, payload); err != nil || len(payload) < 17 || payload[0] != 20 {
+		return nil
+	}
+	payload = payload[17:] // message code plus cookie
+	result := make([]string, 0, 2)
+	for index := 0; index < 2; index++ { // KEX and host-key algorithms only.
+		if len(payload) < 4 {
+			return result
+		}
+		length := int(binary.BigEndian.Uint32(payload[:4]))
+		payload = payload[4:]
+		if length > len(payload) || length > 4096 {
+			return result
+		}
+		result = append(result, cleanEvidence(string(payload[:length])))
+		payload = payload[length:]
+	}
+	return result
+}
+
+func (s Specialized) enumerateFTP(ctx context.Context, event models.Event, address string, conn net.Conn, reader *bufio.Reader) []models.Event {
+	welcome, err := reader.ReadString('\n')
+	if err != nil || !strings.HasPrefix(welcome, "220") {
+		return nil
+	}
+	if _, err := io.WriteString(conn, "FEAT\r\n"); err != nil {
+		return nil
+	}
+	features := readSMTPOrFTPResponse(reader, "211")
+	metadata := "welcome=" + cleanEvidence(strings.TrimSpace(welcome)) + ";verification=observed"
+	if features != "" {
+		metadata += ";features=" + cleanEvidence(features)
+	}
+	_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "ftp_capabilities", Value: address, Parent: event.Target, Metadata: metadata})
+	return []models.Event{{ScanID: event.ScanID, Type: EventSpecializedDiscovered, Target: address, Data: map[string]string{"category": "ftp"}}}
+}
+
+func (s Specialized) enumerateSMTP(ctx context.Context, event models.Event, address string, conn net.Conn, reader *bufio.Reader) []models.Event {
+	welcome, err := reader.ReadString('\n')
+	if err != nil || !strings.HasPrefix(welcome, "220") {
+		return nil
+	}
+	if _, err := io.WriteString(conn, "EHLO enumscan.invalid\r\n"); err != nil {
+		return nil
+	}
+	capabilities := readSMTPOrFTPResponse(reader, "250")
+	metadata := "welcome=" + cleanEvidence(strings.TrimSpace(welcome)) + ";verification=observed"
+	if capabilities != "" {
+		metadata += ";ehlo_capabilities=" + cleanEvidence(capabilities)
+	}
+	_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "smtp_capabilities", Value: address, Parent: event.Target, Metadata: metadata})
+	return []models.Event{{ScanID: event.ScanID, Type: EventSpecializedDiscovered, Target: address, Data: map[string]string{"category": "smtp"}}}
+}
+
+func readSMTPOrFTPResponse(reader *bufio.Reader, expectedCode string) string {
+	lines := make([]string, 0, 8)
+	for len(lines) < 8 {
+		line, err := reader.ReadString('\n')
+		if err != nil || !strings.HasPrefix(line, expectedCode) {
+			break
+		}
+		lines = append(lines, strings.TrimSpace(line))
+		if len(line) < 4 || line[3] != '-' {
+			break
+		}
+	}
+	return strings.Join(lines, " | ")
 }
 
 // -----------------------------------------------------------------------------
@@ -146,7 +279,7 @@ func (s Specialized) probeSMB(ctx context.Context, event models.Event, host stri
 	}
 
 	dialect := "SMB2/SMB3"
-	security := "Signing Enabled"
+	security := "signing_status=not_parsed"
 	if bytes.Contains(resp[:n], []byte("\xfeSMB")) || bytes.Contains(resp[:n], []byte("\xffSMB")) {
 		metadata := fmt.Sprintf("address=%s;dialect=%s;security=%s;response_bytes=%d", address, dialect, security, n)
 		_ = s.db.AddAsset(ctx, models.Asset{
@@ -200,22 +333,8 @@ func (s Specialized) probeLDAP(ctx context.Context, event models.Event, host str
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
 
-	// BER encoded LDAP SearchRequest for RootDSE (base="", scope=0, filter=(objectClass=*), attributes=["namingContexts", "defaultNamingContext", "dnsHostName"])
-	ldapRootDSERequest := []byte{
-		0x30, 0x25, // Sequence (37 bytes)
-		0x02, 0x01, 0x01, // Message ID: 1
-		0x63, 0x20, // SearchRequest (32 bytes)
-		0x04, 0x00, // BaseDN: ""
-		0x0a, 0x01, 0x00, // Scope: baseObject (0)
-		0x0a, 0x01, 0x00, // DerefAliases: neverDerefAliases (0)
-		0x02, 0x01, 0x00, // SizeLimit: 0
-		0x02, 0x01, 0x00, // TimeLimit: 0
-		0x01, 0x01, 0x00, // TypesOnly: false
-		0xa3, 0x07, // Filter: present (objectClass)
-		0x04, 0x0b, 'o', 'b', 'j', 'e', 'c', 't', 'C', 'l', 'a', 's', 's',
-		0x30, 0x07, // Attributes
-		0x04, 0x05, 'n', 'a', 'm', 'i', 'n', 'g',
-	}
+	// This unbound, base-object request retrieves public RootDSE metadata only.
+	ldapRootDSERequest := ldapRootDSERequest()
 
 	if _, err := conn.Write(ldapRootDSERequest); err != nil {
 		return nil
@@ -230,7 +349,7 @@ func (s Specialized) probeLDAP(ctx context.Context, event models.Event, host str
 	raw := string(buf[:n])
 	isAD := strings.Contains(strings.ToLower(raw), "dc=") || strings.Contains(raw, "namingContexts") || port == 3268 || port == 3269
 
-	metadata := fmt.Sprintf("address=%s;is_active_directory=%t;response_len=%d", address, isAD, n)
+	metadata := fmt.Sprintf("address=%s;is_active_directory=%t;response_len=%d;verification=observed", address, isAD, n)
 	_ = s.db.AddAsset(ctx, models.Asset{
 		ScanID:   event.ScanID,
 		Type:     "ldap_service",
@@ -248,16 +367,12 @@ func (s Specialized) probeLDAP(ctx context.Context, event models.Event, host str
 			Metadata: "source=ldap_rootdse_probe",
 		})
 	}
+	for _, namingContext := range ldapNamingContexts(raw) {
+		_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "ldap_naming_context", Value: namingContext, Parent: address, Metadata: "source=anonymous_rootdse;verification=observed"})
+	}
 
-	_ = s.db.AddFinding(ctx, models.Finding{
-		ScanID:      event.ScanID,
-		Severity:    "medium",
-		Confidence:  "medium",
-		Asset:       address,
-		Title:       "Anonymous LDAP RootDSE Access Allowed",
-		Evidence:    metadata,
-		Remediation: "Restrict LDAP anonymous binds and enforce LDAP signing & channel binding.",
-	})
+	// RootDSE is commonly intentionally readable before authentication. The
+	// response is retained as inventory, not reported as a vulnerability.
 
 	return []models.Event{{
 		ScanID: event.ScanID,
@@ -285,7 +400,7 @@ func (s Specialized) probeSNMP(ctx context.Context, event models.Event, host str
 
 	communities := s.cfg.SNMPCommunities
 	if len(communities) == 0 {
-		communities = []string{"public", "private", "community"}
+		return nil // Never try default credentials without explicit operator input.
 	}
 
 	var events []models.Event
@@ -299,7 +414,7 @@ func (s Specialized) probeSNMP(ctx context.Context, event models.Event, host str
 		buf := make([]byte, 1024)
 		n, err := conn.Read(buf)
 		if err == nil && n > 10 {
-			evidence := fmt.Sprintf("community=%s;response_bytes=%d", comm, n)
+			evidence := fmt.Sprintf("community_configured=true;response_bytes=%d;verification=observed", n)
 			_ = s.db.AddAsset(ctx, models.Asset{
 				ScanID:   event.ScanID,
 				Type:     "snmp_agent",
@@ -307,16 +422,21 @@ func (s Specialized) probeSNMP(ctx context.Context, event models.Event, host str
 				Parent:   event.Target,
 				Metadata: evidence,
 			})
+			if description := snmpSystemDescription(buf[:n]); description != "" {
+				_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "snmp_system_description", Value: description, Parent: address, Metadata: "source=sysDescr;verification=observed"})
+			}
 
-			_ = s.db.AddFinding(ctx, models.Finding{
-				ScanID:      event.ScanID,
-				Severity:    "high",
-				Confidence:  "high",
-				Asset:       address,
-				Title:       "Default SNMP Community String Accepted",
-				Evidence:    evidence,
-				Remediation: "Change default SNMP community strings and restrict UDP 161 access.",
-			})
+			if isDefaultSNMPCommunity(comm) {
+				_ = s.db.AddFinding(ctx, models.Finding{
+					ScanID:      event.ScanID,
+					Severity:    "high",
+					Confidence:  "high",
+					Asset:       address,
+					Title:       "Default SNMP Community String Accepted",
+					Evidence:    evidence,
+					Remediation: "Replace the default SNMP community string and restrict UDP 161 access.",
+				})
+			}
 
 			events = append(events, models.Event{
 				ScanID: event.ScanID,
@@ -328,6 +448,56 @@ func (s Specialized) probeSNMP(ctx context.Context, event models.Event, host str
 		}
 	}
 	return events
+}
+
+func ldapRootDSERequest() []byte {
+	attributeList := []byte{}
+	for _, name := range []string{"namingContexts", "defaultNamingContext", "dnsHostName"} {
+		attributeList = append(attributeList, ldapTLV(0x04, []byte(name))...)
+	}
+	search := []byte{0x04, 0x00, 0x0a, 0x01, 0x00, 0x0a, 0x01, 0x00, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00, 0x01, 0x01, 0x00}
+	search = append(search, ldapTLV(0xa3, ldapTLV(0x04, []byte("objectClass")))...)
+	search = append(search, ldapTLV(0x30, attributeList)...)
+	message := append([]byte{0x02, 0x01, 0x01}, ldapTLV(0x63, search)...)
+	return ldapTLV(0x30, message)
+}
+
+func ldapTLV(tag byte, value []byte) []byte {
+	return append([]byte{tag, byte(len(value))}, value...)
+}
+
+func isDefaultSNMPCommunity(community string) bool {
+	switch strings.ToLower(strings.TrimSpace(community)) {
+	case "public", "private", "community":
+		return true
+	default:
+		return false
+	}
+}
+
+var namingContextPattern = regexp.MustCompile(`(?i)(?:dc=[a-z0-9-]+,?)+`)
+var printableSNMPPattern = regexp.MustCompile(`[ -~]{8,}`)
+
+func ldapNamingContexts(raw string) []string {
+	seen, out := map[string]bool{}, make([]string, 0)
+	for _, candidate := range namingContextPattern.FindAllString(raw, -1) {
+		candidate = strings.Trim(strings.ToLower(candidate), ", \x00")
+		if candidate != "" && !seen[candidate] {
+			seen[candidate] = true
+			out = append(out, candidate)
+		}
+	}
+	return out
+}
+
+func snmpSystemDescription(response []byte) string {
+	for _, value := range printableSNMPPattern.FindAllString(string(response), -1) {
+		value = strings.TrimSpace(value)
+		if len(value) >= 8 && !strings.EqualFold(value, "public") {
+			return cleanEvidence(value)
+		}
+	}
+	return ""
 }
 
 func buildSNMPGetNextPDU(community string, oid []int) []byte {
@@ -488,6 +658,19 @@ func (s Specialized) probeCloudURL(ctx context.Context, event models.Event) []mo
 		vendor, details = "gcp", "Google Cloud Platform"
 	}
 
+	if serverlessVendor, kind := detectServerlessHeaders(resp.Header); serverlessVendor != "" {
+		metadata := fmt.Sprintf("vendor=%s;kind=%s;verification=observed", serverlessVendor, kind)
+		_ = s.db.AddAsset(ctx, models.Asset{
+			ScanID: event.ScanID, Type: "serverless_endpoint", Value: url, Parent: event.Target, Metadata: metadata,
+		})
+		return []models.Event{{
+			ScanID: event.ScanID,
+			Type:   EventSpecializedDiscovered,
+			Target: url,
+			Data:   map[string]string{"category": "serverless", "vendor": serverlessVendor, "kind": kind},
+		}}
+	}
+
 	if vendor != "" {
 		metadata := fmt.Sprintf("vendor=%s;details=%s;url=%s", vendor, details, url)
 		_ = s.db.AddAsset(ctx, models.Asset{
@@ -504,8 +687,20 @@ func (s Specialized) probeCloudURL(ctx context.Context, event models.Event) []mo
 			Data:   map[string]string{"category": "cloud", "vendor": vendor, "details": details},
 		}}
 	}
-
 	return nil
+}
+
+func detectServerlessHeaders(headers http.Header) (string, string) {
+	server := strings.ToLower(headers.Get("Server"))
+	switch {
+	case headers.Get("X-Amz-Executed-Version") != "" || headers.Get("X-Amzn-RequestId") != "":
+		return "aws", "lambda"
+	case headers.Get("X-Azure-Functions-Version") != "" || strings.Contains(server, "azure-functions"):
+		return "azure", "functions"
+	case headers.Get("X-Cloud-Trace-Context") != "" && (strings.Contains(strings.ToLower(headers.Get("Via")+server), "google") || headers.Get("X-Cloud-Run-Region") != ""):
+		return "gcp", "cloud_functions_or_run"
+	}
+	return "", ""
 }
 
 func detectCloudVendor(target string) (string, string) {
@@ -546,8 +741,8 @@ func sanitizeBucketName(target string) string {
 // -----------------------------------------------------------------------------
 
 func isContainerPort(port int, service string) bool {
-	return port == 2375 || port == 2376 || port == 5000 || port == 5001 || port == 6443 || port == 10250 || port == 10255 || port == 2379 ||
-		service == "docker" || service == "docker-tls" || service == "docker-registry" || service == "kubernetes-api" || service == "kubelet" || service == "etcd"
+	return port == 2375 || port == 2376 || port == 5000 || port == 5001 || port == 6443 || port == 10250 || port == 10255 || port == 2379 || port == 8080 || port == 10010 ||
+		service == "docker" || service == "docker-tls" || service == "docker-registry" || service == "kubernetes-api" || service == "kubelet" || service == "etcd" || service == "podman" || service == "containerd"
 }
 
 func (s Specialized) probeContainer(ctx context.Context, event models.Event, host string, port int) []models.Event {
@@ -597,6 +792,10 @@ func (s Specialized) probeContainer(ctx context.Context, event models.Event, hos
 			assetType = "container_runtime"
 		case "compose":
 			assetType = "docker_compose_file"
+		case "podman":
+			assetType = "podman_api"
+		case "containerd":
+			assetType = "containerd_endpoint"
 		case "kubernetes_secrets":
 			assetType = "kubernetes_secrets_endpoint"
 			metadata += ";items=" + strconv.Itoa(kubernetesItemCount(bodyBytes))
@@ -672,6 +871,12 @@ func containerChecks(port int, service string) []containerCheck {
 	if port == 2379 || service == "etcd" {
 		checks = append(checks, containerCheck{"/v2/keys", "runtime"})
 	}
+	if port == 8080 || service == "podman" {
+		checks = append(checks, containerCheck{"/_ping", "podman"}, containerCheck{"/version", "podman"})
+	}
+	if port == 10010 || service == "containerd" {
+		checks = append(checks, containerCheck{"/healthz", "containerd"})
+	}
 	return checks
 }
 
@@ -683,6 +888,10 @@ func containerCategory(port int, service, kind string) (string, string) {
 		return "docker_registry", "Docker Registry Discovered"
 	case "compose":
 		return "docker_compose", "Docker Compose File Exposed"
+	case "podman":
+		return "podman", "Podman API Endpoint Exposed"
+	case "containerd":
+		return "containerd", "Containerd Health Endpoint Exposed"
 	case "kubernetes_secrets":
 		return "kubernetes", "Kubernetes Secrets Endpoint Exposed"
 	}
@@ -728,6 +937,10 @@ func isDatabasePort(port int, service string) bool {
 		27017: true, // MongoDB
 		11211: true, // Memcached
 		5984:  true, // CouchDB
+		8123:  true, // ClickHouse HTTP
+		9000:  true, // ClickHouse native
+		9042:  true, // Cassandra native
+		8086:  true, // InfluxDB HTTP
 	}
 	if dbPorts[port] {
 		return true
@@ -735,6 +948,7 @@ func isDatabasePort(port int, service string) bool {
 	dbServices := map[string]bool{
 		"mysql": true, "postgresql": true, "mssql": true, "redis": true,
 		"elasticsearch": true, "mongodb": true, "memcached": true, "couchdb": true,
+		"cassandra": true, "clickhouse": true, "influxdb": true, "oracle": true,
 	}
 	return dbServices[service]
 }
@@ -758,9 +972,75 @@ func (s Specialized) probeDatabase(ctx context.Context, event models.Event, host
 		return s.checkPostgreSQL(ctx, event, address)
 	case port == 1433 || serviceName == "mssql":
 		return s.checkMSSQL(ctx, event, address)
+	case port == 8123 || serviceName == "clickhouse":
+		return s.checkClickHouse(ctx, event, address)
+	case port == 8086 || serviceName == "influxdb":
+		return s.checkInfluxDB(ctx, event, address)
+	case port == 9042 || serviceName == "cassandra":
+		return s.checkCassandra(ctx, event, address)
 	default:
 		return s.checkGenericDB(ctx, event, address, port)
 	}
+}
+
+func (s Specialized) checkClickHouse(ctx context.Context, event models.Event, address string) []models.Event {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://"+address+"/ping", nil)
+	if err != nil {
+		return nil
+	}
+	response, err := (&http.Client{Timeout: 1500 * time.Millisecond}).Do(request)
+	if err != nil {
+		return nil
+	}
+	defer response.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 128))
+	if response.StatusCode != http.StatusOK || strings.TrimSpace(string(body)) != "Ok." {
+		return nil
+	}
+	return s.recordDatabaseEvidence(ctx, event, address, "clickhouse", "http_ping=Ok.", false)
+}
+
+func (s Specialized) checkInfluxDB(ctx context.Context, event models.Event, address string) []models.Event {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://"+address+"/health", nil)
+	if err != nil {
+		return nil
+	}
+	response, err := (&http.Client{Timeout: 1500 * time.Millisecond}).Do(request)
+	if err != nil {
+		return nil
+	}
+	defer response.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 256))
+	if response.StatusCode != http.StatusOK || !strings.Contains(strings.ToLower(string(body)), "status") {
+		return nil
+	}
+	return s.recordDatabaseEvidence(ctx, event, address, "influxdb", "health_endpoint=responded", false)
+}
+
+func (s Specialized) checkCassandra(ctx context.Context, event models.Event, address string) []models.Event {
+	conn, err := (&net.Dialer{Timeout: 1500 * time.Millisecond}).DialContext(ctx, "tcp", address)
+	if err != nil {
+		return nil
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(1500 * time.Millisecond))
+	// Native protocol v4 OPTIONS frame. A SUPPORTED response is protocol proof,
+	// and does not authenticate or alter database state.
+	if _, err := conn.Write([]byte{0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00}); err != nil {
+		return nil
+	}
+	buf := make([]byte, 16)
+	n, err := conn.Read(buf)
+	if err != nil || n < 5 || buf[4] != 0x06 {
+		return nil
+	}
+	return s.recordDatabaseEvidence(ctx, event, address, "cassandra", "native_options=supported", false)
+}
+
+func (s Specialized) recordDatabaseEvidence(ctx context.Context, event models.Event, address, vendor, evidence string, unauthenticated bool) []models.Event {
+	metadata := fmt.Sprintf("address=%s;db=%s;verification=observed;%s", address, vendor, evidence)
+	_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "database_instance", Value: address, Parent: event.Target, Metadata: metadata})
+	return []models.Event{{ScanID: event.ScanID, Type: EventSpecializedDiscovered, Target: address, Data: map[string]string{"category": "database", "vendor": vendor, "unauthenticated": strconv.FormatBool(unauthenticated)}}}
 }
 
 func (s Specialized) checkRedis(ctx context.Context, event models.Event, address string) []models.Event {

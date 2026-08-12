@@ -56,15 +56,27 @@ portscan:
   enable_tcp: true
   enable_udp: true
   enable_banner: true
+  max_concurrent_ports: 8
+  record_closed_ports: false
   base_timeout_ms: 750
   max_timeout_ms: 3000
 ```
 
-If `tcp_ports` or `udp_ports` is empty, `enumscan` expands the selected profile automatically. Use the exhaustive profile only inside tightly authorized scope with conservative rate limits.
+If `tcp_ports` or `udp_ports` is empty, `enumscan` expands the selected profile automatically. TCP scanning uses a bounded connect sweep followed by optional banner enrichment of confirmed open ports only. UDP scanning includes validated DNS, TFTP, RPCBind, NTP, NetBIOS, SNMP, IKE, RADIUS, SSDP, SIP, and mDNS probes where their ports are selected. Every confirmed open port is also retained in the `port_observations` history table.
+
+`max_concurrent_ports` bounds per-host scan pressure. Keep `record_closed_ports` off unless the assessment requires closed/filtered state evidence, as it significantly increases stored data. Raw SYN/ACK/FIN/NULL/XMAS/idle/window/Maimon, fragmentation, and decoy techniques are intentionally unavailable in production builds until a privileged, explicitly authorized packet implementation exists.
+
+## Discovery
+
+Discovery is scope-checked and conservative by default. Set `discovery.enable_dns_discovery: true` to resolve a scoped domain and collect resolver-visible DNS context; `enable_dns_records` additionally collects TXT/SPF, DMARC, and common SRV records. Passive DNS, certificate-transparency, and tcpdump/tshark text exports can be imported through the configured file lists.
+
+Active host liveness checks are individually opt-in: `enable_icmp_sweep` uses the platform ICMP utility, `enable_tcp_host_probes` uses TCP connect evidence (including connection refused), and `enable_udp_live_probes` sends protocol-valid DNS/NTP probes only. Timeouts are never reported as dead hosts. Raw SYN/ACK probing and live packet capture remain disabled in production builds because they need a separately authorized privileged-capture implementation.
 
 ## Service Fingerprinting
 
 The `service_fingerprint` module subscribes to open-port events and combines port hints, captured banners, UDP responses, and small protocol probes. It currently recognizes common infrastructure services including SSH, FTP, SMTP, DNS, SMB, LDAP, MySQL, PostgreSQL, Redis, MongoDB, Elasticsearch, Docker, Kubernetes, WinRM, RDP, NFS, VNC, and HTTP-family services.
+
+Port-only identities are persisted as `heuristic`; evidence from a banner or an active protocol response is marked `observed`. The module also extracts versioned runtime evidence for OpenSSL, Python, Go, Java, Ruby, Node.js, Gunicorn, Werkzeug, and Jetty, with CPE 2.3 candidates. TCP/IP stack OS guesses are never fabricated from network ranges; they require real packet traits from an authorized collector and remain heuristic.
 
 ## HTTP, TLS, and Crawling
 
@@ -74,9 +86,13 @@ The HTTP module records response metadata, security-header findings, TLS certifi
 
 The optional `directory_api_enumerator` performs a bounded, scope-checked pass over common and technology-specific paths. It derives additional paths from first-party JavaScript, checks for exposed backups, Git/SVN metadata and environment files, and records OpenAPI, GraphQL, SOAP/WSDL and gRPC reflection evidence. Configure `http.max_directory_paths` and `http.directory_wordlist` to keep the request volume appropriate for the authorization you hold.
 
+It also checks validated Mercurial metadata and common editor/backup temporary files. With `http.enable_source_map_analysis`, it parses scoped source maps without storing source content, records discovered endpoints, and sends only redacted secret fingerprints through the normal heuristic secret workflow. API endpoint responses are inspected for advertised rate-limit headers and JSON/OpenAPI schema shape; no unsafe API methods are sent.
+
 ## Container and Kubernetes Enumeration
 
 When `specialized.enable_container` is enabled, the standard profile includes Docker, registry, etcd, Kubernetes API, and kubelet ports. The specialized module identifies exposed Docker API sockets, registries and runtime endpoints; validates exposed Compose files; and records Kubernetes secrets-list endpoint access with only an item count, never secret values.
+
+The same explicit opt-in also identifies scoped Podman API and containerd HTTP health endpoints from real responses. Database enumeration identifies Cassandra, ClickHouse, InfluxDB, MSSQL, MySQL, PostgreSQL, Redis, MongoDB, Elasticsearch, and Memcached protocol evidence without attempting passwords, privilege changes, or data extraction. LDAP RootDSE responses yield observed naming contexts without directory-object enumeration. SNMP checks require operator-supplied communities; no default community strings are guessed. HTTP response headers can also identify AWS Lambda, Azure Functions, and GCP Cloud Run/Functions endpoints.
 
 ## Passive Intelligence
 

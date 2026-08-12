@@ -47,6 +47,13 @@ func TestOperatorDashboardAPIs(t *testing.T) {
 		if response.Code != http.StatusOK {
 			t.Fatalf("%s returned %d: %s", path, response.Code, response.Body.String())
 		}
+		if path == "/" {
+			for _, endpoint := range []string{"/api/v1/assets", "/api/v1/findings", "/api/v1/events", "/api/v1/graph", "/api/v1/screenshots", "/api/v1/scans/run", "/api/v1/saved-queries", "/api/v1/events/ws", "id=\"target\"", "192.168.56.0/24", "asList"} {
+				if !strings.Contains(response.Body.String(), endpoint) {
+					t.Errorf("dashboard template is missing live endpoint wiring for %s", endpoint)
+				}
+			}
+		}
 	}
 
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/saved-queries", strings.NewReader(`{"name":"example assets","query":"example"}`))

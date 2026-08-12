@@ -201,6 +201,7 @@ func (s *Server) handleRunScan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	target := strings.TrimSpace(req.Target)
+	profile := strings.TrimSpace(req.Profile)
 	scanID := req.ScanID
 	if scanID == "" {
 		scanID = fmt.Sprintf("scan-%d", time.Now().Unix())
@@ -210,6 +211,10 @@ func (s *Server) handleRunScan(w http.ResponseWriter, r *http.Request) {
 	scanCfg := s.cfg
 	scanCfg.Scan.Targets = []string{target}
 	scanCfg.Scope.AllowedTargets = []string{target}
+	if profile != "" {
+		scanCfg.Scan.Profile = profile
+		scanCfg.PortScan.Profile = profile
+	}
 	s.cfg = scanCfg
 	s.mu.Unlock()
 
@@ -240,6 +245,7 @@ func (s *Server) handleRunScan(w http.ResponseWriter, r *http.Request) {
 		"status":  "dispatched",
 		"scan_id": scanID,
 		"target":  target,
+		"profile": profile,
 	})
 }
 
@@ -372,37 +378,61 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	scanID := r.URL.Query().Get("scan_id")
-	assets, _ := s.db.Assets(r.Context(), scanID)
-	findings, _ := s.db.Findings(r.Context(), scanID)
-	if assets == nil {
-		assets = []models.Asset{}
+	assets, err := s.db.Assets(r.Context(), scanID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	if findings == nil {
-		findings = []models.Finding{}
+	findings, err := s.db.Findings(r.Context(), scanID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"nodes": assets,
-		"edges": findings,
-	})
+	nodes := make(map[string]models.GraphNode)
+	edges := make([]models.GraphEdge, 0)
+	addNode := func(id, typ string) {
+		if id != "" {
+			nodes[id] = models.GraphNode{ID: id, Label: id, Type: typ}
+		}
+	}
+	for _, asset := range assets {
+		addNode(asset.Value, asset.Type)
+		if asset.Parent != "" {
+			addNode(asset.Parent, "asset")
+			edges = append(edges, models.GraphEdge{Source: asset.Parent, Target: asset.Value, Relation: "CONTAINS"})
+		}
+	}
+	for _, finding := range findings {
+		id := "finding:" + finding.Title + "@" + finding.Asset
+		addNode(finding.Asset, "asset")
+		addNode(id, "finding")
+		edges = append(edges, models.GraphEdge{Source: finding.Asset, Target: id, Relation: "HAS_FINDING"})
+	}
+	graph := models.AssetGraph{Nodes: make([]models.GraphNode, 0, len(nodes)), Edges: edges}
+	for _, node := range nodes {
+		graph.Nodes = append(graph.Nodes, node)
+	}
+	_ = json.NewEncoder(w).Encode(graph)
 }
 
 func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	query := r.URL.Query().Get("q")
-	scanID := r.URL.Query().Get("scan_id")
-	assets, _ := s.db.Assets(r.Context(), scanID)
-	var matched []models.Asset
-	for _, a := range assets {
-		if query == "" || strings.Contains(a.Value, query) || strings.Contains(a.Type, query) {
-			matched = append(matched, a)
-		}
+	assets, findings, err := s.db.Search(r.Context(), r.URL.Query().Get("scan_id"), r.URL.Query().Get("q"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	_ = json.NewEncoder(w).Encode(matched)
+	_ = json.NewEncoder(w).Encode(map[string]any{"assets": assets, "findings": findings})
 }
 
 func (s *Server) handleScreenshots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode([]string{})
+	items, err := s.db.ScreenshotAssets(r.Context(), r.URL.Query().Get("scan_id"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	_ = json.NewEncoder(w).Encode(items)
 }
 
 func (s *Server) handleSavedQueries(w http.ResponseWriter, r *http.Request) {
@@ -434,15 +464,14 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
-	content, err := os.ReadFile("dashboardtemplate.html")
-	if err != nil {
-		content, err = os.ReadFile("../dashboardtemplate.html")
+	// Preserve the established Recon OS dashboard when it is available on disk.
+	for _, path := range []string{"old.html", "../../old.html"} {
+		if _, err := os.Stat(path); err == nil {
+			http.ServeFile(w, r, path)
+			return
+		}
 	}
-	if err != nil {
-		_, _ = w.Write([]byte("<!DOCTYPE html><html><body><h1>EnumScan Operator Dashboard</h1><p>dashboardtemplate.html not found</p></body></html>"))
-		return
-	}
-	_, _ = w.Write(content)
+	_, _ = w.Write([]byte(dashboardHTML))
 }
 
 func (s *Server) BroadcastEvent(evt models.Event) {
@@ -455,4 +484,3 @@ func (s *Server) BroadcastEvent(evt models.Event) {
 		}
 	}
 }
-

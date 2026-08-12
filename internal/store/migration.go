@@ -95,6 +95,18 @@ CREATE TABLE IF NOT EXISTS saved_queries (
  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
 `,
 	},
+	{
+		Version: 6,
+		Name:    "port_observation_history",
+		SQLStatement: `
+CREATE TABLE IF NOT EXISTS port_observations (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, scan_id TEXT NOT NULL, host TEXT NOT NULL,
+ port INTEGER NOT NULL, protocol TEXT NOT NULL, state TEXT NOT NULL,
+ latency_ms INTEGER NOT NULL DEFAULT 0, evidence TEXT NOT NULL DEFAULT '',
+ observed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX IF NOT EXISTS idx_port_observations_host_port ON port_observations(host, port, protocol, observed_at DESC);
+`,
+	},
 }
 
 type MigrationManager struct {

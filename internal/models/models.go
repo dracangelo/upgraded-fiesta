@@ -35,48 +35,63 @@ type SchedulerConfig struct {
 
 type DiscoveryConfig struct {
 	CIDRMaxHosts                 int
+	EnableDNSDiscovery           bool
+	EnableDNSRecords             bool
 	EnableReverseDNS             bool
 	EnableWildcardDNS            bool
 	EnableRDAP                   bool
+	EnableICMPSweep              bool
+	EnableTCPHostProbes          bool
+	TCPProbePorts                []int
+	EnableUDPLiveProbes          bool
+	UDPProbePorts                []int
 	PassiveDNSFiles              []string
 	CertificateTransparencyFiles []string
+	PassiveCaptureFiles          []string
 }
 
 type PortScanConfig struct {
-	Profile       string
-	TCPPorts      []int
-	UDPPorts      []int
-	EnableTCP     bool
-	EnableUDP     bool
-	EnableBanner  bool
-	EnableRawSYN  bool
-	BaseTimeoutMS int
-	MaxTimeoutMS  int
+	Profile            string
+	TCPPorts           []int
+	UDPPorts           []int
+	EnableTCP          bool
+	EnableUDP          bool
+	EnableBanner       bool
+	EnableRawSYN       bool
+	MaxConcurrentPorts int
+	RecordClosedPorts  bool
+	BaseTimeoutMS      int
+	MaxTimeoutMS       int
 }
 
 type HTTPConfig struct {
-	MaxDepth           int
-	MaxPagesPerHost    int
-	EnableTLS          bool
-	EnableCrawler      bool
-	EnableJSAnalysis   bool
-	EnableAPIDiscovery bool
-	EnableScreenshots  bool
-	APIPaths           []string
-	EnableDirectoryAPI bool
-	DirectoryWordlist  []string
-	MaxDirectoryPaths  int
-	EnableSecretIntel  bool
+	MaxDepth                int
+	MaxPagesPerHost         int
+	EnableTLS               bool
+	EnableCrawler           bool
+	EnableJSAnalysis        bool
+	EnableAPIDiscovery      bool
+	EnableScreenshots       bool
+	APIPaths                []string
+	EnableDirectoryAPI      bool
+	DirectoryWordlist       []string
+	MaxDirectoryPaths       int
+	EnableSecretIntel       bool
+	EnableWebManifest       bool
+	EnableRedirectTracking  bool
+	EnableMethodEnumeration bool
+	EnableSourceMapAnalysis bool
 }
 
 type SpecializedConfig struct {
-	EnableSMB       bool
-	EnableLDAP      bool
-	EnableSNMP      bool
-	EnableCloud     bool
-	EnableContainer bool
-	EnableDatabase  bool
-	SNMPCommunities []string
+	EnableSMB                 bool
+	EnableLDAP                bool
+	EnableSNMP                bool
+	EnableCloud               bool
+	EnableContainer           bool
+	EnableDatabase            bool
+	EnableProtocolEnumeration bool
+	SNMPCommunities           []string
 }
 
 // PassiveIntelConfig controls optional third-party lookups. Credentials are
@@ -168,4 +183,15 @@ type SavedQuery struct {
 	Name      string    `json:"name"`
 	Query     string    `json:"query"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type PortObservation struct {
+	ScanID     string    `json:"scan_id"`
+	Host       string    `json:"host"`
+	Port       int       `json:"port"`
+	Protocol   string    `json:"protocol"`
+	State      string    `json:"state"`
+	LatencyMS  int64     `json:"latency_ms"`
+	Evidence   string    `json:"evidence,omitempty"`
+	ObservedAt time.Time `json:"observed_at"`
 }

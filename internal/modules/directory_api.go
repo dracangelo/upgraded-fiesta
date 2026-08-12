@@ -97,11 +97,17 @@ func (m *DirectoryAPIEnumerator) probeSensitiveFiles(ctx context.Context, scanID
 	checks := []struct{ path, typ, title string }{
 		{"/.git/HEAD", "git_exposure", "Git metadata exposed"},
 		{"/.svn/entries", "svn_exposure", "SVN metadata exposed"},
+		{"/.hg/requires", "mercurial_exposure", "Mercurial metadata exposed"},
 		{"/.env", "environment_file", "Environment file exposed"},
 		{"/.env.production", "environment_file", "Production environment file exposed"},
 		{"/backup.zip", "backup_file", "Backup archive exposed"},
 		{"/backup.tar.gz", "backup_file", "Backup archive exposed"},
 		{"/db.sql", "backup_file", "Database dump exposed"},
+		{"/index.php~", "temporary_file", "Editor backup file exposed"},
+		{"/index.html.swp", "temporary_file", "Vim swap file exposed"},
+		{"/config.php.bak", "temporary_file", "Configuration backup file exposed"},
+		{"/web.config.old", "temporary_file", "Old configuration file exposed"},
+		{"/app.tmp", "temporary_file", "Temporary application file exposed"},
 	}
 	for _, check := range checks {
 		item, _ := scopedPath(root, check.path)
@@ -110,6 +116,9 @@ func (m *DirectoryAPIEnumerator) probeSensitiveFiles(ctx context.Context, scanID
 			continue
 		}
 		if check.typ == "git_exposure" && !strings.HasPrefix(body, "ref:") {
+			continue
+		}
+		if check.typ == "mercurial_exposure" && !validMercurialRequires(body) {
 			continue
 		}
 		_ = m.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: check.typ, Value: item.String(), Parent: root.String(), Metadata: "status=" + resp.Status})
@@ -134,6 +143,9 @@ func (m *DirectoryAPIEnumerator) generateFromJavaScript(ctx context.Context, sca
 			_ = m.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "generated_wordlist_path", Value: item.String(), Parent: link.String(), Metadata: "source=javascript"})
 			m.probePath(ctx, scanID, root, path, "javascript")
 		}
+		if m.config.EnableSourceMapAnalysis {
+			m.parseSourceMap(ctx, scanID, root, link, body)
+		}
 	}
 }
 
@@ -154,6 +166,8 @@ func (m *DirectoryAPIEnumerator) enumerateAPIs(ctx context.Context, scanID strin
 			continue
 		}
 		_ = m.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "api_endpoint", Value: item.String(), Parent: root.String(), Metadata: "kind=" + kind + ";status=" + resp.Status})
+		m.analyzeAPIRateLimits(ctx, scanID, item.String(), resp)
+		m.analyzeJSONResponse(ctx, scanID, item.String(), body)
 		switch kind {
 		case "openapi", "swagger":
 			m.validateOpenAPI(ctx, scanID, item.String(), body)
@@ -169,9 +183,13 @@ func (m *DirectoryAPIEnumerator) enumerateAPIs(ctx context.Context, scanID strin
 
 func (m *DirectoryAPIEnumerator) validateOpenAPI(ctx context.Context, scanID, endpoint, body string) {
 	var spec struct {
-		OpenAPI string                     `json:"openapi"`
-		Swagger string                     `json:"swagger"`
-		Paths   map[string]json.RawMessage `json:"paths"`
+		OpenAPI     string                     `json:"openapi"`
+		Swagger     string                     `json:"swagger"`
+		Paths       map[string]json.RawMessage `json:"paths"`
+		Definitions map[string]json.RawMessage `json:"definitions"`
+		Components  struct {
+			Schemas map[string]json.RawMessage `json:"schemas"`
+		} `json:"components"`
 	}
 	if err := json.Unmarshal([]byte(body), &spec); err != nil || (spec.OpenAPI == "" && spec.Swagger == "") || len(spec.Paths) == 0 {
 		_ = m.db.AddFinding(ctx, models.Finding{ScanID: scanID, Severity: "low", Confidence: "high", Asset: endpoint, Title: "Invalid OpenAPI document", Evidence: "The endpoint was identified as OpenAPI/Swagger but has no version or paths object.", Remediation: "Publish a valid, access-controlled API description or remove the unintended endpoint."})
@@ -180,6 +198,24 @@ func (m *DirectoryAPIEnumerator) validateOpenAPI(ctx context.Context, scanID, en
 	_ = m.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "openapi_schema", Value: endpoint, Metadata: fmt.Sprintf("version=%s%s;paths=%d", spec.OpenAPI, spec.Swagger, len(spec.Paths))})
 	for path := range spec.Paths {
 		_ = m.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "openapi_operation_path", Value: path, Parent: endpoint})
+	}
+	schemas := spec.Definitions
+	if len(spec.Components.Schemas) > 0 {
+		schemas = spec.Components.Schemas
+	}
+	for name, raw := range schemas {
+		var schema map[string]json.RawMessage
+		if json.Unmarshal(raw, &schema) != nil {
+			continue
+		}
+		properties := 0
+		if rawProperties, ok := schema["properties"]; ok {
+			var fields map[string]json.RawMessage
+			if json.Unmarshal(rawProperties, &fields) == nil {
+				properties = len(fields)
+			}
+		}
+		_ = m.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "openapi_schema_component", Value: name, Parent: endpoint, Metadata: fmt.Sprintf("properties=%d", properties)})
 	}
 }
 

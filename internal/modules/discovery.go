@@ -38,29 +38,33 @@ func (d Discovery) Handle(ctx context.Context, event models.Event) ([]models.Eve
 		return nil, nil
 	}
 	_ = d.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "target", Value: event.Target})
-	next := make([]models.Event, 0)
+	next := d.importCaptureObservations(ctx, event.ScanID, event.Target)
 
 	if _, cidr, err := net.ParseCIDR(event.Target); err == nil {
-		return d.expandCIDR(ctx, event.ScanID, event.Target, cidr), nil
+		return append(next, d.expandCIDR(ctx, event.ScanID, event.Target, cidr)...), nil
 	}
 
 	next = append(next, models.Event{ScanID: event.ScanID, Type: EventHost, Target: event.Target})
 
 	if ip := net.ParseIP(event.Target); ip == nil {
 		next = append(next, d.importPassiveHosts(ctx, event.ScanID, event.Target)...)
-		d.detectWildcardDNS(ctx, event.ScanID, event.Target)
-		d.detectDNSProviders(ctx, event.ScanID, event.Target)
-		addrs, _ := net.DefaultResolver.LookupHost(ctx, event.Target)
-		for _, addr := range addrs {
-			if d.guard.Allowed(addr) {
-				_ = d.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "ip", Value: addr, Parent: event.Target})
-				d.detectIPHints(ctx, event.ScanID, addr, event.Target)
-				next = append(next, models.Event{ScanID: event.ScanID, Type: EventHost, Target: addr, Data: map[string]string{"hostname": event.Target}})
+		if d.config.EnableDNSDiscovery {
+			d.detectWildcardDNS(ctx, event.ScanID, event.Target)
+			d.detectDNSProviders(ctx, event.ScanID, event.Target)
+			d.discoverDNSRecords(ctx, event.ScanID, event.Target)
+			addrs, _ := net.DefaultResolver.LookupHost(ctx, event.Target)
+			for _, addr := range addrs {
+				if d.guard.Allowed(addr) {
+					_ = d.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "ip", Value: addr, Parent: event.Target, Metadata: "source=dns_a_or_aaaa"})
+					d.detectIPHints(ctx, event.ScanID, addr, event.Target)
+					next = append(next, models.Event{ScanID: event.ScanID, Type: EventHost, Target: addr, Data: map[string]string{"hostname": event.Target, "source": "dns"}})
+				}
 			}
 		}
 	} else {
 		d.reverseDNS(ctx, event.ScanID, event.Target)
 		d.rdap(ctx, event.ScanID, event.Target)
+		d.probeLiveHost(ctx, event.ScanID, event.Target, event.Target)
 	}
 	return next, nil
 }
@@ -69,6 +73,9 @@ func (d Discovery) expandCIDR(ctx context.Context, scanID, target string, cidr *
 	next := make([]models.Event, 0)
 	count := 0
 	for ip := firstIP(cidr); ip != nil && cidr.Contains(ip) && count < d.config.CIDRMaxHosts; ip = nextIP(ip) {
+		if skipCIDREndpoint(cidr, ip) {
+			continue
+		}
 		value := ip.String()
 		if !d.guard.Allowed(value) {
 			continue
@@ -76,6 +83,7 @@ func (d Discovery) expandCIDR(ctx context.Context, scanID, target string, cidr *
 		_ = d.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "ip", Value: value, Parent: target, Metadata: "source=cidr_expansion"})
 		d.reverseDNS(ctx, scanID, value)
 		d.rdap(ctx, scanID, value)
+		d.probeLiveHost(ctx, scanID, value, target)
 		next = append(next, models.Event{ScanID: scanID, Type: EventHost, Target: value, Data: map[string]string{"source": "cidr_expansion"}})
 		count++
 	}
@@ -122,6 +130,10 @@ func (d Discovery) detectWildcardDNS(ctx context.Context, scanID, domain string)
 func (d Discovery) detectDNSProviders(ctx context.Context, scanID, domain string) {
 	cname, err := net.DefaultResolver.LookupCNAME(ctx, domain)
 	if err == nil {
+		cname = strings.TrimSuffix(cname, ".")
+		if cname != "" && !strings.EqualFold(cname, domain) {
+			_ = d.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "dns_cname", Value: cname, Parent: domain, Metadata: "source=dns_cname"})
+		}
 		d.recordProviderHints(ctx, scanID, domain, cname, "cname")
 	}
 	mxs, err := net.DefaultResolver.LookupMX(ctx, domain)
@@ -141,6 +153,9 @@ func (d Discovery) detectDNSProviders(ctx context.Context, scanID, domain string
 }
 
 func (d Discovery) detectIPHints(ctx context.Context, scanID, ip, parent string) {
+	if !d.config.EnableDNSDiscovery {
+		return
+	}
 	names, err := net.DefaultResolver.LookupAddr(ctx, ip)
 	if err == nil {
 		for _, name := range names {
@@ -150,6 +165,21 @@ func (d Discovery) detectIPHints(ctx context.Context, scanID, ip, parent string)
 		}
 	}
 	d.rdap(ctx, scanID, ip)
+}
+
+func skipCIDREndpoint(network *net.IPNet, ip net.IP) bool {
+	if network.IP.To4() == nil {
+		return false
+	}
+	ones, bits := network.Mask.Size()
+	if bits != 32 || 32-ones < 2 {
+		return false // /31 and /32 are point-to-point/single-host networks.
+	}
+	if ip.Equal(network.IP) {
+		return true
+	}
+	next := nextIP(ip)
+	return !network.Contains(next)
 }
 
 func (d Discovery) reverseDNS(ctx context.Context, scanID, ip string) {

@@ -38,6 +38,12 @@ func TestADSNMPandOSFingerprint(t *testing.T) {
 	})
 }
 
+func TestSpecializedHelpersRequireExplicitSNMPCommunities(t *testing.T) {
+	if len(NewSpecialized(nil, scope.New([]string{"127.0.0.1"}), models.SpecializedConfig{}).cfg.SNMPCommunities) != 0 {
+		t.Fatal("SNMP communities must not default to credential guesses")
+	}
+}
+
 func TestTLSFingerprinter(t *testing.T) {
 	db, err := store.OpenSQLiteCLI(filepath.Join(t.TempDir(), "test.sqlite"))
 	if err != nil {
@@ -49,6 +55,15 @@ func TestTLSFingerprinter(t *testing.T) {
 	tlsMod := NewTLSFingerprinter(db, guard)
 	if tlsMod.Name() != "tls_fingerprinter" {
 		t.Errorf("unexpected name: %s", tlsMod.Name())
+	}
+}
+
+func TestPassiveOSFingerprintRequiresPacketTraits(t *testing.T) {
+	if passiveOSGuess("", "", "") != "" {
+		t.Fatal("missing packet traits must not generate an OS guess")
+	}
+	if passiveOSGuess("64", "64240", "mss,sack") != "Unix-like network stack" {
+		t.Fatal("expected a bounded heuristic for observed TTL")
 	}
 }
 

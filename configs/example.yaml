@@ -13,11 +13,20 @@ scheduler:
 
 discovery:
   cidr_max_hosts: 256
+  enable_dns_discovery: true
+  enable_dns_records: true
   enable_reverse_dns: true
   enable_wildcard_dns: true
   enable_rdap: false
+  # Active host checks are disabled until explicitly authorized.
+  enable_icmp_sweep: false
+  enable_tcp_host_probes: false
+  tcp_probe_ports: [80, 443]
+  enable_udp_live_probes: false
+  udp_probe_ports: [53, 123]
   passive_dns_files: []
   certificate_transparency_files: []
+  passive_capture_files: []
 
 portscan:
   profile: "quick"
@@ -27,6 +36,8 @@ portscan:
   enable_udp: true
   enable_banner: true
   enable_raw_syn: false
+  max_concurrent_ports: 8
+  record_closed_ports: false
   base_timeout_ms: 750
   max_timeout_ms: 3000
 
@@ -40,9 +51,24 @@ http:
   enable_screenshots: true
   enable_directory_api: true
   enable_secret_intelligence: true
+  enable_web_manifest: true
+  enable_redirect_tracking: true
+  enable_method_enumeration: true
+  enable_source_map_analysis: true
   max_directory_paths: 80
   directory_wordlist: []
   api_paths: ["/openapi.json", "/swagger.json", "/swagger/v1/swagger.json", "/api-docs", "/graphql", "/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo", "/soap?wsdl"]
+
+specialized:
+  # Read-only SSH/FTP/SMTP capability enumeration; no authentication attempts.
+  enable_protocol_enumeration: true
+  enable_smb: false
+  enable_ldap: false
+  enable_snmp: false
+  enable_cloud: false
+  enable_container: false
+  enable_database: false
+  snmp_communities: []
 
 passive_intel:
   enabled: false

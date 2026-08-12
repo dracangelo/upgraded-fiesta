@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -51,17 +52,17 @@ func (m *KerberosADFingerprint) Handle(ctx context.Context, evt models.Event) ([
 
 	_ = m.db.AddAsset(ctx, models.Asset{
 		ScanID:   evt.ScanID,
-		Type:     "active_directory",
-		Value:    fmt.Sprintf("Kerberos/AD Domain Controller on %s", evt.Target),
+		Type:     "kerberos_service",
+		Value:    evt.Target,
 		Parent:   evt.Target,
-		Metadata: "ad_kerberos_ldap",
+		Metadata: "verification=observed;method=tcp_connect",
 	})
 
 	return []models.Event{{
 		ScanID: evt.ScanID,
 		Type:   "service.identified",
 		Target: evt.Target,
-		Data:   map[string]string{"service": "kerberos_ad", "realm": "CORP.LOCAL"},
+		Data:   map[string]string{"service": "kerberos"},
 	}}, nil
 }
 
@@ -87,14 +88,8 @@ func (m *SNMPWalkFingerprint) Handle(ctx context.Context, evt models.Event) ([]m
 		return nil, nil
 	}
 
-	_ = m.db.AddAsset(ctx, models.Asset{
-		ScanID:   evt.ScanID,
-		Type:     "snmp_device",
-		Value:    fmt.Sprintf("SNMP MIB Walk on %s", evt.Target),
-		Parent:   evt.Target,
-		Metadata: "sysDescr=Linux 5.15 RouterOS v7.2",
-	})
-
+	// A real SNMP walk requires an explicitly configured community and is
+	// performed by the specialized module. Do not invent sysDescr evidence.
 	return nil, nil
 }
 
@@ -116,28 +111,51 @@ func (m *OSStackFingerprint) Subscriptions() []string {
 }
 
 func (m *OSStackFingerprint) Handle(ctx context.Context, evt models.Event) ([]models.Event, error) {
-	targetIP := evt.Target
-	if idx := strings.Index(targetIP, ":"); idx != -1 {
-		targetIP = targetIP[:idx]
+	targetIP, _, err := net.SplitHostPort(evt.Target)
+	if err != nil {
+		targetIP = evt.Target
 	}
 
 	if !m.guard.Allowed(targetIP) {
 		return nil, nil
 	}
 
-	// Heuristic OS guessing based on TCP Window size / TTL defaults
-	guessedOS := "Linux / Unix (TTL ~64)"
-	if strings.Contains(targetIP, "192.168.") {
-		guessedOS = "Windows Server 2019/2022 (TTL ~128)"
+	// Raw packet collection is intentionally not part of this production build.
+	// If a separately authorized passive collector supplies TCP/IP traits, retain
+	// them as heuristic evidence rather than fabricating an OS conclusion.
+	ttl, window, options := evt.Data["ttl"], evt.Data["tcp_window"], evt.Data["tcp_options"]
+	if ttl == "" && window == "" && options == "" {
+		return nil, nil
+	}
+	guess := passiveOSGuess(ttl, window, options)
+	if guess == "" {
+		return nil, nil
 	}
 
 	_ = m.db.AddAsset(ctx, models.Asset{
 		ScanID:   evt.ScanID,
 		Type:     "operating_system",
-		Value:    fmt.Sprintf("%s -> %s", targetIP, guessedOS),
+		Value:    guess,
 		Parent:   targetIP,
-		Metadata: "os_tcp_window_ttl",
+		Metadata: fmt.Sprintf("verification=heuristic;ttl=%s;tcp_window=%s;tcp_options=%s", ttl, window, options),
 	})
 
 	return nil, nil
+}
+
+func passiveOSGuess(ttl, window, options string) string {
+	value, err := strconv.Atoi(ttl)
+	if err != nil || value < 1 || value > 255 {
+		return ""
+	}
+	// TTL observations are altered by routing. Keep these broad families and
+	// label them heuristic; no subnet/address-based inference is made.
+	switch {
+	case value <= 64:
+		return "Unix-like network stack"
+	case value <= 128:
+		return "Windows-like network stack"
+	default:
+		return "network appliance or Unix-like stack"
+	}
 }

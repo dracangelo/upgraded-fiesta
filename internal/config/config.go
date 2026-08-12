@@ -13,22 +13,26 @@ func Default() models.Config {
 	return models.Config{
 		Database:  models.DatabaseConfig{Path: "data/enumscan.sqlite"},
 		Scheduler: models.SchedulerConfig{Concurrency: 1, GlobalRateLimitMS: 500, PerTargetRateLimitMS: 1000, ModuleTimeoutMS: 10000},
-		Discovery: models.DiscoveryConfig{CIDRMaxHosts: 64},
-		PortScan:  models.PortScanConfig{Profile: "quick", EnableTCP: false, EnableUDP: false, EnableBanner: false, BaseTimeoutMS: 750, MaxTimeoutMS: 3000},
+		Discovery: models.DiscoveryConfig{CIDRMaxHosts: 64, TCPProbePorts: []int{80, 443}, UDPProbePorts: []int{53, 123}},
+		PortScan:  models.PortScanConfig{Profile: "quick", EnableTCP: false, EnableUDP: false, EnableBanner: false, MaxConcurrentPorts: 4, BaseTimeoutMS: 750, MaxTimeoutMS: 3000},
 		Scope:     models.ScopeConfig{AllowedTargets: []string{"127.0.0.1", "localhost"}},
 		Scan:      models.ScanConfig{Targets: []string{"127.0.0.1"}},
 		HTTP: models.HTTPConfig{
-			MaxDepth:           1,
-			MaxPagesPerHost:    50,
-			EnableTLS:          false,
-			EnableCrawler:      false,
-			EnableJSAnalysis:   false,
-			EnableAPIDiscovery: false,
-			EnableScreenshots:  false,
-			APIPaths:           []string{"/openapi.json", "/swagger.json", "/swagger/v1/swagger.json", "/api-docs", "/graphql", "/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo", "/soap?wsdl"},
-			EnableDirectoryAPI: false,
-			MaxDirectoryPaths:  80,
-			EnableSecretIntel:  false,
+			MaxDepth:                1,
+			MaxPagesPerHost:         50,
+			EnableTLS:               false,
+			EnableCrawler:           false,
+			EnableJSAnalysis:        false,
+			EnableAPIDiscovery:      false,
+			EnableScreenshots:       false,
+			APIPaths:                []string{"/openapi.json", "/swagger.json", "/swagger/v1/swagger.json", "/api-docs", "/graphql", "/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo", "/soap?wsdl"},
+			EnableDirectoryAPI:      false,
+			MaxDirectoryPaths:       80,
+			EnableSecretIntel:       false,
+			EnableWebManifest:       false,
+			EnableRedirectTracking:  false,
+			EnableMethodEnumeration: false,
+			EnableSourceMapAnalysis: false,
 		},
 		Specialized: models.SpecializedConfig{
 			SNMPCommunities: []string{},
@@ -123,6 +127,18 @@ func assign(cfg *models.Config, section, key, value string) error {
 			return err
 		}
 		cfg.Discovery.CIDRMaxHosts = n
+	case "discovery.enable_dns_discovery":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.EnableDNSDiscovery = enabled
+	case "discovery.enable_dns_records":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.EnableDNSRecords = enabled
 	case "discovery.enable_reverse_dns":
 		enabled, err := strconv.ParseBool(value)
 		if err != nil {
@@ -141,10 +157,42 @@ func assign(cfg *models.Config, section, key, value string) error {
 			return err
 		}
 		cfg.Discovery.EnableRDAP = enabled
+	case "discovery.enable_icmp_sweep":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.EnableICMPSweep = enabled
+	case "discovery.enable_tcp_host_probes":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.EnableTCPHostProbes = enabled
+	case "discovery.tcp_probe_ports":
+		ports, err := parseInts(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.TCPProbePorts = ports
+	case "discovery.enable_udp_live_probes":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.EnableUDPLiveProbes = enabled
+	case "discovery.udp_probe_ports":
+		ports, err := parseInts(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.UDPProbePorts = ports
 	case "discovery.passive_dns_files":
 		cfg.Discovery.PassiveDNSFiles = parseList(value)
 	case "discovery.certificate_transparency_files":
 		cfg.Discovery.CertificateTransparencyFiles = parseList(value)
+	case "discovery.passive_capture_files":
+		cfg.Discovery.PassiveCaptureFiles = parseList(value)
 	case "portscan.profile":
 		cfg.PortScan.Profile = value
 	case "portscan.tcp_ports":
@@ -186,6 +234,18 @@ func assign(cfg *models.Config, section, key, value string) error {
 			return fmt.Errorf("raw SYN scanning is disabled: this build only supports verified TCP connect scanning")
 		}
 		cfg.PortScan.EnableRawSYN = enabled
+	case "portscan.max_concurrent_ports":
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+		cfg.PortScan.MaxConcurrentPorts = n
+	case "portscan.record_closed_ports":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.PortScan.RecordClosedPorts = enabled
 	case "portscan.base_timeout_ms":
 		n, err := strconv.Atoi(value)
 		if err != nil {
@@ -262,6 +322,30 @@ func assign(cfg *models.Config, section, key, value string) error {
 			return err
 		}
 		cfg.HTTP.EnableSecretIntel = enabled
+	case "http.enable_web_manifest":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.HTTP.EnableWebManifest = enabled
+	case "http.enable_redirect_tracking":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.HTTP.EnableRedirectTracking = enabled
+	case "http.enable_method_enumeration":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.HTTP.EnableMethodEnumeration = enabled
+	case "http.enable_source_map_analysis":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.HTTP.EnableSourceMapAnalysis = enabled
 	case "specialized.enable_smb":
 		enabled, err := strconv.ParseBool(value)
 		if err != nil {
@@ -298,6 +382,12 @@ func assign(cfg *models.Config, section, key, value string) error {
 			return err
 		}
 		cfg.Specialized.EnableDatabase = enabled
+	case "specialized.enable_protocol_enumeration":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Specialized.EnableProtocolEnumeration = enabled
 	case "specialized.snmp_communities":
 		cfg.Specialized.SNMPCommunities = parseList(value)
 	case "passive_intel.enabled":

@@ -65,3 +65,15 @@ func TestFingerprintFromPortCoversRequiredServices(t *testing.T) {
 		}
 	}
 }
+
+func TestRuntimeFingerprintsUseObservedEvidence(t *testing.T) {
+	runtimes := runtimeFingerprints("Server: gunicorn/21.2.0; X-Powered-By: Python/3.11.6; ssl=OpenSSL/3.0.12; Jetty(11.0.15)")
+	if len(runtimes) != 4 {
+		t.Fatalf("expected four runtime fingerprints, got %#v", runtimes)
+	}
+	for _, runtime := range runtimes {
+		if runtime.Version == "" || runtime.CPE == "" || runtime.Confidence != "medium" {
+			t.Fatalf("invalid runtime fingerprint: %#v", runtime)
+		}
+	}
+}
