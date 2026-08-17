@@ -39,6 +39,9 @@ func (d Discovery) Handle(ctx context.Context, event models.Event) ([]models.Eve
 	}
 	_ = d.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "target", Value: event.Target})
 	next := d.importCaptureObservations(ctx, event.ScanID, event.Target)
+	if d.config.EnableLiveCapture {
+		next = append(next, d.captureLiveTraffic(ctx, event.ScanID, event.Target)...)
+	}
 
 	if _, cidr, err := net.ParseCIDR(event.Target); err == nil {
 		return append(next, d.expandCIDR(ctx, event.ScanID, event.Target, cidr)...), nil

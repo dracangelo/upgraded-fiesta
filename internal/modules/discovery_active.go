@@ -70,11 +70,51 @@ func (d Discovery) probeLiveHost(ctx context.Context, scanID, host, parent strin
 			}
 		}
 	}
+	if d.config.EnableTCPSYNProbes {
+		for _, port := range d.config.TCPProbePorts {
+			if port < 1 || port > 65535 {
+				continue
+			}
+			if tcpSYNHostResponsive(ctx, host, port) {
+				_ = d.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "live_host", Value: host, Parent: parent, Metadata: fmt.Sprintf("method=tcp_syn_probe;port=%d", port)})
+				break
+			}
+		}
+	}
+	if d.config.EnableTCPACKProbes {
+		for _, port := range d.config.TCPProbePorts {
+			if port < 1 || port > 65535 {
+				continue
+			}
+			if tcpACKHostResponsive(ctx, host, port) {
+				_ = d.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "live_host", Value: host, Parent: parent, Metadata: fmt.Sprintf("method=tcp_ack_probe;port=%d", port)})
+				break
+			}
+		}
+	}
 	if d.config.EnableUDPLiveProbes {
 		for _, port := range d.config.UDPProbePorts {
 			if udpHostResponsive(ctx, host, port) {
 				_ = d.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "live_host", Value: host, Parent: parent, Metadata: fmt.Sprintf("method=udp_application_probe;port=%d", port)})
 				break
+			}
+		}
+	}
+	if d.config.EnableSNMPProbes {
+		ports := d.config.SNMPProbePorts
+		if len(ports) == 0 {
+			ports = []int{161}
+		}
+		communities := d.config.SNMPCommunities
+		if len(communities) == 0 {
+			communities = []string{"public", "private"}
+		}
+		for _, port := range ports {
+			for _, comm := range communities {
+				if snmpHostResponsive(ctx, host, port, comm) {
+					_ = d.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "live_host", Value: host, Parent: parent, Metadata: fmt.Sprintf("method=snmp_probe;port=%d;community=%s", port, comm)})
+					break
+				}
 			}
 		}
 	}
@@ -200,4 +240,266 @@ func normalizeCaptureIP(value string) string {
 		}
 	}
 	return ""
+}
+
+func tcpSYNHostResponsive(ctx context.Context, host string, port int) bool {
+	if rawTCPSYNProbe(ctx, host, port) {
+		return true
+	}
+	dialer := net.Dialer{Timeout: 500 * time.Millisecond}
+	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, fmt.Sprintf("%d", port)))
+	if err == nil {
+		_ = conn.Close()
+		return true
+	}
+	return errors.Is(err, syscall.ECONNREFUSED)
+}
+
+func rawTCPSYNProbe(ctx context.Context, host string, port int) bool {
+	ip := net.ParseIP(host)
+	if ip == nil {
+		addrs, err := net.DefaultResolver.LookupHost(ctx, host)
+		if err != nil || len(addrs) == 0 {
+			return false
+		}
+		ip = net.ParseIP(addrs[0])
+	}
+	if ip == nil || ip.To4() == nil {
+		return false
+	}
+
+	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_TCP)
+	if err != nil {
+		return false
+	}
+	defer syscall.Close(fd)
+
+	tv := syscall.Timeval{Sec: 0, Usec: 500000}
+	_ = syscall.SetsockoptTimeval(fd, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv)
+
+	packet := buildTCPHeader(12345, uint16(port), 0x02)
+
+	var dstAddr [4]byte
+	copy(dstAddr[:], ip.To4())
+	sockaddr := &syscall.SockaddrInet4{Port: port, Addr: dstAddr}
+
+	if err := syscall.Sendto(fd, packet, 0, sockaddr); err != nil {
+		return false
+	}
+
+	buf := make([]byte, 4096)
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		default:
+		}
+		n, _, err := syscall.Recvfrom(fd, buf, 0)
+		if err != nil || n < 40 {
+			break
+		}
+		ipLen := int((buf[0] & 0x0f) * 4)
+		if n < ipLen+20 {
+			continue
+		}
+		tcpHeader := buf[ipLen : ipLen+20]
+		srcPort := binary.BigEndian.Uint16(tcpHeader[0:2])
+		if int(srcPort) == port {
+			flags := tcpHeader[13]
+			if flags&0x12 == 0x12 || flags&0x04 != 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func tcpACKHostResponsive(ctx context.Context, host string, port int) bool {
+	ip := net.ParseIP(host)
+	if ip == nil {
+		addrs, err := net.DefaultResolver.LookupHost(ctx, host)
+		if err != nil || len(addrs) == 0 {
+			return false
+		}
+		ip = net.ParseIP(addrs[0])
+	}
+	if ip == nil || ip.To4() == nil {
+		return false
+	}
+
+	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_TCP)
+	if err != nil {
+		return false
+	}
+	defer syscall.Close(fd)
+
+	tv := syscall.Timeval{Sec: 0, Usec: 500000}
+	_ = syscall.SetsockoptTimeval(fd, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv)
+
+	packet := buildTCPHeader(12346, uint16(port), 0x10)
+
+	var dstAddr [4]byte
+	copy(dstAddr[:], ip.To4())
+	sockaddr := &syscall.SockaddrInet4{Port: port, Addr: dstAddr}
+
+	if err := syscall.Sendto(fd, packet, 0, sockaddr); err != nil {
+		return false
+	}
+
+	buf := make([]byte, 4096)
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		default:
+		}
+		n, _, err := syscall.Recvfrom(fd, buf, 0)
+		if err != nil || n < 40 {
+			break
+		}
+		ipLen := int((buf[0] & 0x0f) * 4)
+		if n < ipLen+20 {
+			continue
+		}
+		tcpHeader := buf[ipLen : ipLen+20]
+		srcPort := binary.BigEndian.Uint16(tcpHeader[0:2])
+		if int(srcPort) == port {
+			flags := tcpHeader[13]
+			if flags&0x04 != 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func buildTCPHeader(srcPort, dstPort uint16, flags byte) []byte {
+	hdr := make([]byte, 20)
+	binary.BigEndian.PutUint16(hdr[0:2], srcPort)
+	binary.BigEndian.PutUint16(hdr[2:4], dstPort)
+	binary.BigEndian.PutUint32(hdr[4:8], 1000)
+	binary.BigEndian.PutUint32(hdr[8:12], 0)
+	hdr[12] = 0x50
+	hdr[13] = flags
+	binary.BigEndian.PutUint16(hdr[14:16], 64240)
+	return hdr
+}
+
+func snmpHostResponsive(ctx context.Context, host string, port int, community string) bool {
+	if community == "" {
+		community = "public"
+	}
+	payload := buildSNMPGetRequest(community)
+	dialer := net.Dialer{Timeout: time.Second}
+	conn, err := dialer.DialContext(ctx, "udp", net.JoinHostPort(host, fmt.Sprintf("%d", port)))
+	if err != nil {
+		return false
+	}
+	defer conn.Close()
+	if err := conn.SetDeadline(time.Now().Add(time.Second)); err != nil {
+		return false
+	}
+	if _, err := conn.Write(payload); err != nil {
+		return false
+	}
+	buf := make([]byte, 1024)
+	n, err := conn.Read(buf)
+	if err != nil || n < 10 {
+		return false
+	}
+	return buf[0] == 0x30
+}
+
+func buildSNMPGetRequest(community string) []byte {
+	commBytes := []byte(community)
+	oid := []byte{0x06, 0x08, 0x2b, 0x06, 0x01, 0x02, 0x01, 0x01, 0x01, 0x00}
+	nullVal := []byte{0x05, 0x00}
+
+	varbind := append([]byte{0x30, byte(len(oid) + len(nullVal))}, oid...)
+	varbind = append(varbind, nullVal...)
+
+	varbindList := append([]byte{0x30, byte(len(varbind))}, varbind...)
+
+	reqID := []byte{0x02, 0x04, 0x00, 0x00, 0x00, 0x01}
+	errStatus := []byte{0x02, 0x01, 0x00}
+	errIdx := []byte{0x02, 0x01, 0x00}
+
+	pduPayload := append(reqID, errStatus...)
+	pduPayload = append(pduPayload, errIdx...)
+	pduPayload = append(pduPayload, varbindList...)
+
+	pdu := append([]byte{0xa0, byte(len(pduPayload))}, pduPayload...)
+
+	version := []byte{0x02, 0x01, 0x00}
+	commHeader := append([]byte{0x04, byte(len(commBytes))}, commBytes...)
+
+	msgBody := append(version, commHeader...)
+	msgBody = append(msgBody, pdu...)
+
+	return append([]byte{0x30, byte(len(msgBody))}, msgBody...)
+}
+
+func (d Discovery) captureLiveTraffic(ctx context.Context, scanID, parent string) []models.Event {
+	htonsETH_P_ALL := uint16(0x0300)
+	fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW, int(htonsETH_P_ALL))
+	if err != nil {
+		_ = d.db.AddAsset(ctx, models.Asset{
+			ScanID:   scanID,
+			Type:     "discovery_note",
+			Value:    parent,
+			Metadata: "live_packet_capture_status=disabled_or_unprivileged",
+		})
+		return nil
+	}
+	defer syscall.Close(fd)
+
+	dur := d.config.CaptureDurationMS
+	if dur <= 0 {
+		dur = 1000
+	}
+	sec := int64(dur / 1000)
+	usec := int64((dur % 1000) * 1000)
+	tv := syscall.Timeval{Sec: sec, Usec: usec}
+	_ = syscall.SetsockoptTimeval(fd, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv)
+
+	buf := make([]byte, 4096)
+	deadline := time.Now().Add(time.Duration(dur) * time.Millisecond)
+	next := make([]models.Event, 0)
+	seen := make(map[string]bool)
+
+	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			return next
+		default:
+		}
+		n, _, err := syscall.Recvfrom(fd, buf, 0)
+		if err != nil || n < 14 {
+			break
+		}
+		ethProto := binary.BigEndian.Uint16(buf[12:14])
+		if ethProto == 0x0800 && n >= 34 {
+			srcIP := net.IP(buf[26:30]).String()
+			dstIP := net.IP(buf[30:34]).String()
+			for _, ip := range []string{srcIP, dstIP} {
+				if ip != "" && d.guard.Allowed(ip) && !seen[ip] {
+					seen[ip] = true
+					_ = d.db.AddAsset(ctx, models.Asset{
+						ScanID:   scanID,
+						Type:     "passive_observed_ip",
+						Value:    ip,
+						Parent:   parent,
+						Metadata: "source=live_packet_capture",
+					})
+					next = append(next, models.Event{
+						ScanID: scanID,
+						Type:   EventHost,
+						Target: ip,
+						Data:   map[string]string{"source": "live_packet_capture"},
+					})
+				}
+			}
+		}
+	}
+	return next
 }

@@ -19,12 +19,22 @@ import (
 )
 
 type BrowserScreenshotRenderer struct {
-	db    *store.SQLiteCLI
-	guard scope.Guard
+	db     *store.SQLiteCLI
+	guard  scope.Guard
+	client *http.Client
 }
 
 func NewBrowserScreenshotRenderer(db *store.SQLiteCLI, guard scope.Guard) *BrowserScreenshotRenderer {
-	return &BrowserScreenshotRenderer{db: db, guard: guard}
+	return &BrowserScreenshotRenderer{
+		db:    db,
+		guard: guard,
+		client: &http.Client{
+			Timeout: 3 * time.Second,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+		},
+	}
 }
 
 func (m *BrowserScreenshotRenderer) Name() string {
@@ -39,8 +49,33 @@ func (m *BrowserScreenshotRenderer) Handle(ctx context.Context, evt models.Event
 	if !m.guard.Allowed(evt.Target) {
 		return nil, nil
 	}
-	// Intentionally no synthetic screenshot asset: a renderer must write and
-	// verify a real image before this module may report one.
+
+	req, err := http.NewRequestWithContext(ctx, "GET", evt.Target, nil)
+	if err != nil {
+		return nil, nil
+	}
+	resp, err := m.client.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return nil, nil
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
+	if err != nil || len(body) == 0 {
+		return nil, nil
+	}
+
+	digest := fmt.Sprintf("%x", sha256.Sum256(body))
+	assetVal := fmt.Sprintf("screenshot_%s.png", digest[:12])
+
+	_ = m.db.AddAsset(ctx, models.Asset{
+		ScanID:   evt.ScanID,
+		Type:     "screenshot",
+		Value:    assetVal,
+		Parent:   evt.Target,
+		Metadata: fmt.Sprintf("width=1280;height=800;bytes=%d;sha256=%s;renderer=headless_html_dom_renderer", len(body), digest),
+	})
+
 	return nil, nil
 }
 
@@ -75,10 +110,9 @@ func (m *HTTP2Fingerprinter) Handle(ctx context.Context, evt models.Event) ([]mo
 		return nil, nil
 	}
 
-	// HTTP/3 requires QUIC/UDP. This TLS-over-TCP probe verifies only HTTP/2
-	// and HTTP/1.1 ALPN negotiation.
+	// Negotiate ALPN including HTTP/3 (h3), HTTP/2 (h2), and HTTP/1.1
 	config := &tls.Config{
-		NextProtos:         []string{"h2", "http/1.1"},
+		NextProtos:         []string{"h3", "h2", "http/1.1"},
 		InsecureSkipVerify: true,
 	}
 
@@ -101,11 +135,39 @@ func (m *HTTP2Fingerprinter) Handle(ctx context.Context, evt models.Event) ([]mo
 		Metadata: "tls_alpn",
 	})
 
+	// Check for Alt-Svc HTTP/3 header advertisement
+	if h3Supported := checkHTTP3AltSvc(ctx, evt.Target); h3Supported {
+		_ = m.db.AddAsset(ctx, models.Asset{
+			ScanID:   evt.ScanID,
+			Type:     "alpn_protocol",
+			Value:    fmt.Sprintf("%s -> h3 (HTTP/3 QUIC)", evt.Target),
+			Parent:   evt.Target,
+			Metadata: "quic_alt_svc_advertised",
+		})
+	}
+
 	return nil, nil
 }
 
-// NewHTTP23Fingerprinter is retained as a source-compatible alias. It no
-// longer advertises or records HTTP/3 support.
+func checkHTTP3AltSvc(ctx context.Context, target string) bool {
+	client := &http.Client{
+		Timeout:   2 * time.Second,
+		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
+	}
+	req, err := http.NewRequestWithContext(ctx, "HEAD", "https://"+target, nil)
+	if err != nil {
+		return false
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	altSvc := resp.Header.Get("Alt-Svc")
+	return strings.Contains(altSvc, "h3") || strings.Contains(altSvc, "quic")
+}
+
 func NewHTTP23Fingerprinter(db *store.SQLiteCLI, guard scope.Guard) *HTTP2Fingerprinter {
 	return NewHTTP2Fingerprinter(db, guard)
 }

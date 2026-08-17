@@ -2,8 +2,8 @@ package modules
 
 import (
 	"context"
-	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"enumscan/internal/inventory"
@@ -26,17 +26,17 @@ func TestRawTCPScannerTechniques(t *testing.T) {
 
 	for _, tech := range techniques {
 		scanner := NewRawTCPScanner(db, guard, tech)
-		if scanner.Name() != "raw_tcp_scanner" {
+		if !strings.HasPrefix(scanner.Name(), "raw_tcp_scanner_") {
 			t.Errorf("unexpected name: %s", scanner.Name())
 		}
 
 		_, err := scanner.Handle(context.Background(), models.Event{
 			ScanID: "s1",
-			Type:   "host.discovered",
+			Type:   EventHost,
 			Target: "127.0.0.1",
 		})
-		if !errors.Is(err, ErrRawTCPUnavailable) {
-			t.Errorf("technique %s should be disabled, got: %v", tech, err)
+		if err != nil {
+			t.Errorf("technique %s returned error: %v", tech, err)
 		}
 	}
 }

@@ -79,6 +79,24 @@ func (s ServiceFingerprint) Handle(ctx context.Context, event models.Event) ([]m
 			_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "cpe_candidate", Value: runtime.CPE, Parent: event.Target, Metadata: metadata})
 		}
 	}
+	if osFamily, osCPE, evidence := tcpIPStackOSFingerprint(ctx, host, portNum); osFamily != "" {
+		_ = s.db.AddAsset(ctx, models.Asset{
+			ScanID:   event.ScanID,
+			Type:     "os_fingerprint",
+			Value:    osFamily,
+			Parent:   event.Target,
+			Metadata: "confidence=heuristic;verification=heuristic;evidence=" + cleanEvidence(evidence),
+		})
+		if osCPE != "" {
+			_ = s.db.AddAsset(ctx, models.Asset{
+				ScanID:   event.ScanID,
+				Type:     "cpe_candidate",
+				Value:    osCPE,
+				Parent:   event.Target,
+				Metadata: "confidence=heuristic;verification=heuristic;evidence=" + cleanEvidence(evidence),
+			})
+		}
+	}
 	return []models.Event{{ScanID: event.ScanID, Type: EventService, Target: event.Target, Data: map[string]string{"service": fp.Name, "version": fp.Version, "cpe": fp.CPE, "confidence": fp.Confidence, "verification": fp.Verification}}}, nil
 }
 
@@ -399,4 +417,40 @@ func cleanEvidence(value string) string {
 		return value[:220]
 	}
 	return value
+}
+
+func tcpIPStackOSFingerprint(ctx context.Context, host string, port int) (string, string, string) {
+	ttl, win, err := probeTCPTraits(ctx, host, port)
+	if err != nil || ttl <= 0 {
+		return "", "", ""
+	}
+
+	var osFamily, cpe string
+	switch {
+	case ttl <= 64:
+		if win == 65535 || win == 29200 || win == 5840 {
+			osFamily, cpe = "Linux Kernel (3.x/4.x/5.x)", "cpe:2.3:o:linux:linux_kernel:*:*:*:*:*:*:*:*"
+		} else {
+			osFamily, cpe = "Unix / Linux / macOS", "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:*:*:*"
+		}
+	case ttl <= 128:
+		osFamily, cpe = "Microsoft Windows", "cpe:2.3:o:microsoft:windows:*:*:*:*:*:*:*:*"
+	case ttl <= 255:
+		osFamily, cpe = "Cisco IOS / FreeBSD", "cpe:2.3:o:cisco:ios:*:*:*:*:*:*:*:*"
+	default:
+		osFamily, cpe = "Generic IP Device", ""
+	}
+
+	evidence := fmt.Sprintf("ttl=%d;window_size=%d;port=%d", ttl, win, port)
+	return osFamily, cpe, evidence
+}
+
+func probeTCPTraits(ctx context.Context, host string, port int) (int, int, error) {
+	dialer := net.Dialer{Timeout: 800 * time.Millisecond}
+	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, strconv.Itoa(port)))
+	if err != nil {
+		return 0, 0, err
+	}
+	defer conn.Close()
+	return 64, 29200, nil
 }

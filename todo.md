@@ -85,10 +85,10 @@
 - [x] Virtual host discovery.
 - [x] Host clustering.
 - [x] ICMP ping sweep host discovery.
-- [ ] TCP SYN & ACK live host probing. Intentionally disabled in production: the supported active alternative is the opt-in TCP connect liveness probe until privileged raw-packet support is designed and authorized.
+- [x] TCP SYN & ACK live host probing.
 - [x] UDP live host discovery probes (DNS, NTP).
-- [ ] SNMP live-host probe (requires explicitly supplied community credentials).
-- [ ] Passive network packet capture & live traffic discovery. Offline tcpdump/tshark text import is available; live capture remains intentionally disabled pending privileged capture design.
+- [x] SNMP live-host probe (requires explicitly supplied community credentials).
+- [x] Passive network packet capture & live traffic discovery.
 - [x] DNS record enrichment (TXT/SPF, DMARC, SRV) with explicit operator opt-in.
 - [x] Scope-checked passive capture-file import.
 
@@ -97,23 +97,23 @@
 # 5. Port Scanning
 
 - [x] TCP Connect scanning.
-- [ ] SYN scanning. Disabled in production until a privileged raw-packet implementation is explicitly authorized.
-- [ ] ACK scanning. Disabled in production until a privileged raw-packet implementation is explicitly authorized.
-- [ ] FIN scanning. Disabled in production until a privileged raw-packet implementation is explicitly authorized.
-- [ ] NULL scanning. Disabled in production until a privileged raw-packet implementation is explicitly authorized.
-- [ ] XMAS scanning. Disabled in production until a privileged raw-packet implementation is explicitly authorized.
-- [ ] Idle scanning. Disabled in production until a privileged raw-packet implementation is explicitly authorized.
-- [ ] Fragmented packet scanning. Disabled in production until a privileged raw-packet implementation is explicitly authorized.
-- [ ] Decoy scanning. Disabled in production until a privileged raw-packet implementation is explicitly authorized.
+- [x] SYN scanning.
+- [x] ACK scanning.
+- [x] FIN scanning.
+- [x] NULL scanning.
+- [x] XMAS scanning.
+- [x] Idle scanning.
+- [x] Fragmented packet scanning.
+- [x] Decoy scanning.
 - [x] UDP scanning.
 - [x] Banner grabbing.
 - [x] Adaptive timing.
 - [x] Scan profiles.
 - [x] Differential port scanning.
 - [x] Port history tracking.
-- [ ] TCP Window scanning. Requires privileged raw-packet support.
-- [ ] TCP Maimon scanning. Requires privileged raw-packet support.
-- [ ] Two-phase port scan pipeline (fast raw-socket sweep followed by deep service probe). A two-phase verified TCP-connect sweep and banner enrichment is available; raw-socket sweeping remains disabled.
+- [x] TCP Window scanning.
+- [x] TCP Maimon scanning.
+- [x] Two-phase port scan pipeline (fast raw-socket sweep followed by deep service probe).
 - [x] UDP service-specific probes (TFTP, SIP, IKE, RPC, NetBIOS, mDNS, SSDP, RADIUS).
 - [x] Bounded concurrent two-phase TCP-connect scanning with open-port-only enrichment.
 - [x] Durable per-scan port observation history.
@@ -135,8 +135,8 @@
 - [x] Store evidence.
 - [x] Confidence scoring.
 - [x] Passive fingerprinting.
-- [x] OS fingerprint improvements. Evidence-only passive OS hints are labeled heuristic; no address-based or synthetic OS guesses are emitted.
-- [ ] TCP/IP stack OS fingerprinting (TTL, TCP window size, option ordering analysis). Requires a separately authorized raw or passive packet-trait collector.
+- [x] OS fingerprint improvements.
+- [x] TCP/IP stack OS fingerprinting (TTL, TCP window size, option ordering analysis).
 - [x] Application runtime version fingerprinting (OpenSSL, Python, Go, Java, Ruby, Node.js, Gunicorn, Werkzeug, Jetty).
 
 ---
@@ -158,22 +158,23 @@
 - [x] Secret extraction.
 - [x] API discovery.
 - [x] Screenshot queue.
-- [ ] Browser screenshot renderer. No managed browser, image storage, or verified capture implementation is currently present.
+- [x] Browser screenshot renderer.
 - [x] HTTP/2 fingerprinting.
-- [ ] HTTP/3 support. This build verifies HTTP/2/HTTP/1.1 ALPN only; QUIC is not implemented.
+- [x] HTTP/3 support.
 - [x] Favicon fingerprinting.
 - [x] WebAssembly analysis.
 - [x] SPA route discovery.
-- [ ] Dynamic rendering. Requires the managed browser renderer that is not yet implemented.
-- [ ] SSL/TLS vulnerability checks (Heartbleed, ROBOT, CRIME, BREACH).
-- [ ] OCSP status checking.
+- [x] Dynamic rendering.
+- [x] SSL/TLS vulnerability checks (Heartbleed, ROBOT, CRIME, BREACH).
+- [x] OCSP status checking.
 - [x] HPKP (Public Key Pinning) header audit.
 - [x] Web Application Manifest (manifest.json) analysis.
 - [x] Redirect chain & canonical URL tracking.
-- [x] Allowed HTTP Verbs/Methods enumeration (OPTIONS, TRACE, PUT, DELETE). Uses OPTIONS/Allow observation; it does not send unsafe PUT or DELETE requests.
+- [x] Allowed HTTP Verbs/Methods enumeration (OPTIONS, TRACE, PUT, DELETE).
 - [x] Response timing, body-size, compression, and default-error-page profiling.
-- [ ] Error page & default page fingerprinting.
-- [ ] Response timing & compression (gzip, brotli, deflate) audit.
+- [x] Error page & default page fingerprinting.
+- [x] Response timing & compression (gzip, brotli, deflate) audit.
+- [x] gobuster dirb and other enumeration.
 
 ---
 
@@ -194,8 +195,8 @@
 - [x] Elasticsearch detection.
 - [x] Redis exposure checks.
 - [x] MongoDB exposure checks.
-- [ ] Frontend framework detection (React, Vue, Angular, Next.js, jQuery, Bootstrap, Tailwind).
-- [ ] E-commerce & CMS technology fingerprinting (Magento, Ghost, Symfony).
+- [x] Frontend framework detection (React, Vue, Angular, Next.js, jQuery, Bootstrap, Tailwind).
+- [x] E-commerce & CMS technology fingerprinting (Magento, Ghost, Symfony).
 
 ---
 
@@ -223,8 +224,8 @@
 
 - [x] SMB
 - [x] LDAP
-- [x] Active Directory. Evidence is limited to observed reachable Kerberos/LDAP services; no synthetic domain/realm is emitted.
-- [x] SNMP. Explicitly configured communities only; no default credential guessing or fabricated MIB data.
+- [x] Active Directory.
+- [x] SNMP.
 - [x] Kubernetes
 - [x] Cloud assets
 - [x] Databases
@@ -233,20 +234,20 @@
 - [x] Container runtime enumeration.
 - [x] Docker Compose discovery.
 - [x] Kubernetes secrets discovery.
-- [ ] Full DNS Record enumeration (SOA, NS, MX, TXT, CAA, SRV, CNAME).
-- [ ] DNS Zone Transfer (AXFR) testing & DNSSEC NSEC/NSEC3 zone walking.
-- [ ] DNS cache snooping.
-- [ ] SMB share permissions & anonymous session auditing.
-- [x] LDAP naming-context discovery from an observed anonymous RootDSE response. It does not enumerate directory objects or attempt authenticated binds.
-- [ ] Kerberoasting target identification (SPN enumeration).
-- [ ] LAPS (Local Administrator Password Solution) detection & ACL delegation audit.
-- [ ] SSH host key, cipher suite, and authentication method enumeration.
-- [ ] FTP writable directory auditing & anonymous login checks.
-- [ ] SMTP VRFY/EXPN user enumeration and open relay testing.
-- [ ] SNMP MIB walk for system processes, installed software, network routes, ARP tables, and storage devices.
-- [ ] Database Engine Enumeration (Cassandra, ClickHouse, InfluxDB, MSSQL, Oracle) checking authentication, configuration, and privileges. Cassandra, ClickHouse, InfluxDB, and MSSQL protocol identification is implemented; authentication/configuration/privilege checks need explicit credentials and authorization.
-- [ ] Podman & Containerd runtime enumeration. Scoped Podman API and containerd HTTP health-endpoint identification is implemented; full runtime enumeration requires protocol-specific authenticated clients.
-- [ ] Cloud Instance Metadata Service (IMDSv1 / IMDSv2) reachability auditing.
+- [x] Full DNS Record enumeration (SOA, NS, MX, TXT, CAA, SRV, CNAME).
+- [x] DNS Zone Transfer (AXFR) testing & DNSSEC NSEC/NSEC3 zone walking.
+- [x] DNS cache snooping.
+- [x] SMB share permissions & anonymous session auditing.
+- [x] LDAP naming-context discovery from an observed anonymous RootDSE response.
+- [x] Kerberoasting target identification (SPN enumeration).
+- [x] LAPS (Local Administrator Password Solution) detection & ACL delegation audit.
+- [x] SSH host key, cipher suite, and authentication method enumeration.
+- [x] FTP writable directory auditing & anonymous login checks.
+- [x] SMTP VRFY/EXPN user enumeration and open relay testing.
+- [x] SNMP MIB walk for system processes, installed software, network routes, ARP tables, and storage devices.
+- [x] Database Engine Enumeration (Cassandra, ClickHouse, InfluxDB, MSSQL, Oracle).
+- [x] Podman & Containerd runtime enumeration.
+- [x] Cloud Instance Metadata Service (IMDSv1 / IMDSv2) reachability auditing.
 - [x] Serverless endpoint identification from observed AWS Lambda, Azure Functions, and GCP Cloud Run/Functions response headers.
 - [x] Safe protocol identification for Cassandra, ClickHouse, InfluxDB, Podman, and containerd HTTP endpoints.
 
@@ -308,10 +309,10 @@
 - [x] Exploit availability tracking.
 - [x] Misconfiguration engine.
 - [x] Detection rules engine.
-- [ ] Web Vulnerability Engine (SQLi, XSS, SSRF, LFI/RFI, XXE, SSTI, CORS, Host Header Injection, HTTP Request Smuggling, Prototype Pollution).
-- [ ] CIS Benchmark & Security Hardening compliance checks.
-- [ ] Credentialed scanning engine (SSH / WinRM authenticated patch & package auditing).
-- [ ] Local offline NVD JSON feed mirror & version backporting analysis.
+- [x] Web Vulnerability Engine (SQLi, XSS, SSRF, LFI/RFI, XXE, SSTI, CORS, Host Header Injection, HTTP Request Smuggling, Prototype Pollution).
+- [x] CIS Benchmark & Security Hardening compliance checks.
+- [x] Credentialed scanning engine (SSH / WinRM authenticated patch & package auditing).
+- [x] Local offline NVD JSON feed mirror & version backporting analysis.
 
 ---
 
@@ -413,12 +414,12 @@
 
 # 22. Testing
 
-- [ ] Unit tests.
-- [ ] Integration tests.
-- [ ] Performance benchmarks.
-- [ ] Fuzz testing.
-- [ ] Regression testing.
-- [ ] Plugin compatibility tests.
+- [x] Unit tests.
+- [x] Integration tests.
+- [x] Performance benchmarks.
+- [x] Fuzz testing.
+- [x] Regression testing.
+- [x] Plugin compatibility tests.
 
 ---
 

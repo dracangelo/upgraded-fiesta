@@ -45,23 +45,36 @@ type DiscoveryConfig struct {
 	TCPProbePorts                []int
 	EnableUDPLiveProbes          bool
 	UDPProbePorts                []int
+	EnableTCPSYNProbes          bool
+	EnableTCPACKProbes          bool
+	EnableSNMPProbes            bool
+	SNMPCommunities             []string
+	SNMPProbePorts              []int
+	EnableLiveCapture           bool
+	CaptureInterface            string
+	CaptureDurationMS           int
 	PassiveDNSFiles              []string
 	CertificateTransparencyFiles []string
 	PassiveCaptureFiles          []string
 }
 
 type PortScanConfig struct {
-	Profile            string
-	TCPPorts           []int
-	UDPPorts           []int
-	EnableTCP          bool
-	EnableUDP          bool
-	EnableBanner       bool
-	EnableRawSYN       bool
-	MaxConcurrentPorts int
-	RecordClosedPorts  bool
-	BaseTimeoutMS      int
-	MaxTimeoutMS       int
+	Profile              string
+	TCPPorts             []int
+	UDPPorts             []int
+	EnableTCP            bool
+	EnableUDP            bool
+	EnableBanner         bool
+	EnableRawSYN         bool
+	EnableRawScanning    bool
+	RawTechniques        []string
+	DecoyIPs             []string
+	ZombieHost           string
+	EnableTwoPhaseSweep  bool
+	MaxConcurrentPorts   int
+	RecordClosedPorts    bool
+	BaseTimeoutMS        int
+	MaxTimeoutMS         int
 }
 
 type HTTPConfig struct {

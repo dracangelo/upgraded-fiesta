@@ -295,3 +295,85 @@ func (m *EnterpriseAppEnumerator) Handle(ctx context.Context, evt models.Event) 
 
 	return nil, nil
 }
+
+type FrontendFrameworkDetector struct {
+	db     *store.SQLiteCLI
+	guard  scope.Guard
+	client *http.Client
+}
+
+func NewFrontendFrameworkDetector(db *store.SQLiteCLI, guard scope.Guard) *FrontendFrameworkDetector {
+	return &FrontendFrameworkDetector{
+		db:    db,
+		guard: guard,
+		client: &http.Client{
+			Timeout: 3 * time.Second,
+		},
+	}
+}
+
+func (m *FrontendFrameworkDetector) Name() string {
+	return "frontend_framework_detector"
+}
+
+func (m *FrontendFrameworkDetector) Subscriptions() []string {
+	return []string{"url.crawled"}
+}
+
+func (m *FrontendFrameworkDetector) Handle(ctx context.Context, evt models.Event) ([]models.Event, error) {
+	if !m.guard.Allowed(evt.Target) {
+		return nil, nil
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", evt.Target, nil)
+	if err != nil {
+		return nil, nil
+	}
+
+	resp, err := m.client.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return nil, nil
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
+	body := string(bodyBytes)
+	lower := strings.ToLower(body)
+
+	frameworks := []struct {
+		Name     string
+		Pattern  string
+		Metadata string
+	}{
+		{"React", "react.production.min.js", "frontend_framework_react"},
+		{"React", "data-reactroot", "frontend_framework_react"},
+		{"Vue.js", "vue.js", "frontend_framework_vue"},
+		{"Vue.js", "v-bind", "frontend_framework_vue"},
+		{"Angular", "ng-version", "frontend_framework_angular"},
+		{"Angular", "angular.js", "frontend_framework_angular"},
+		{"Next.js", "__next", "frontend_framework_nextjs"},
+		{"jQuery", "jquery", "frontend_library_jquery"},
+		{"Bootstrap", "bootstrap.min.css", "frontend_css_bootstrap"},
+		{"Bootstrap", "bootstrap.min.js", "frontend_css_bootstrap"},
+		{"Tailwind CSS", "tailwind", "frontend_css_tailwind"},
+		{"Magento", "mage/cookies.js", "ecommerce_magento"},
+		{"Ghost", "ghost-head", "cms_ghost"},
+		{"Symfony", "symfony-app", "framework_symfony"},
+	}
+
+	seen := make(map[string]bool)
+	for _, fw := range frameworks {
+		if strings.Contains(lower, fw.Pattern) && !seen[fw.Name] {
+			seen[fw.Name] = true
+			_ = m.db.AddAsset(ctx, models.Asset{
+				ScanID:   evt.ScanID,
+				Type:     "frontend_technology",
+				Value:    fw.Name,
+				Parent:   evt.Target,
+				Metadata: fw.Metadata,
+			})
+		}
+	}
+
+	return nil, nil
+}

@@ -23,6 +23,20 @@ func (h *HTTP) recordResponseProfile(ctx context.Context, scanID, target string,
 	}
 	metadata := fmt.Sprintf("status=%d;latency_ms=%d;bytes=%d;content_type=%s;compression=%s", resp.StatusCode, latency.Milliseconds(), bytesRead, cleanEvidence(resp.Header.Get("Content-Type")), cleanEvidence(compression))
 	_ = h.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "http_response_profile", Value: target, Parent: target, Metadata: metadata})
+
+	// Audit missing compression for large text-based responses
+	contentType := strings.ToLower(resp.Header.Get("Content-Type"))
+	if bytesRead > 10240 && compression == "none" && (strings.Contains(contentType, "text") || strings.Contains(contentType, "json") || strings.Contains(contentType, "javascript")) {
+		_ = h.db.AddFinding(ctx, models.Finding{
+			ScanID:      scanID,
+			Severity:    "info",
+			Confidence:  "high",
+			Asset:       target,
+			Title:       "Uncompressed large web asset delivered",
+			Evidence:    fmt.Sprintf("Asset size %d bytes delivered without gzip/brotli compression", bytesRead),
+			Remediation: "Enable HTTP response compression (gzip or brotli) on web server.",
+		})
+	}
 }
 
 func (h *HTTP) recordErrorPage(ctx context.Context, scanID, target string, resp *http.Response, body string) {
@@ -32,14 +46,22 @@ func (h *HTTP) recordErrorPage(ctx context.Context, scanID, target string, resp 
 	kind := "custom"
 	lower := strings.ToLower(body + " " + resp.Header.Get("Server"))
 	switch {
-	case strings.Contains(lower, "apache") && strings.Contains(lower, "not found"):
+	case strings.Contains(lower, "apache") && (strings.Contains(lower, "not found") || strings.Contains(lower, "404")):
 		kind = "apache_default"
-	case strings.Contains(lower, "nginx") && strings.Contains(lower, "not found"):
+	case strings.Contains(lower, "nginx") && (strings.Contains(lower, "not found") || strings.Contains(lower, "404")):
 		kind = "nginx_default"
 	case strings.Contains(lower, "iis") || strings.Contains(lower, "asp.net"):
 		kind = "iis_or_aspnet"
-	case strings.Contains(lower, "tomcat"):
-		kind = "tomcat"
+	case strings.Contains(lower, "tomcat") || strings.Contains(lower, "apache tomcat"):
+		kind = "tomcat_default"
+	case strings.Contains(lower, "whitelabel error page") || strings.Contains(lower, "spring"):
+		kind = "spring_boot_whitelabel"
+	case strings.Contains(lower, "cannot get") || strings.Contains(lower, "express"):
+		kind = "express_js"
+	case strings.Contains(lower, "django") && strings.Contains(lower, "page not found"):
+		kind = "django_debug_error"
+	case strings.Contains(lower, "laravel") && strings.Contains(lower, "whoops"):
+		kind = "laravel_debug_error"
 	}
 	_ = h.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "http_error_page", Value: target, Parent: target, Metadata: fmt.Sprintf("status=%d;fingerprint=%s", resp.StatusCode, kind)})
 }

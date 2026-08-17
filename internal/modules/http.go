@@ -116,6 +116,7 @@ func (h *HTTP) Handle(ctx context.Context, event models.Event) ([]models.Event, 
 	}
 	if h.config.EnableAPIDiscovery && depth == 0 {
 		h.discoverAPIs(ctx, event.ScanID, root)
+		h.enumerateCommonDirectories(ctx, event.ScanID, root)
 	}
 	if h.config.EnableJSAnalysis {
 		h.analyzeJavaScript(ctx, event.ScanID, event.Target, body)
@@ -297,6 +298,32 @@ func (h *HTTP) discoverAPIs(ctx context.Context, scanID string, root *url.URL) {
 			continue
 		}
 		_ = h.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "api_endpoint", Value: item.String(), Parent: root.String(), Metadata: "kind=" + kind + ";status=" + resp.Status})
+	}
+}
+
+func (h *HTTP) enumerateCommonDirectories(ctx context.Context, scanID string, root *url.URL) {
+	commonPaths := []string{
+		"/admin", "/login", "/dashboard", "/api", "/v1", "/v2",
+		"/backup", "/config", "/db", "/uploads", "/test", "/dev",
+		"/.git/HEAD", "/.env", "/server-status", "/phpinfo.php",
+	}
+	for _, path := range commonPaths {
+		item := *root
+		item.Path = path
+		item.RawQuery = ""
+		resp, _, err := h.fetchSmall(ctx, item.String())
+		if err != nil || resp.StatusCode == http.StatusNotFound {
+			continue
+		}
+		if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusUnauthorized {
+			_ = h.db.AddAsset(ctx, models.Asset{
+				ScanID:   scanID,
+				Type:     "discovered_path",
+				Value:    item.String(),
+				Parent:   root.String(),
+				Metadata: fmt.Sprintf("status=%d;technique=gobuster_dirb_enumeration", resp.StatusCode),
+			})
+		}
 	}
 }
 

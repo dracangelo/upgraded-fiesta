@@ -57,3 +57,31 @@ func TestPassiveCaptureImportIsScoped(t *testing.T) {
 		t.Fatalf("expected scoped capture host event, got %#v", events)
 	}
 }
+
+func TestSNMPGetRequestPayload(t *testing.T) {
+	req := buildSNMPGetRequest("public")
+	if len(req) < 10 || req[0] != 0x30 {
+		t.Fatalf("unexpected SNMP request payload: %x", req)
+	}
+}
+
+func TestBuildTCPHeader(t *testing.T) {
+	hdr := buildTCPHeader(8080, 80, 0x02)
+	if len(hdr) != 20 || hdr[13] != 0x02 {
+		t.Fatalf("unexpected TCP header: %x", hdr)
+	}
+}
+
+func TestTCPSYNACKProbesAndLiveCaptureGracefulFallback(t *testing.T) {
+	ctx := context.Background()
+	// Unreachable IP address should return false cleanly without panicking
+	if tcpSYNHostResponsive(ctx, "192.0.2.1", 65432) {
+		t.Fatal("expected unreachable IP to fail SYN probe")
+	}
+	if tcpACKHostResponsive(ctx, "192.0.2.1", 65432) {
+		t.Fatal("expected unreachable IP to fail ACK probe")
+	}
+	if snmpHostResponsive(ctx, "192.0.2.1", 65432, "public") {
+		t.Fatal("expected unreachable IP to fail SNMP probe")
+	}
+}

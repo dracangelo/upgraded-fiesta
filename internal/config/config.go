@@ -13,7 +13,15 @@ func Default() models.Config {
 	return models.Config{
 		Database:  models.DatabaseConfig{Path: "data/enumscan.sqlite"},
 		Scheduler: models.SchedulerConfig{Concurrency: 1, GlobalRateLimitMS: 500, PerTargetRateLimitMS: 1000, ModuleTimeoutMS: 10000},
-		Discovery: models.DiscoveryConfig{CIDRMaxHosts: 64, TCPProbePorts: []int{80, 443}, UDPProbePorts: []int{53, 123}},
+		Discovery: models.DiscoveryConfig{
+			CIDRMaxHosts:        64,
+			TCPProbePorts:       []int{80, 443},
+			UDPProbePorts:       []int{53, 123},
+			SNMPCommunities:     []string{"public", "private"},
+			SNMPProbePorts:      []int{161},
+			CaptureInterface:   "any",
+			CaptureDurationMS:  1000,
+		},
 		PortScan:  models.PortScanConfig{Profile: "quick", EnableTCP: false, EnableUDP: false, EnableBanner: false, MaxConcurrentPorts: 4, BaseTimeoutMS: 750, MaxTimeoutMS: 3000},
 		Scope:     models.ScopeConfig{AllowedTargets: []string{"127.0.0.1", "localhost"}},
 		Scan:      models.ScanConfig{Targets: []string{"127.0.0.1"}},
@@ -187,6 +195,46 @@ func assign(cfg *models.Config, section, key, value string) error {
 			return err
 		}
 		cfg.Discovery.UDPProbePorts = ports
+	case "discovery.enable_tcp_syn_probes":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.EnableTCPSYNProbes = enabled
+	case "discovery.enable_tcp_ack_probes":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.EnableTCPACKProbes = enabled
+	case "discovery.enable_snmp_probes":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.EnableSNMPProbes = enabled
+	case "discovery.snmp_communities":
+		cfg.Discovery.SNMPCommunities = parseList(value)
+	case "discovery.snmp_probe_ports":
+		ports, err := parseInts(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.SNMPProbePorts = ports
+	case "discovery.enable_live_capture":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.EnableLiveCapture = enabled
+	case "discovery.capture_interface":
+		cfg.Discovery.CaptureInterface = value
+	case "discovery.capture_duration_ms":
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+		cfg.Discovery.CaptureDurationMS = n
 	case "discovery.passive_dns_files":
 		cfg.Discovery.PassiveDNSFiles = parseList(value)
 	case "discovery.certificate_transparency_files":
@@ -230,10 +278,25 @@ func assign(cfg *models.Config, section, key, value string) error {
 		if err != nil {
 			return err
 		}
-		if enabled {
-			return fmt.Errorf("raw SYN scanning is disabled: this build only supports verified TCP connect scanning")
-		}
 		cfg.PortScan.EnableRawSYN = enabled
+	case "portscan.enable_raw_scanning":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.PortScan.EnableRawScanning = enabled
+	case "portscan.raw_techniques":
+		cfg.PortScan.RawTechniques = parseList(value)
+	case "portscan.decoy_ips":
+		cfg.PortScan.DecoyIPs = parseList(value)
+	case "portscan.zombie_host":
+		cfg.PortScan.ZombieHost = value
+	case "portscan.enable_two_phase_sweep":
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		cfg.PortScan.EnableTwoPhaseSweep = enabled
 	case "portscan.max_concurrent_ports":
 		n, err := strconv.Atoi(value)
 		if err != nil {

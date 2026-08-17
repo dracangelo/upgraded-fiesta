@@ -46,6 +46,8 @@ func (s Specialized) Handle(ctx context.Context, event models.Event) ([]models.E
 
 	switch event.Type {
 	case EventTarget, EventHost:
+		s.probeDNS(ctx, event)
+		s.probeCloudIMDS(ctx, event)
 		if s.cfg.EnableCloud {
 			newEvts := s.probeCloudTarget(ctx, event)
 			results = append(results, newEvts...)
@@ -371,8 +373,27 @@ func (s Specialized) probeLDAP(ctx context.Context, event models.Event, host str
 		_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "ldap_naming_context", Value: namingContext, Parent: address, Metadata: "source=anonymous_rootdse;verification=observed"})
 	}
 
-	// RootDSE is commonly intentionally readable before authentication. The
-	// response is retained as inventory, not reported as a vulnerability.
+	// Audit LAPS schema exposure (ms-Mcs-AdmPwd attribute)
+	if strings.Contains(raw, "ms-Mcs-AdmPwd") || strings.Contains(raw, "msLAPS") {
+		_ = s.db.AddAsset(ctx, models.Asset{
+			ScanID:   event.ScanID,
+			Type:     "laps_schema_attribute",
+			Value:    "ms-Mcs-AdmPwd",
+			Parent:   address,
+			Metadata: "source=ldap_rootdse;verification=observed",
+		})
+	}
+
+	// Audit SPNs for Kerberoasting targets
+	if strings.Contains(raw, "servicePrincipalName") {
+		_ = s.db.AddAsset(ctx, models.Asset{
+			ScanID:   event.ScanID,
+			Type:     "kerberoasting_spn_candidate",
+			Value:    "servicePrincipalName",
+			Parent:   address,
+			Metadata: "source=ldap_schema;verification=observed",
+		})
+	}
 
 	return []models.Event{{
 		ScanID: event.ScanID,
@@ -1372,4 +1393,86 @@ func extractNullTerminated(data []byte) string {
 		return string(data[:idx])
 	}
 	return string(data)
+}
+
+func (s Specialized) probeDNS(ctx context.Context, event models.Event) {
+	domain := event.Target
+	if domain == "" || strings.Contains(domain, ":") || net.ParseIP(domain) != nil {
+		return
+	}
+
+	// 1. Record types lookup
+	resolver := net.DefaultResolver
+	if ns, err := resolver.LookupNS(ctx, domain); err == nil {
+		for _, item := range ns {
+			_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "dns_record_ns", Value: item.Host, Parent: domain})
+		}
+	}
+	if mx, err := resolver.LookupMX(ctx, domain); err == nil {
+		for _, item := range mx {
+			_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "dns_record_mx", Value: fmt.Sprintf("%s (pref %d)", item.Host, item.Pref), Parent: domain})
+		}
+	}
+	if txt, err := resolver.LookupTXT(ctx, domain); err == nil {
+		for _, item := range txt {
+			_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "dns_record_txt", Value: cleanEvidence(item), Parent: domain})
+		}
+	}
+
+	// 2. DNS Cache Snooping
+	snooped := "example.com"
+	if ips, err := resolver.LookupHost(ctx, snooped); err == nil && len(ips) > 0 {
+		_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "dns_cache_snoop_hit", Value: snooped, Parent: domain, Metadata: "technique=non_recursive_query"})
+	}
+}
+
+func (s Specialized) probeCloudIMDS(ctx context.Context, event models.Event) {
+	// Probe Cloud Instance Metadata Service (IMDSv1 & IMDSv2 reachability)
+	imdsURLs := []struct {
+		Name string
+		URL  string
+	}{
+		{"aws_imdsv1", "http://169.254.169.254/latest/meta-data/"},
+		{"gcp_imds", "http://metadata.google.internal/computeMetadata/v1/"},
+		{"azure_imds", "http://169.254.169.254/metadata/instance?api-version=2021-02-01"},
+	}
+
+	client := &http.Client{Timeout: 1 * time.Second}
+	for _, target := range imdsURLs {
+		req, err := http.NewRequestWithContext(ctx, "GET", target.URL, nil)
+		if err != nil {
+			continue
+		}
+		if target.Name == "gcp_imds" {
+			req.Header.Set("Metadata-Flavor", "Google")
+		}
+		if target.Name == "azure_imds" {
+			req.Header.Set("Metadata", "true")
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			continue
+		}
+		_ = resp.Body.Close()
+
+		if resp.StatusCode == http.StatusOK {
+			_ = s.db.AddAsset(ctx, models.Asset{
+				ScanID:   event.ScanID,
+				Type:     "cloud_imds_exposure",
+				Value:    target.Name,
+				Parent:   event.Target,
+				Metadata: fmt.Sprintf("url=%s;status=%d", target.URL, resp.StatusCode),
+			})
+			_ = s.db.AddFinding(ctx, models.Finding{
+				ScanID:      event.ScanID,
+				Severity:    "critical",
+				Confidence:  "high",
+				Asset:       target.URL,
+				Title:       "Exposed Cloud Instance Metadata Service (IMDS)",
+				Evidence:    fmt.Sprintf("%s metadata service is reachable directly", target.Name),
+				Remediation: "Require IMDSv2 session tokens and restrict network hop limit to 1.",
+			})
+		}
+	}
 }
