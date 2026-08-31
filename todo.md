@@ -451,25 +451,25 @@
 
 # 25. Data Handling & Secrets Protection
 
-- [ ] Encryption at rest for the findings datastore.
-- [ ] Secret redaction in generated reports.
-- [ ] Secrets manager integration for the tool's own credentialed-scan credentials.
-- [ ] Access control and audit log — who ran what scan, when.
-- [ ] Evidence chain-of-custody logging per engagement.
+- [x] Encryption at rest for the findings datastore.
+- [x] Secret redaction in generated reports.
+- [x] Secrets manager integration for the tool's own credentialed-scan credentials.
+- [x] Access control and audit log — who ran what scan, when.
+- [x] Evidence chain-of-custody logging per engagement.
 
 ---
 
 # 26. Advanced Intelligence & Modern Web
 
-- [ ] Add technology stack fingerprinting (Wappalyzer JSON signature rules matching).
-- [ ] Add dynamic tech-aware directory fuzzing module with automatic 404/wildcard detection.
-- [ ] Add historical URL harvesting from Wayback Machine, Common Crawl, and OTX (`gau`/`waybackurls`).
-- [ ] Add VirusTotal API reputation queries and native `go-yara` static artifact scanning.
-- [ ] Add Out-of-Band (OOB) interaction listener client for blind SSRF/RCE detection.
-- [ ] Add Kerberos pre-authentication user enumeration and AS-REP roasting checks.
-- [ ] Add BloodHound-compatible JSON/graph export for Active Directory findings.
-- [ ] Add differential scan engine (comparing DB runs to identify net-new assets and resolved flaws).
-- [ ] Add terminal dashboard (TUI) powered by `charmbracelet/bubbletea`.
+- [x] Add technology stack fingerprinting (Wappalyzer JSON signature rules matching).
+- [x] Add dynamic tech-aware directory fuzzing module with automatic 404/wildcard detection.
+- [x] Add historical URL harvesting from Wayback Machine, Common Crawl, and OTX (`gau`/`waybackurls`).
+- [x] Add VirusTotal API reputation queries and native `go-yara` static artifact scanning.
+- [x] Add Out-of-Band (OOB) interaction listener client for blind SSRF/RCE detection.
+- [x] Add Kerberos pre-authentication user enumeration and AS-REP roasting checks.
+- [x] Add BloodHound-compatible JSON/graph export for Active Directory findings.
+- [x] Add differential scan engine (comparing DB runs to identify net-new assets and resolved flaws).
+- [x] Add terminal dashboard (TUI) powered by `charmbracelet/bubbletea`.
 
 ---
 
@@ -477,95 +477,95 @@
 
 ## Integration Framework
 
-- [ ] Build provider abstraction layer.
-- [ ] Define integration interface.
-- [ ] Add integration lifecycle management.
-- [ ] Add integration health checks.
-- [ ] Add integration diagnostics.
-- [ ] Add integration rate limiting.
-- [ ] Add integration caching.
-- [ ] Add retry and backoff policies.
-- [ ] Add provider capability discovery.
+- [x] Build provider abstraction layer.
+- [x] Define integration interface.
+- [x] Add integration lifecycle management.
+- [x] Add integration health checks.
+- [x] Add integration diagnostics.
+- [x] Add integration rate limiting.
+- [x] Add integration caching.
+- [x] Add retry and backoff policies.
+- [x] Add provider capability discovery.
 
 ## Bring Your Own API Keys
 
-- [ ] VirusTotal
-- [ ] AbuseIPDB
-- [ ] Shodan
-- [ ] Censys
-- [ ] SecurityTrails
-- [ ] GreyNoise
-- [ ] BinaryEdge
-- [ ] FOFA
-- [ ] AlienVault OTX
-- [ ] URLScan.io
-- [ ] Hunter.io
-- [ ] WhoisXML API
-- [ ] Have I Been Pwned
-- [ ] GitHub
-- [ ] GitLab
-- [ ] DNSDB
-- [ ] CIRCL CVE Search
+- [x] VirusTotal
+- [x] AbuseIPDB
+- [x] Shodan
+- [x] Censys
+- [x] SecurityTrails
+- [x] GreyNoise
+- [x] BinaryEdge
+- [x] FOFA
+- [x] AlienVault OTX
+- [x] URLScan.io
+- [x] Hunter.io
+- [x] WhoisXML API
+- [x] Have I Been Pwned
+- [x] GitHub
+- [x] GitLab
+- [x] DNSDB
+- [x] CIRCL CVE Search
 
 ## Integration Management
 
-- [ ] Enable/disable integrations.
-- [ ] Validate API keys.
-- [ ] Show provider status.
-- [ ] Display remaining API quota.
-- [ ] Automatic rate-limit handling.
-- [ ] Integration diagnostics (`enumscan doctor`).
-- [ ] Integration update checker.
+- [x] Enable/disable integrations.
+- [x] Validate API keys.
+- [x] Show provider status.
+- [x] Display remaining API quota.
+- [x] Automatic rate-limit handling.
+- [x] Integration diagnostics (`enumscan doctor`).
+- [x] Integration update checker.
 
 ---
 
 # 28. Secrets Management
 
-- [ ] Environment variable support.
-- [ ] Encrypted configuration file.
-- [ ] OS Keychain support.
-- [ ] Windows Credential Manager.
-- [ ] macOS Keychain.
-- [ ] Linux Secret Service.
-- [ ] HashiCorp Vault integration.
-- [ ] Kubernetes Secrets support.
-- [ ] AWS Secrets Manager.
-- [ ] Azure Key Vault.
-- [ ] GCP Secret Manager.
-- [ ] Secret rotation support.
+- [x] Environment variable support.
+- [x] Encrypted configuration file.
+- [x] OS Keychain support.
+- [x] Windows Credential Manager.
+- [x] macOS Keychain.
+- [x] Linux Secret Service.
+- [x] HashiCorp Vault integration.
+- [x] Kubernetes Secrets support.
+- [x] AWS Secrets Manager.
+- [x] Azure Key Vault.
+- [x] GCP Secret Manager.
+- [x] Secret rotation support.
 
 ---
 
 # 29. Projects & Workspaces
 
-- [ ] Multiple projects.
-- [ ] Per-project scope.
-- [ ] Per-project integrations.
-- [ ] Per-project API keys.
-- [ ] Per-project reports.
-- [ ] Per-project findings.
-- [ ] Per-project dashboards.
-- [ ] Per-project scan history.
-- [ ] Archive projects.
-- [ ] Import/export projects.
+- [x] Multiple projects.
+- [x] Per-project scope.
+- [x] Per-project integrations.
+- [x] Per-project API keys.
+- [x] Per-project reports.
+- [x] Per-project findings.
+- [x] Per-project dashboards.
+- [x] Per-project scan history.
+- [x] Archive projects.
+- [x] Import/export projects.
 
 ---
 
 # 30. Scan Profiles
 
-- [ ] Quick
-- [ ] Standard
-- [ ] Exhaustive
-- [ ] External Infrastructure
-- [ ] Internal Network
-- [ ] Web Application
-- [ ] API Assessment
-- [ ] Active Directory
-- [ ] Kubernetes
-- [ ] Cloud Infrastructure
-- [ ] Bug Bounty
-- [ ] Compliance
-- [ ] Custom templates.
+- [x] Quick
+- [x] Standard
+- [x] Exhaustive
+- [x] External Infrastructure
+- [x] Internal Network
+- [x] Web Application
+- [x] API Assessment
+- [x] Active Directory
+- [x] Kubernetes
+- [x] Cloud Infrastructure
+- [x] Bug Bounty
+- [x] Compliance
+- [x] Custom templates.
 
 ---
 
@@ -573,80 +573,80 @@
 
 ## Backend
 
-- [ ] REST API.
-- [ ] GraphQL API.
-- [ ] WebSocket events.
-- [ ] Authentication.
-- [ ] API tokens.
-- [ ] Role-based authorization.
+- [x] REST API.
+- [x] GraphQL API.
+- [x] WebSocket events.
+- [x] Authentication.
+- [x] API tokens.
+- [x] Role-based authorization.
 
 ## Dashboard
 
-- [ ] React frontend.
-- [ ] Dashboard overview.
-- [ ] Asset explorer.
-- [ ] Service explorer.
-- [ ] Vulnerability explorer.
-- [ ] Screenshot gallery.
-- [ ] Timeline viewer.
-- [ ] Scan history.
-- [ ] Asset search.
-- [ ] Saved filters.
-- [ ] Dark mode.
-- [ ] Light mode.
+- [x] React frontend.
+- [x] Dashboard overview.
+- [x] Asset explorer.
+- [x] Service explorer.
+- [x] Vulnerability explorer.
+- [x] Screenshot gallery.
+- [x] Timeline viewer.
+- [x] Scan history.
+- [x] Asset search.
+- [x] Saved filters.
+- [x] Dark mode.
+- [x] Light mode.
 
 ## Visualization
 
-- [ ] Attack surface graph.
-- [ ] Attack path graph.
-- [ ] Technology graph.
-- [ ] Asset relationship graph.
-- [ ] Certificate graph.
-- [ ] Cloud relationship graph.
-- [ ] Interactive Neo4j visualization.
+- [x] Attack surface graph.
+- [x] Attack path graph.
+- [x] Technology graph.
+- [x] Asset relationship graph.
+- [x] Certificate graph.
+- [x] Cloud relationship graph.
+- [x] Interactive Neo4j visualization.
 
 ---
 
 # 32. Live Monitoring
 
-- [ ] Live scan progress.
-- [ ] Module progress.
-- [ ] Worker statistics.
-- [ ] Queue statistics.
-- [ ] Throughput metrics.
-- [ ] Estimated completion time.
-- [ ] Live logs.
-- [ ] Scan pause/resume.
-- [ ] Live findings stream.
+- [x] Live scan progress.
+- [x] Module progress.
+- [x] Worker statistics.
+- [x] Queue statistics.
+- [x] Throughput metrics.
+- [x] Estimated completion time.
+- [x] Live logs.
+- [x] Scan pause/resume.
+- [x] Live findings stream.
 
 ---
 
 # 33. Search Engine
 
-- [ ] Global search.
-- [ ] Asset search.
-- [ ] Service search.
-- [ ] Technology search.
-- [ ] Certificate search.
-- [ ] Secret search.
-- [ ] Finding search.
-- [ ] Screenshot search.
-- [ ] Graph search.
-- [ ] Saved searches.
+- [x] Global search.
+- [x] Asset search.
+- [x] Service search.
+- [x] Technology search.
+- [x] Certificate search.
+- [x] Secret search.
+- [x] Finding search.
+- [x] Screenshot search.
+- [x] Graph search.
+- [x] Saved searches.
 
 ---
 
 # 34. Timeline & Change Tracking
 
-- [ ] Host timeline.
-- [ ] Service timeline.
-- [ ] Certificate timeline.
-- [ ] Technology timeline.
-- [ ] Vulnerability timeline.
-- [ ] Secret timeline.
-- [ ] Configuration drift detection.
-- [ ] Daily change reports.
-- [ ] Weekly summaries.
+- [x] Host timeline.
+- [x] Service timeline.
+- [x] Certificate timeline.
+- [x] Technology timeline.
+- [x] Vulnerability timeline.
+- [x] Secret timeline.
+- [x] Configuration drift detection.
+- [x] Daily change reports.
+- [x] Weekly summaries.
 
 ---
 

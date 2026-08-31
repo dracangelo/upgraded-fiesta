@@ -72,6 +72,12 @@ func (s *SQLiteCLI) FinishScan(ctx context.Context, scanID, status, message stri
 	return err
 }
 
+func (s *SQLiteCLI) UpdateScanStatus(ctx context.Context, scanID, status string) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO scan_runs(scan_id,status) VALUES(?,?)
+ON CONFLICT(scan_id) DO UPDATE SET status=excluded.status`, scanID, status)
+	return err
+}
+
 func (s *SQLiteCLI) GetScanStatus(ctx context.Context, scanID string) (string, error) {
 	var status string
 	err := s.db.QueryRowContext(ctx, `SELECT status FROM scan_runs WHERE scan_id=?`, scanID).Scan(&status)

@@ -1,20 +1,883 @@
 package api
 
 const dashboardHTML = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>enumscan operator console</title>
-<style>
-:root{--bg:#0a1020;--card:#121c31;--line:#263958;--text:#eef5ff;--muted:#8ca2c5;--blue:#64b5ff;--red:#ff6b7a;--green:#44d7a8}body.light{--bg:#f4f7fb;--card:#fff;--line:#dce5f1;--text:#17233a;--muted:#63738b;--blue:#086cdb;--red:#cf2946;--green:#16845f}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 75% -20%,#1c3a67 0,transparent 36%),var(--bg);color:var(--text);font:14px Inter,system-ui,sans-serif}header{height:72px;display:flex;align-items:center;gap:12px;padding:0 28px;border-bottom:1px solid var(--line)}.brand{font-size:20px;font-weight:800;margin-right:auto}.brand i{color:var(--blue);font-style:normal}.status{border:1px solid #277a61;color:var(--green);border-radius:999px;padding:6px 10px;font-size:12px}.status.bad{border-color:#9d3545;color:var(--red)}input,button,select{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px 11px}button{cursor:pointer}button.primary{background:var(--blue);color:#061322;border-color:transparent;font-weight:700}button:disabled{opacity:.6;cursor:wait}main{max-width:1440px;margin:auto;padding:32px 26px}.eyebrow,.label{color:var(--blue);letter-spacing:.1em;text-transform:uppercase;font-size:11px;font-weight:800}.hero{display:flex;justify-content:space-between;gap:24px;align-items:end;margin-bottom:24px}.hero h1{margin:5px 0 0;font-size:32px}.hero p,.muted{color:var(--muted)}.run-form{display:grid;grid-template-columns:minmax(230px,1fr) 130px auto;gap:9px;align-items:center;min-width:min(100%,520px)}.run-form input{min-width:0}.run-form small{grid-column:1/-1}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}.number{font-size:30px;font-weight:800;margin-top:8px}.layout,.row{display:grid;grid-template-columns:1.45fr .85fr;gap:14px;margin-top:14px}.row{grid-template-columns:repeat(2,1fr)}.card h2{font-size:14px;margin:0 0 14px}.head{display:flex;align-items:center;justify-content:space-between;gap:10px}.search{width:100%;margin-bottom:12px}.table{width:100%;border-collapse:collapse}.table td{border-top:1px solid var(--line);padding:10px 4px;vertical-align:top}.pill{display:inline-block;background:#1e4e7b55;color:#9ed2ff;padding:3px 7px;border-radius:99px;font-size:11px}.event{display:grid;grid-template-columns:10px 1fr;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}.dot{width:8px;height:8px;margin-top:5px;border-radius:50%;background:var(--blue)}.timeline{max-height:305px;overflow:auto}.graph{width:100%;height:300px;border-radius:10px;background:#07101f66;border:1px solid var(--line)}line{stroke:#5f82aa77}text{fill:var(--text);font:11px system-ui}.empty{padding:28px 10px;text-align:center;color:var(--muted)}.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px}.shot{border:1px solid var(--line);border-radius:8px;padding:12px;min-height:82px}.saved{display:flex;flex-wrap:wrap;gap:7px}.saved button{font-size:12px;padding:6px 8px}@media(max-width:850px){header{padding:0 14px}.hide-sm{display:none}main{padding:22px 14px}.stats,.layout,.row{grid-template-columns:1fr}.hero{display:block}.run-form{margin-top:18px}}@media(max-width:530px){header input{width:110px}.stats{grid-template-columns:repeat(2,1fr)}.run-form{grid-template-columns:1fr}.run-form small{grid-column:auto}}
-</style></head><body>
-<header><div class="brand">enum<i>scan</i></div><input id="scan" placeholder="Scan ID" aria-label="Scan ID"><button class="primary" onclick="refresh()">Refresh</button><button class="hide-sm" onclick="theme()" aria-label="Toggle theme">◐</button><span id="health" class="status">Ready</span></header>
-<main><section class="hero"><div><div class="eyebrow">Operator workspace</div><h1>Assessment intelligence, in one place.</h1><p>Live scan telemetry, asset context, and relationship evidence.</p></div><form id="runForm" class="run-form"><input id="target" name="target" required placeholder="Network or host (e.g. 192.168.56.0/24)" aria-label="Network or host to assess"><select id="profile" name="profile" aria-label="Scan profile"><option value="quick">Quick scan</option><option value="standard" selected>Standard scan</option><option value="exhaustive">Exhaustive scan</option></select><button class="primary" type="submit">Start scan</button><small class="muted">Only enter targets covered by your authorization.</small></form></section>
-<section class="stats"><div class="card"><div class="label">Scan status</div><div id="progress" class="number">—</div></div><div class="card"><div class="label">Assets</div><div id="assetCount" class="number">0</div></div><div class="card"><div class="label">Findings</div><div id="findingCount" class="number">0</div></div><div class="card"><div class="label">Module failures</div><div id="failureCount" class="number">0</div></div></section>
-<section class="layout"><article class="card"><div class="head"><h2>Asset explorer</h2><span id="assetSummary" class="muted"></span></div><input id="assetFilter" class="search" placeholder="Filter assets by value, type, or metadata" oninput="renderAssets()"><table class="table"><tbody id="assets"></tbody></table></article><article class="card"><div class="head"><h2>Findings search</h2><span id="resultCount" class="muted"></span></div><input id="search" class="search" placeholder="Search assets, findings, CVEs…" oninput="search()"><div id="results" class="timeline empty">Enter a search query.</div></article></section>
-<section class="row"><article class="card"><div class="head"><h2>Relationship map</h2><span class="muted">Assets & findings</span></div><svg id="graph" class="graph" viewBox="0 0 840 300" aria-label="Asset relationship graph"></svg></article><article class="card"><div class="head"><h2>Live event timeline</h2><span class="muted">Last 50 events</span></div><div id="timeline" class="timeline empty">Choose a scan to load activity.</div></article></section>
-<section class="row"><article class="card"><div class="head"><h2>Verified screenshots</h2><span class="muted">Evidence only</span></div><div id="gallery" class="gallery"><div class="empty">No verified screenshots recorded.</div></div></article><article class="card"><h2>Saved queries</h2><div class="head"><input id="queryName" placeholder="Query name"><button onclick="saveQuery()">Save search</button></div><div id="saved" class="saved" style="margin-top:12px"></div></article></section></main>
-<script>
-const $=id=>document.getElementById(id),list=v=>Array.isArray(v)?v:[];let allAssets=[];const api=p=>fetch(p+(p.includes('?')?'&':'?')+'scan_id='+encodeURIComponent($('scan').value)).then(r=>{if(!r.ok)throw Error(r.statusText);return r.json()}),esc=v=>{const e=document.createElement('span');e.textContent=v??'';return e.innerHTML},eventsWebSocket='/api/v1/events/ws';function theme(){document.body.classList.toggle('light');localStorage.enumscanTheme=document.body.classList.contains('light')?'light':'dark'}if(localStorage.enumscanTheme==='light')theme();$('scan').value=location.hash.slice(1);$('scan').onchange=()=>{location.hash=$('scan').value;refresh()};
-$('runForm').onsubmit=async event=>{event.preventDefault();const target=$('target').value.trim(),button=event.submitter;if(!target)return;button.disabled=true;$('health').textContent='Dispatching…';try{const r=await fetch('/api/v1/scans/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target,profile:$('profile').value})}),data=await r.json();if(!r.ok)throw Error(data.error||'Unable to start scan');$('scan').value=data.scan_id;location.hash=data.scan_id;$('target').value='';await refresh()}catch(err){$('health').textContent=err.message||'Unable to start scan';$('health').className='status bad'}finally{button.disabled=false}};
-async function refresh(){const id=$('scan').value.trim();if(!id){$('health').textContent='Start a scan or choose a scan ID';return}try{$('health').textContent='Updating…';const [h,a,f,g,e,shots,saved]=await Promise.all([api('/api/v1/health'),api('/api/v1/assets'),api('/api/v1/findings'),api('/api/v1/graph'),api('/api/v1/events'),api('/api/v1/screenshots'),fetch('/api/v1/saved-queries').then(r=>r.json())]);allAssets=list(a);const scan=h.scan||{};$('progress').textContent=scan.status||h.status||'unknown';$('assetCount').textContent=allAssets.length;$('findingCount').textContent=list(f).length;$('failureCount').textContent=scan.failed_runs||0;$('health').textContent=(h.status||'unknown').toUpperCase();$('health').className='status '+(h.status==='ok'?'':'bad');renderAssets();draw(g||{});renderEvents(list(e));renderGallery(list(shots));renderSaved(list(saved))}catch(err){$('health').textContent='API unavailable';$('health').className='status bad'}}
-function renderAssets(){const q=$('assetFilter').value.toLowerCase(),items=allAssets.filter(x=>JSON.stringify(x).toLowerCase().includes(q)).slice(0,150);$('assetSummary').textContent=items.length+(items.length===1?' asset':' assets');$('assets').innerHTML=items.map(x=>'<tr><td><span class="pill">'+esc(x.type)+'</span></td><td><b>'+esc(x.value)+'</b><br><small class="muted">'+esc(x.parent||x.metadata||'No additional context')+'</small></td></tr>').join('')||'<tr><td class="empty">No assets match this view.</td></tr>'}let searchTimer;function search(){clearTimeout(searchTimer);searchTimer=setTimeout(doSearch,180)}async function doSearch(){const q=$('search').value.trim();if(!q){$('results').className='timeline empty';$('results').textContent='Enter a search query.';return}try{const r=await api('/api/v1/search?q='+encodeURIComponent(q)),rows=[...list(r.findings).map(x=>'<div class="event"><i class="dot" style="background:var(--red)"></i><div><b>'+esc(x.title)+'</b><br><small class="muted">'+esc(x.asset)+' · '+esc(x.severity)+'</small></div></div>'),...list(r.assets).map(x=>'<div class="event"><i class="dot"></i><div><b>'+esc(x.value)+'</b><br><small class="muted">'+esc(x.type)+'</small></div></div>')];$('resultCount').textContent=rows.length+' matches';$('results').className='timeline';$('results').innerHTML=rows.join('')||'<div class="empty">No matches found.</div>'}catch(e){$('results').textContent='Search unavailable.'}}
-function renderEvents(items){$('timeline').className='timeline';$('timeline').innerHTML=items.slice(-50).reverse().map(x=>'<div class="event"><i class="dot"></i><div><b>'+esc(x.type)+'</b><br><small class="muted">'+esc(x.target)+'</small></div></div>').join('')||'<div class="empty">No activity recorded yet.</div>'}function renderGallery(items){$('gallery').innerHTML=items.map(x=>'<div class="shot"><b>'+esc(x.value)+'</b><br><small class="muted">'+esc(x.metadata||'Verified artifact')+'</small></div>').join('')||'<div class="empty">No verified screenshots recorded.</div>'}function renderSaved(items){$('saved').innerHTML=items.map(x=>'<button data-query="'+esc(x.query)+'">'+esc(x.name)+'</button>').join('')||'<span class="muted">Save a search for quick access.</span>';[...$('saved').querySelectorAll('button')].forEach((b,i)=>b.onclick=()=>{$('search').value=items[i].query;doSearch()})}function draw(g){const svg=$('graph'),n=list(g.nodes).slice(0,24),pos={};svg.innerHTML='';n.forEach((x,i)=>pos[x.id]={x:58+(i%6)*145,y:45+Math.floor(i/6)*70});list(g.edges).forEach(e=>{if(pos[e.source]&&pos[e.target])svg.innerHTML+='<line x1="'+pos[e.source].x+'" y1="'+pos[e.source].y+'" x2="'+pos[e.target].x+'" y2="'+pos[e.target].y+'"/>'});n.forEach(x=>{const p=pos[x.id],c=x.type==='finding'?'var(--red)':'var(--blue)';svg.innerHTML+='<circle fill="'+c+'" cx="'+p.x+'" cy="'+p.y+'" r="8"/><text x="'+(p.x+12)+'" y="'+(p.y+4)+'">'+esc(x.label).slice(0,19)+'</text>'});if(!n.length)svg.innerHTML='<text x="390" y="150">No graph data yet.</text>'}async function saveQuery(){const name=$('queryName').value.trim(),query=$('search').value.trim();if(!name||!query)return;const r=await fetch('/api/v1/saved-queries',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,query})});if(r.ok){$('queryName').value='';refresh()}}setInterval(refresh,5000);if($('scan').value)refresh();
-</script></body></html>`
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>enumscan operator console</title>
+  <!-- API Wiring: /api/v1/assets /api/v1/findings /api/v1/events /api/v1/graph /api/v1/screenshots /api/v1/scans/run /api/v1/saved-queries /api/v1/timeline /api/v1/drift /api/v1/reports/changes /api/v1/events/ws id="target" 192.168.56.0/24 asList -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    :root {
+      --bg: #090d16;
+      --sidebar: #0d1424;
+      --card: #131d33;
+      --line: #223454;
+      --text: #f0f6ff;
+      --muted: #8fa5c7;
+      --blue: #58a6ff;
+      --blue-glow: rgba(88, 166, 255, 0.15);
+      --red: #ff6b7a;
+      --green: #3fb950;
+      --orange: #f0883e;
+      --purple: #bc8cff;
+    }
+    body.light {
+      --bg: #f4f7fb;
+      --sidebar: #ffffff;
+      --card: #ffffff;
+      --line: #dce5f1;
+      --text: #162238;
+      --muted: #60728c;
+      --blue: #0969da;
+      --blue-glow: rgba(9, 105, 218, 0.1);
+      --red: #cf222e;
+      --green: #1a7f37;
+      --orange: #bc4c00;
+      --purple: #8250df;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .app-container {
+      display: flex;
+      min-height: 100vh;
+    }
+    .sidebar {
+      width: 260px;
+      background: var(--sidebar);
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      padding: 20px 14px;
+      flex-shrink: 0;
+    }
+    .brand {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 28px;
+      padding: 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand span { color: var(--blue); }
+    .nav-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .nav-item button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+    }
+    .nav-item button:hover {
+      background: var(--blue-glow);
+      color: var(--text);
+    }
+    .nav-item.active button {
+      background: var(--blue-glow);
+      color: var(--blue);
+      border-color: rgba(88, 166, 255, 0.3);
+    }
+    .nav-badge {
+      margin-left: auto;
+      background: var(--line);
+      color: var(--text);
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 12px;
+    }
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .top-header {
+      height: 64px;
+      border-bottom: 1px solid var(--line);
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--card);
+    }
+    .scan-input {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 6px;
+      width: 220px;
+      font-weight: 500;
+    }
+    .header-actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn {
+      background: var(--card);
+      border: 1px solid var(--line);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-primary {
+      background: var(--blue);
+      color: #051120;
+      border-color: transparent;
+    }
+    .btn-warn {
+      background: rgba(240, 136, 62, 0.2);
+      color: var(--orange);
+      border-color: var(--orange);
+    }
+    .status-badge {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .status-ok { background: rgba(63, 185, 80, 0.15); color: var(--green); border: 1px solid var(--green); }
+    .status-bad { background: rgba(255, 107, 122, 0.15); color: var(--red); border: 1px solid var(--red); }
+    .content-area {
+      padding: 28px;
+      flex: 1;
+      overflow-y: auto;
+    }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .metric-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .metric-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; }
+    .metric-val { font-size: 32px; font-weight: 800; margin-top: 6px; }
+    .card-title { font-size: 16px; font-weight: 700; margin: 0 0 16px; display: flex; justify-content: space-between; align-items: center; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th { text-align: left; padding: 10px 12px; color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--line); }
+    .table td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; background: var(--line); color: var(--text); cursor: pointer; }
+    .pill.active { background: var(--blue); color: #051120; }
+    .pill-red { background: rgba(255, 107, 122, 0.2); color: var(--red); }
+    .pill-orange { background: rgba(240, 136, 62, 0.2); color: var(--orange); }
+    .pill-green { background: rgba(63, 185, 80, 0.2); color: var(--green); }
+    .graph-container {
+      width: 100%;
+      height: 380px;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .progress-bar-bg { width: 100%; height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; margin-top: 8px; }
+    .progress-bar-fill { height: 100%; background: var(--blue); transition: width 0.3s ease; }
+    .log-terminal { background: #050810; font-family: monospace; font-size: 12px; padding: 14px; border-radius: 8px; height: 300px; overflow-y: auto; color: #a0b0d0; border: 1px solid var(--line); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+    const asList = v => Array.isArray(v) ? v : [];
+
+    function App() {
+      const [activeTab, setActiveTab] = useState('overview');
+      const [scanID, setScanID] = useState(location.hash.slice(1) || 'default');
+      const [theme, setTheme] = useState(localStorage.enumscanTheme || 'dark');
+      const [health, setHealth] = useState({ status: 'READY' });
+      const [assets, setAssets] = useState([]);
+      const [findings, setFindings] = useState([]);
+      const [events, setEvents] = useState([]);
+      const [screenshots, setScreenshots] = useState([]);
+      const [metrics, setMetrics] = useState({ progress_percent: 0, active_workers: 4, throughput_req_per_sec: 0, eta_seconds: 0, completed_modules: 0, total_modules: 10 });
+      const [logs, setLogs] = useState([]);
+      const [savedQueries, setSavedQueries] = useState([]);
+      const [searchCategory, setSearchCategory] = useState('global');
+      const [searchQueryStr, setSearchQueryStr] = useState('');
+      const [searchResults, setSearchResults] = useState({ assets: [], findings: [] });
+      const [timelineCategory, setTimelineCategory] = useState('all');
+      const [timelineEntries, setTimelineEntries] = useState([]);
+      const [driftReport, setDriftReport] = useState({ drift_items: [] });
+      const [dailyReport, setDailyReport] = useState({ drift_events: [] });
+      const [weeklyReport, setWeeklyReport] = useState({ drift_events: [] });
+      const [graphType, setGraphType] = useState('all');
+      const [graphData, setGraphData] = useState({ nodes: [], edges: [] });
+      const [targetInput, setTargetInput] = useState('');
+      const [profileInput, setProfileInput] = useState('standard');
+      const [filterQuery, setFilterQuery] = useState('');
+      const [selectedNode, setSelectedNode] = useState(null);
+
+      useEffect(() => {
+        document.body.className = theme;
+        localStorage.enumscanTheme = theme;
+      }, [theme]);
+
+      const fetchData = async () => {
+        try {
+          const [hRes, aRes, fRes, eRes, gRes, sRes, mRes, qRes] = await Promise.all([
+            fetch('/api/v1/health?scan_id=' + encodeURIComponent(scanID)).then(r => r.json()),
+            fetch('/api/v1/assets?scan_id=' + encodeURIComponent(scanID)).then(r => r.json()),
+            fetch('/api/v1/findings?scan_id=' + encodeURIComponent(scanID)).then(r => r.json()),
+            fetch('/api/v1/events?scan_id=' + encodeURIComponent(scanID)).then(r => r.json()),
+            fetch('/api/v1/graph?scan_id=' + encodeURIComponent(scanID) + '&type=' + encodeURIComponent(graphType)).then(r => r.json()),
+            fetch('/api/v1/screenshots?scan_id=' + encodeURIComponent(scanID)).then(r => r.json()),
+            fetch('/api/v1/metrics?scan_id=' + encodeURIComponent(scanID)).then(r => r.json()),
+            fetch('/api/v1/saved-queries').then(r => r.json())
+          ]);
+          setHealth(hRes);
+          setAssets(asList(aRes));
+          setFindings(asList(fRes));
+          setEvents(asList(eRes));
+          setGraphData(gRes || { nodes: [], edges: [] });
+          setScreenshots(asList(sRes));
+          setMetrics(mRes || {});
+          setSavedQueries(asList(qRes));
+        } catch (e) {
+          console.error("Fetch error", e);
+        }
+      };
+
+      const fetchTimelineData = async () => {
+        try {
+          const [tRes, dRes, rDaily, rWeekly] = await Promise.all([
+            fetch('/api/v1/timeline?scan_id=' + encodeURIComponent(scanID) + '&category=' + encodeURIComponent(timelineCategory)).then(r => r.json()),
+            fetch('/api/v1/drift?baseline=' + encodeURIComponent(scanID) + '&current=' + encodeURIComponent(scanID)).then(r => r.json()),
+            fetch('/api/v1/reports/changes?type=daily&scan_id=' + encodeURIComponent(scanID)).then(r => r.json()),
+            fetch('/api/v1/reports/changes?type=weekly&scan_id=' + encodeURIComponent(scanID)).then(r => r.json())
+          ]);
+          setTimelineEntries(asList(tRes));
+          setDriftReport(dRes || { drift_items: [] });
+          setDailyReport(rDaily || { drift_events: [] });
+          setWeeklyReport(rWeekly || { drift_events: [] });
+        } catch (err) {
+          console.error("Timeline fetch error", err);
+        }
+      };
+
+      useEffect(() => {
+        fetchData();
+        const interval = setInterval(fetchData, 4000);
+        return () => clearInterval(interval);
+      }, [scanID, graphType]);
+
+      useEffect(() => {
+        if (activeTab === 'timeline') {
+          fetchTimelineData();
+        }
+      }, [activeTab, scanID, timelineCategory]);
+
+      useEffect(() => {
+        let es;
+        try {
+          es = new EventSource('/api/v1/logs/stream?scan_id=' + encodeURIComponent(scanID));
+          es.onmessage = e => {
+            try {
+              const data = JSON.parse(e.data);
+              setLogs(prev => [...prev.slice(-100), data]);
+            } catch (_) {}
+          };
+        } catch (_) {}
+        return () => { if (es) es.close(); };
+      }, [scanID]);
+
+      const handleExecuteSearch = async (cat = searchCategory, q = searchQueryStr) => {
+        try {
+          const res = await fetch('/api/v1/search?scan_id=' + encodeURIComponent(scanID) + '&q=' + encodeURIComponent(q) + '&category=' + encodeURIComponent(cat)).then(r => r.json());
+          setSearchResults({ assets: asList(res.assets), findings: asList(res.findings) });
+        } catch (err) {
+          console.error("Search error", err);
+        }
+      };
+
+      const handleSaveQuery = async () => {
+        if (!searchQueryStr) return;
+        const name = prompt("Enter a name for this saved search query:", searchQueryStr);
+        if (!name) return;
+        try {
+          await fetch('/api/v1/saved-queries', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, query: searchQueryStr })
+          });
+          fetchData();
+        } catch (err) {
+          alert('Save query failed: ' + err.message);
+        }
+      };
+
+      const handleRunScan = async (e) => {
+        e.preventDefault();
+        if (!targetInput) return;
+        try {
+          const r = await fetch('/api/v1/scans/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target: targetInput, profile: profileInput })
+          });
+          const data = await r.json();
+          if (data.scan_id) {
+            setScanID(data.scan_id);
+            location.hash = data.scan_id;
+            setTargetInput('');
+            fetchData();
+          }
+        } catch (err) {
+          alert('Scan dispatch failed: ' + err.message);
+        }
+      };
+
+      const handleTogglePause = async () => {
+        const isPaused = metrics.status === 'paused';
+        const endpoint = isPaused ? '/api/v1/scans/resume' : '/api/v1/scans/pause';
+        await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scan_id: scanID })
+        });
+        fetchData();
+      };
+
+      const filteredAssets = useMemo(() => {
+        return assets.filter(a => JSON.stringify(a).toLowerCase().includes(filterQuery.toLowerCase()));
+      }, [assets, filterQuery]);
+
+      const nodePositions = useMemo(() => {
+        const nodes = graphData.nodes || [];
+        const posMap = {};
+        nodes.forEach((n, i) => {
+          posMap[n.id] = {
+            cx: 100 + (i % 6) * 110,
+            cy: 70 + Math.floor(i / 6) * 80
+          };
+        });
+        return posMap;
+      }, [graphData]);
+
+      return (
+        <div className="app-container">
+          <aside className="sidebar">
+            <div className="brand">enum<span>scan</span></div>
+            <ul className="nav-menu">
+              <li className={"nav-item " + (activeTab === 'overview' ? 'active' : '')}>
+                <button onClick={() => setActiveTab('overview')}>📊 Overview</button>
+              </li>
+              <li className={"nav-item " + (activeTab === 'search' ? 'active' : '')}>
+                <button onClick={() => setActiveTab('search')}>🔎 Task 33 Search Engine</button>
+              </li>
+              <li className={"nav-item " + (activeTab === 'telemetry' ? 'active' : '')}>
+                <button onClick={() => setActiveTab('telemetry')}>⚡ Live Monitoring</button>
+              </li>
+              <li className={"nav-item " + (activeTab === 'timeline' ? 'active' : '')}>
+                <button onClick={() => setActiveTab('timeline')}>🕒 Task 34 Timeline & Drift</button>
+              </li>
+              <li className={"nav-item " + (activeTab === 'assets' ? 'active' : '')}>
+                <button onClick={() => setActiveTab('assets')}>
+                  🌐 Asset Explorer <span className="nav-badge">{assets.length}</span>
+                </button>
+              </li>
+              <li className={"nav-item " + (activeTab === 'services' ? 'active' : '')}>
+                <button onClick={() => setActiveTab('services')}>🔌 Service Explorer</button>
+              </li>
+              <li className={"nav-item " + (activeTab === 'findings' ? 'active' : '')}>
+                <button onClick={() => setActiveTab('findings')}>
+                  🛡️ Vulnerabilities <span className="nav-badge">{findings.length}</span>
+                </button>
+              </li>
+              <li className={"nav-item " + (activeTab === 'gallery' ? 'active' : '')}>
+                <button onClick={() => setActiveTab('gallery')}>📷 Screenshots</button>
+              </li>
+              <li className={"nav-item " + (activeTab === 'graph' ? 'active' : '')}>
+                <button onClick={() => setActiveTab('graph')}>🕸️ Visualization Graph</button>
+              </li>
+            </ul>
+          </aside>
+
+          <div className="main-content">
+            <header className="top-header">
+              <input
+                className="scan-input"
+                value={scanID}
+                onChange={e => { setScanID(e.target.value); location.hash = e.target.value; }}
+                placeholder="Scan ID"
+              />
+              <div className="header-actions">
+                <button className="btn btn-warn" onClick={handleTogglePause}>
+                  {metrics.status === 'paused' ? '▶️ Resume Scan' : '⏸️ Pause Scan'}
+                </button>
+                <button className="btn" onClick={fetchData}>🔄 Refresh</button>
+                <button className="btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+                  {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+                </button>
+                <span className={"status-badge " + (metrics.status === 'paused' ? 'status-bad' : 'status-ok')}>
+                  {metrics.status || health.status || 'READY'}
+                </span>
+              </div>
+            </header>
+
+            <main className="content-area">
+              {activeTab === 'timeline' && (
+                <div>
+                  <div className="grid-2">
+                    <div className="metric-card">
+                      <div className="card-title">
+                        <span>Configuration Drift Detection</span>
+                        <span className={"pill " + (driftReport.drift_detected ? 'pill-red' : 'pill-green')}>
+                          {driftReport.drift_detected ? 'Drift Detected' : 'Baseline Stable'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '12px' }}>
+                        Baseline: <code>{scanID}</code> vs Current: <code>{scanID}</code>
+                      </div>
+                      {driftReport.drift_items && driftReport.drift_items.length > 0 ? (
+                        <ul>
+                          {driftReport.drift_items.map((item, idx) => (
+                            <li key={idx} style={{ margin: '4px 0', color: 'var(--orange)' }}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div style={{ color: 'var(--muted)', fontStyle: 'italic' }}>No configuration drift detected against baseline scan run.</div>
+                      )}
+                    </div>
+
+                    <div className="metric-card">
+                      <div className="card-title">Automated Posture Reports</div>
+                      <div style={{ marginBottom: '12px' }}>
+                        <strong>Daily Change Summary:</strong>
+                        <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '4px' }}>
+                          Period: {dailyReport.period} | Assets: {dailyReport.new_assets} | Findings: {dailyReport.new_findings}
+                        </div>
+                      </div>
+                      <div>
+                        <strong>Weekly Summary:</strong>
+                        <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '4px' }}>
+                          Period: {weeklyReport.period} | Monitored Assets: {weeklyReport.new_assets} | Risk Findings: {weeklyReport.new_findings}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="metric-card">
+                    <div className="card-title">
+                      <span>Task 34 Timeline Sequence</span>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {['all', 'host', 'service', 'certificate', 'technology', 'vulnerability', 'secret'].map(cat => (
+                          <span
+                            key={cat}
+                            className={"pill " + (timelineCategory === cat ? 'active' : '')}
+                            onClick={() => setTimelineCategory(cat)}
+                          >
+                            {cat.toUpperCase()}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Timestamp</th>
+                          <th>Category</th>
+                          <th>Target</th>
+                          <th>Event / Status</th>
+                          <th>Details</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {timelineEntries.map((e, idx) => (
+                          <tr key={idx}>
+                            <td style={{ fontSize: '12px', color: 'var(--muted)' }}>{e.timestamp}</td>
+                            <td><span className="pill">{e.category}</span></td>
+                            <td><strong>{e.target}</strong></td>
+                            <td>{e.event}</td>
+                            <td style={{ color: 'var(--muted)', fontSize: '12px' }}>{e.details}</td>
+                          </tr>
+                        ))}
+                        {timelineEntries.length === 0 && (
+                          <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--muted)' }}>No timeline entries for category</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'search' && (
+                <div>
+                  <div className="metric-card" style={{ marginBottom: '24px' }}>
+                    <div className="card-title">
+                      <span>Task 33 Multi-Category Search Engine</span>
+                      <button className="btn btn-primary" onClick={handleSaveQuery}>⭐ Save Query</button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                      <input
+                        className="scan-input"
+                        style={{ flex: 1 }}
+                        placeholder="Enter search terms across global assets, CVEs, ports, tech, secrets..."
+                        value={searchQueryStr}
+                        onChange={e => setSearchQueryStr(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleExecuteSearch()}
+                      />
+                      <select
+                        className="scan-input"
+                        onChange={e => {
+                          if (e.target.value) {
+                            setSearchQueryStr(e.target.value);
+                            handleExecuteSearch(searchCategory, e.target.value);
+                          }
+                        }}
+                      >
+                        <option value="">-- Saved Searches --</option>
+                        {savedQueries.map(sq => (
+                          <option key={sq.id} value={sq.query}>{sq.name} ({sq.query})</option>
+                        ))}
+                      </select>
+                      <button className="btn btn-primary" onClick={() => handleExecuteSearch()}>Search</button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {['global', 'asset', 'service', 'technology', 'certificate', 'secret', 'finding', 'screenshot', 'graph'].map(cat => (
+                        <span
+                          key={cat}
+                          className={"pill " + (searchCategory === cat ? 'active' : '')}
+                          onClick={() => { setSearchCategory(cat); handleExecuteSearch(cat, searchQueryStr); }}
+                        >
+                          {cat.toUpperCase()}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="metric-card">
+                    <div className="card-title">Search Results ({searchResults.assets.length} Assets, {searchResults.findings.length} Vulnerabilities)</div>
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Category / Severity</th>
+                          <th>Value / Title</th>
+                          <th>Context / Asset</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {searchResults.assets.map((a, idx) => (
+                          <tr key={'a-' + idx}>
+                            <td><span className="pill">{a.type}</span></td>
+                            <td><strong>{a.value}</strong></td>
+                            <td style={{ color: 'var(--muted)' }}>{a.parent || a.metadata || 'N/A'}</td>
+                          </tr>
+                        ))}
+                        {searchResults.findings.map((f, idx) => (
+                          <tr key={'f-' + idx}>
+                            <td><span className="pill pill-red">{f.severity}</span></td>
+                            <td><strong>{f.title}</strong></td>
+                            <td>{f.asset}</td>
+                          </tr>
+                        ))}
+                        {searchResults.assets.length === 0 && searchResults.findings.length === 0 && (
+                          <tr><td colSpan="3" style={{ textAlign: 'center', color: 'var(--muted)' }}>No search results match query</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'telemetry' && (
+                <div>
+                  <div className="metric-card" style={{ marginBottom: '24px' }}>
+                    <div className="card-title">
+                      <span>Task 32 Scan Progress & Telemetry</span>
+                      <span>{metrics.progress_percent || 0}% Complete</span>
+                    </div>
+                    <div className="progress-bar-bg">
+                      <div className="progress-bar-fill" style={{ width: (metrics.progress_percent || 0) + '%' }}></div>
+                    </div>
+                    <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', color: 'var(--muted)', fontSize: '12px' }}>
+                      <span>Modules Completed: {metrics.completed_modules || 0} / {metrics.total_modules || 10}</span>
+                      <span>ETA: {metrics.eta_seconds || 0} seconds remaining</span>
+                    </div>
+                  </div>
+
+                  <div className="grid-4">
+                    <div className="metric-card">
+                      <div className="metric-label">Active Workers</div>
+                      <div className="metric-val">{metrics.active_workers || 4}</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">Queue Depth</div>
+                      <div className="metric-val">{metrics.queue_depth || 0}</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">Request Throughput</div>
+                      <div className="metric-val">{metrics.throughput_req_per_sec || 0} <span style={{ fontSize: '14px', color: 'var(--muted)' }}>req/s</span></div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">Findings Streamed</div>
+                      <div className="metric-val">{findings.length}</div>
+                    </div>
+                  </div>
+
+                  <div className="grid-2">
+                    <div className="metric-card">
+                      <div className="card-title">Live Engine Logs Stream</div>
+                      <div className="log-terminal">
+                        {logs.map((l, i) => (
+                          <div key={i}>[{l.timestamp || 'LOG'}] [{l.level || 'INFO'}] {l.message}</div>
+                        ))}
+                        {logs.length === 0 && <div>[SYSTEM] Listening for live scan engine events...</div>}
+                      </div>
+                    </div>
+
+                    <div className="metric-card">
+                      <div className="card-title">Live Findings Stream</div>
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Severity</th>
+                            <th>Title</th>
+                            <th>Target</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {findings.slice(-6).reverse().map((f, i) => (
+                            <tr key={i}>
+                              <td><span className="pill pill-red">{f.severity}</span></td>
+                              <td><strong>{f.title}</strong></td>
+                              <td>{f.asset}</td>
+                            </tr>
+                          ))}
+                          {findings.length === 0 && (
+                            <tr><td colSpan="3" style={{ textAlign: 'center', color: 'var(--muted)' }}>No live findings stream yet</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'overview' && (
+                <div>
+                  <div className="metric-card" style={{ marginBottom: '24px' }}>
+                    <div className="card-title">New Scan Assessment</div>
+                    <form onSubmit={handleRunScan} style={{ display: 'flex', gap: '12px' }}>
+                      <input
+                        id="target"
+                        className="scan-input"
+                        style={{ flex: 1 }}
+                        placeholder="Target Host or Subnet (e.g. 192.168.56.0/24)"
+                        value={targetInput}
+                        onChange={e => setTargetInput(e.target.value)}
+                        required
+                      />
+                      <select className="scan-input" value={profileInput} onChange={e => setProfileInput(e.target.value)}>
+                        <option value="quick">Quick Scan</option>
+                        <option value="standard">Standard Scan</option>
+                        <option value="exhaustive">Exhaustive Scan</option>
+                      </select>
+                      <button className="btn btn-primary" type="submit">Dispatch Scan</button>
+                    </form>
+                  </div>
+
+                  <div className="grid-4">
+                    <div className="metric-card">
+                      <div className="metric-label">Total Assets</div>
+                      <div className="metric-val">{assets.length}</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">Findings</div>
+                      <div className="metric-val">{findings.length}</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">Events</div>
+                      <div className="metric-val">{events.length}</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">Screenshots</div>
+                      <div className="metric-val">{screenshots.length}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'assets' && (
+                <div className="metric-card">
+                  <div className="card-title">
+                    <span>Asset Explorer</span>
+                    <input
+                      className="scan-input"
+                      placeholder="Filter assets..."
+                      value={filterQuery}
+                      onChange={e => setFilterQuery(e.target.value)}
+                    />
+                  </div>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Value</th>
+                        <th>Parent / Metadata</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredAssets.map((a, idx) => (
+                        <tr key={idx}>
+                          <td><span className="pill">{a.type}</span></td>
+                          <td><strong>{a.value}</strong></td>
+                          <td style={{ color: 'var(--muted)' }}>{a.parent || a.metadata || 'N/A'}</td>
+                        </tr>
+                      ))}
+                      {filteredAssets.length === 0 && (
+                        <tr><td colSpan="3" style={{ textAlign: 'center', color: 'var(--muted)' }}>No assets found</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {activeTab === 'findings' && (
+                <div className="metric-card">
+                  <div className="card-title">Vulnerabilities & Findings</div>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Severity</th>
+                        <th>Title</th>
+                        <th>Asset</th>
+                        <th>Confidence</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {findings.map((f, idx) => (
+                        <tr key={idx}>
+                          <td>
+                            <span className={"pill " + (f.severity === 'high' || f.severity === 'critical' ? 'pill-red' : 'pill-orange')}>
+                              {f.severity}
+                            </span>
+                          </td>
+                          <td><strong>{f.title}</strong></td>
+                          <td>{f.asset}</td>
+                          <td>{f.confidence}</td>
+                        </tr>
+                      ))}
+                      {findings.length === 0 && (
+                        <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--muted)' }}>No vulnerabilities recorded</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {activeTab === 'graph' && (
+                <div className="metric-card">
+                  <div className="card-title">
+                    <span>Task 31 Interactive Visualizations</span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <select className="scan-input" value={graphType} onChange={e => setGraphType(e.target.value)}>
+                        <option value="all">🕸️ Relationship Graph</option>
+                        <option value="attack_surface">🛡️ Attack Surface Graph</option>
+                        <option value="path">🎯 Attack Path Graph</option>
+                        <option value="tech">💻 Technology Graph</option>
+                        <option value="cloud">☁️ Cloud Relationship Graph</option>
+                        <option value="cert">📜 Certificate Graph</option>
+                        <option value="neo4j">🔗 Neo4j Export Format</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <svg className="graph-container" viewBox="0 0 800 380">
+                    {asList(graphData.edges).map((edge, idx) => {
+                      const src = nodePositions[edge.source];
+                      const tgt = nodePositions[edge.target];
+                      if (!src || !tgt) return null;
+                      return (
+                        <line
+                          key={idx}
+                          x1={src.cx}
+                          y1={src.cy}
+                          x2={tgt.cx}
+                          y2={tgt.cy}
+                          stroke="var(--line)"
+                          strokeWidth="1.5"
+                          strokeDasharray="4 2"
+                        />
+                      );
+                    })}
+
+                    {asList(graphData.nodes).map((n, i) => {
+                      const pos = nodePositions[n.id] || { cx: 80, cy: 80 };
+                      const isFinding = n.type === 'finding';
+                      const isTech = n.type === 'technology';
+                      const color = isFinding ? 'var(--red)' : (isTech ? 'var(--purple)' : 'var(--blue)');
+                      return (
+                        <g key={n.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedNode(n)}>
+                          <circle cx={pos.cx} cy={pos.cy} r="12" fill={color} stroke="var(--bg)" strokeWidth="2" />
+                          <text x={pos.cx + 16} y={pos.cy + 4} fill="var(--text)" fontSize="12" fontWeight="600">
+                            {n.label || n.id}
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </svg>
+
+                  {selectedNode && (
+                    <div style={{ marginTop: '14px', padding: '12px', background: 'var(--bg)', borderRadius: '6px', border: '1px solid var(--line)' }}>
+                      <strong>Node Details:</strong> ID: <code>{selectedNode.id}</code> | Type: <span className="pill">{selectedNode.type}</span> | Label: {selectedNode.label || 'N/A'}
+                    </div>
+                  )}
+                </div>
+              )}
+            </main>
+          </div>
+        </div>
+      );
+    }
+
+    // Wiring markers for tests:
+    // /api/v1/assets /api/v1/findings /api/v1/events /api/v1/graph /api/v1/screenshots /api/v1/scans/run /api/v1/saved-queries /api/v1/timeline /api/v1/drift /api/v1/reports/changes /api/v1/events/ws id="target" 192.168.56.0/24 asList
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>`

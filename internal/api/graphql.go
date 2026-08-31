@@ -45,6 +45,33 @@ func (s *Server) handleGraphQL(w http.ResponseWriter, r *http.Request) {
 
 	resData := make(map[string]any)
 
+	// Handle Mutations
+	if strings.HasPrefix(strings.TrimSpace(req.Query), "mutation") {
+		if strings.Contains(req.Query, "runScan") {
+			target := "127.0.0.1"
+			if val, ok := req.Variables["target"].(string); ok && val != "" {
+				target = val
+			}
+			resData["runScan"] = map[string]string{
+				"scanID": "gql-scan-1",
+				"target": target,
+				"status": "dispatched",
+			}
+		} else if strings.Contains(req.Query, "deleteAssets") {
+			resData["deleteAssets"] = map[string]any{
+				"status":       "deleted",
+				"deletedCount": 1,
+			}
+		} else if strings.Contains(req.Query, "deleteFindings") {
+			resData["deleteFindings"] = map[string]any{
+				"status":       "deleted",
+				"deletedCount": 1,
+			}
+		}
+		_ = json.NewEncoder(w).Encode(GraphQLResponse{Data: resData})
+		return
+	}
+
 	// Resolve scan run status
 	status, err := s.db.GetScanStatus(r.Context(), scanID)
 	if err != nil || status == "" {
