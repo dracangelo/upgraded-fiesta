@@ -1,0 +1,27 @@
+# Unauthenticated AD endpoint discovery; no Kerberos attacks or credential use.
+database:
+  path: "data/REPLACE_ad.sqlite"
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+scheduler:
+  concurrency: 2
+  min_concurrency: 1
+  global_rate_limit_ms: 500
+  per_target_rate_limit_ms: 1000
+  module_timeout_ms: 30000
+discovery:
+  cidr_max_hosts: 512
+  enable_dns_discovery: true
+  enable_dns_records: true
+  enable_reverse_dns: true
+  enable_tcp_host_probes: true
+  tcp_probe_ports: [88, 389, 636, 3268]
+specialized:
+  enable_protocol_enumeration: true
+  enable_smb: true
+  enable_ldap: true
+scan:
+  profile: "active_directory"
+  targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+

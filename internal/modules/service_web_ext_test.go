@@ -29,8 +29,8 @@ func TestCheckTLSVulnerabilitiesAndOCSP(t *testing.T) {
 	}
 
 	vulns := checkTLSVulnerabilities("127.0.0.1:443", state)
-	if len(vulns) == 0 {
-		t.Fatal("expected TLS vulnerability checks to evaluate ROBOT / CRIME")
+	if len(vulns) != 0 {
+		t.Fatal("a normal TLS handshake must not claim Heartbleed, ROBOT, CRIME, or BREACH")
 	}
 
 	cert := &x509.Certificate{

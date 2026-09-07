@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -8,7 +9,9 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -18,15 +21,19 @@ import (
 	"enumscan/internal/models"
 	"enumscan/internal/scope"
 	"enumscan/internal/store"
+	"enumscan/internal/vulnerability"
 )
 
 type HTTP struct {
-	db     *store.SQLiteCLI
-	guard  scope.Guard
-	config models.HTTPConfig
-	client *http.Client
-	mu     sync.Mutex
-	pages  map[string]int
+	db            *store.SQLiteCLI
+	guard         scope.Guard
+	config        models.HTTPConfig
+	client        *http.Client
+	wappalyzer    *WappalyzerDetector
+	wappalyzerErr error
+	webVulns      *vulnerability.WebVulnEngine
+	mu            sync.Mutex
+	pages         map[string]int
 }
 
 func NewHTTP(db *store.SQLiteCLI, guard scope.Guard, config models.HTTPConfig) *HTTP {
@@ -39,23 +46,29 @@ func NewHTTP(db *store.SQLiteCLI, guard scope.Guard, config models.HTTPConfig) *
 	if len(config.APIPaths) == 0 {
 		config.APIPaths = []string{"/openapi.json", "/swagger.json", "/swagger/v1/swagger.json", "/api-docs", "/graphql", "/soap?wsdl"}
 	}
+	detector, detectorErr := NewWappalyzerDetectorWithRuleFiles(db, config.WappalyzerRuleFiles)
+	if detectorErr != nil {
+		detector = NewWappalyzerDetector(db)
+	}
+	client := scopedHTTPClient(guard, 5*time.Second, nil)
+	if config.EnableCookieJar || config.EnableAuthenticatedCrawling {
+		jar, err := cookiejar.New(nil)
+		if err == nil {
+			client.Jar = jar
+		}
+	}
+	if config.EnableAuthenticatedCrawling {
+		client.Transport = withSessionCookie(client.Transport, os.Getenv(config.AuthCookieEnv))
+	}
 	return &HTTP{
-		db:     db,
-		guard:  guard,
-		config: config,
-		client: &http.Client{
-			Timeout: 5 * time.Second,
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				if len(via) >= 5 {
-					return http.ErrUseLastResponse
-				}
-				return nil
-			},
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
-			},
-		},
-		pages: make(map[string]int),
+		db:            db,
+		guard:         guard,
+		config:        config,
+		client:        client,
+		wappalyzer:    detector,
+		wappalyzerErr: detectorErr,
+		webVulns:      vulnerability.NewWebVulnEngine(db),
+		pages:         make(map[string]int),
 	}
 }
 
@@ -64,6 +77,9 @@ func (h *HTTP) Name() string { return "http" }
 func (h *HTTP) Subscriptions() []string { return []string{EventHTTPURL} }
 
 func (h *HTTP) Handle(ctx context.Context, event models.Event) ([]models.Event, error) {
+	if h.wappalyzerErr != nil {
+		return nil, h.wappalyzerErr
+	}
 	parsed, err := url.Parse(event.Target)
 	if err != nil || parsed.Hostname() == "" || !h.guard.Allowed(parsed.Hostname()) {
 		return nil, nil
@@ -87,19 +103,24 @@ func (h *HTTP) Handle(ctx context.Context, event models.Event) ([]models.Event, 
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 2*1024*1024))
+	bodyBytes, _ := readBoundedHTTPBody(resp.Body, 2*1024*1024)
 	body := string(bodyBytes)
+	headers := headerEvidence(resp.Header)
 	meta := responseMetadata(resp)
 	_ = h.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "url", Value: event.Target, Metadata: meta})
 	h.recordResponseProfile(ctx, event.ScanID, event.Target, resp, len(bodyBytes), time.Since(started))
 	h.auditSecurityHeaders(ctx, event.ScanID, event.Target, resp)
 	h.recordTechnologies(ctx, event.ScanID, event.Target, resp)
+	// Run the rule-based detector against the response already fetched by the
+	// HTTP module. This avoids a second request and keeps technology evidence
+	// tied to the exact response that produced it.
+	h.wappalyzer.Detect(ctx, event.ScanID, event.Target, headers, body)
+	// This analyzer is deliberately passive: it works only from the captured
+	// URL, headers, and response body, without mutating inputs or exploiting a
+	// target.
+	h.webVulns.AnalyzeURL(ctx, event.ScanID, event.Target, body, headers)
 	h.recordCanonicalURL(ctx, event.ScanID, event.Target, resp, body)
 	h.recordErrorPage(ctx, event.ScanID, event.Target, resp, body)
-	if h.config.EnableScreenshots {
-		h.recordScreenshotTarget(ctx, event.ScanID, event.Target, resp.StatusCode)
-	}
-
 	next := make([]models.Event, 0)
 	root := rootURL(parsed)
 	if depth == 0 && h.config.EnableRedirectTracking {
@@ -138,6 +159,24 @@ func (h *HTTP) Handle(ctx context.Context, event models.Event) ([]models.Event, 
 		}
 	}
 	return next, nil
+}
+
+var httpBodyBufferPool = sync.Pool{New: func() any { return new(bytes.Buffer) }}
+
+// readBoundedHTTPBody reuses the temporary read buffer while returning an
+// independent byte slice. This keeps HTTP response handling bounded without
+// retaining target content in the pool after the request completes.
+func readBoundedHTTPBody(reader io.Reader, limit int64) ([]byte, error) {
+	buffer := httpBodyBufferPool.Get().(*bytes.Buffer)
+	buffer.Reset()
+	defer func() {
+		buffer.Reset()
+		httpBodyBufferPool.Put(buffer)
+	}()
+	if _, err := buffer.ReadFrom(io.LimitReader(reader, limit)); err != nil {
+		return nil, err
+	}
+	return append([]byte(nil), buffer.Bytes()...), nil
 }
 
 func (h *HTTP) allowPage(host string) bool {
@@ -333,15 +372,6 @@ func (h *HTTP) analyzeJavaScript(ctx context.Context, scanID, target, body strin
 	}
 }
 
-func (h *HTTP) recordScreenshotTarget(ctx context.Context, scanID, target string, statusCode int) {
-	priority := "normal"
-	lower := strings.ToLower(target)
-	if statusCode >= 400 || strings.Contains(lower, "admin") || strings.Contains(lower, "login") || strings.Contains(lower, "dashboard") {
-		priority = "high"
-	}
-	_ = h.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "screenshot_target", Value: target, Metadata: "priority=" + priority + ";status=queued;backend=not_configured"})
-}
-
 func (h *HTTP) fetchSmall(ctx context.Context, target string) (*http.Response, string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
@@ -364,6 +394,19 @@ func responseMetadata(resp *http.Response) string {
 		}
 	}
 	return strings.Join(parts, ";")
+}
+
+// headerEvidence preserves conventional `Name: value` lines for rule engines
+// and reports. fmt.Sprint(http.Header) produces Go map syntax, which makes
+// header-specific checks silently miss observed security signals.
+func headerEvidence(headers http.Header) string {
+	var lines []string
+	for name, values := range headers {
+		for _, value := range values {
+			lines = append(lines, name+": "+value)
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func eventDepth(event models.Event) int {

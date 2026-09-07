@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -18,7 +19,7 @@ func TestTask25DataHandlingAndSecretsProtection(t *testing.T) {
 	}
 
 	// 1. Encryption Test
-	enc, err := NewDatastoreEncryptor("")
+	enc, err := NewDatastoreEncryptor(strings.Repeat("42", 32))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,10 +32,13 @@ func TestTask25DataHandlingAndSecretsProtection(t *testing.T) {
 	if err != nil || !bytes.Equal(decrypted, plaintext) {
 		t.Fatalf("decryption failed")
 	}
+	if _, err := NewDatastoreEncryptor(""); err == nil {
+		t.Fatal("an empty datastore encryption key must be rejected")
+	}
 
 	// 2. Secrets Manager Test
 	secMgr := NewLocalSecretsManager()
-	_ = secMgr.SetSecret(context.Background(), "ssh_key", "secret_passphrase")
+	t.Setenv("ENUMSCAN_SECRET_SSH_KEY", "secret_passphrase")
 	val, err := secMgr.GetSecret(context.Background(), "ssh_key")
 	if err != nil || val != "secret_passphrase" {
 		t.Fatalf("secrets manager error")

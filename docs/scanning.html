@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Enumscan documentation for authorized security assessments">
+  <title>Scanning and modules — Enumscan documentation</title>
+  <link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="index.html">enumscan docs</a>
+      <nav class="doc-nav" aria-label="Documentation">
+        <a href="getting-started.html">Start</a>
+        <a href="configuration.html">Configure</a>
+        <a href="cli.html">CLI</a>
+        <a href="scanning.html">Scanning</a>
+        <a href="reporting-api.html">API &amp; reports</a>
+        <a href="operations.html">Operations</a>
+        <a href="security.html">Security</a>
+        <a href="architecture-guide.html">Architecture</a>
+        <a href="plugins.html">Plugins</a>
+        <a href="development.html">Develop</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+<h1 id="scanning-and-modules">Scanning and modules</h1>
+<p>Profiles select module families; individual settings control network
+behavior. All discovered targets are rechecked against scope.</p>
+<h2 id="discovery">Discovery</h2>
+<p>Discovery supports bounded CIDR expansion, DNS records, reverse and
+wildcard DNS, RDAP, optional ICMP/TCP/UDP liveness, IPv6, ARP, virtual
+hosts, and offline imports for passive DNS, certificate transparency,
+packet traits, and historical URLs. Timeouts are not treated as proof
+that a host is dead.</p>
+<h2 id="port-and-service-enumeration">Port and service enumeration</h2>
+<p>TCP connect and UDP scanning are bounded by configured ports,
+timeouts, and per-host concurrency. Banner and protocol responses feed
+service and CPE fingerprinting. Raw techniques require explicit
+configuration and platform privileges; connect fallback behavior remains
+evidence-labelled.</p>
+<h2 id="http-and-tls">HTTP and TLS</h2>
+<p>The HTTP pipeline supports bounded crawling, first-party JavaScript
+analysis, API discovery, directory enumeration with wildcard baselining,
+technology detection, redirect safety, source-map analysis, optional
+cookie jars, operator-supplied authenticated sessions, screenshots,
+HTTP/3 confirmation, and selected gRPC reflection.</p>
+<p>Normal HTTP enumeration sends safe methods and records evidence
+indicators; it does not claim active vulnerability exploitation.</p>
+<h2 id="specialized-protocols">Specialized protocols</h2>
+<p>Opt-in modules cover SMB/LDAP/SNMP capability discovery,
+cloud/container and database endpoints, and read-only SSH/FTP/SMTP
+capabilities. Configure each family independently and provide
+credentials only through environment or secret-manager references where
+supported.</p>
+<h2 id="passive-intelligence">Passive intelligence</h2>
+<p>Supported providers include VirusTotal, Shodan, Censys,
+SecurityTrails, FOFA, Hunter.io, WhoisXML API, Have I Been Pwned,
+GitHub, GitLab, DNSDB, CIRCL CVE Search, and configured
+offline/unauthenticated sources. Provider controls offer enable
+overrides, version pins, pacing, retry bounds, quota discovery, and
+local or explicit remote diagnostics.</p>
+<h2 id="findings-and-prioritization">Findings and prioritization</h2>
+<p>Imported NVD, Nuclei, OpenVAS, and Nessus evidence can be correlated
+with CPEs, KEV, EPSS, and public-exploit indicators. Risk scores,
+exposure chains, and recommendations are deterministic and preserve
+uncertainty.</p>
+<h2 id="tier-4">Tier 4</h2>
+<p>Intrusive checks require a second authorization boundary. See <a
+href="tier4_active_testing.html">Tier 4 active testing</a> for technique
+names and the honest runner-status matrix.</p>
+  </main>
+  <footer>
+    Enumscan is for explicitly authorized security assessments. Generated from the canonical Markdown documentation.
+  </footer>
+</body>
+</html>

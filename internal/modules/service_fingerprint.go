@@ -275,8 +275,9 @@ func redisProbe(ctx context.Context, address string) serviceID {
 
 func httpProbe(ctx context.Context, url string) serviceID {
 	client := &http.Client{
-		Timeout:   1500 * time.Millisecond,
-		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}},
+		Timeout:       1500 * time.Millisecond,
+		Transport:     &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}},
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -446,11 +447,5 @@ func tcpIPStackOSFingerprint(ctx context.Context, host string, port int) (string
 }
 
 func probeTCPTraits(ctx context.Context, host string, port int) (int, int, error) {
-	dialer := net.Dialer{Timeout: 800 * time.Millisecond}
-	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, strconv.Itoa(port)))
-	if err != nil {
-		return 0, 0, err
-	}
-	defer conn.Close()
-	return 64, 29200, nil
+	return 0, 0, fmt.Errorf("TCP/IP traits require a passive packet capture or raw-packet collector")
 }

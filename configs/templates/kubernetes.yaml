@@ -1,0 +1,26 @@
+# Kubernetes API and node endpoint metadata enumeration; no secret retrieval.
+database:
+  path: "data/REPLACE_kubernetes.sqlite"
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+scheduler:
+  concurrency: 2
+  min_concurrency: 1
+  global_rate_limit_ms: 500
+  per_target_rate_limit_ms: 1000
+  module_timeout_ms: 30000
+http:
+  max_depth: 1
+  max_pages_per_host: 30
+  enable_tls: true
+  enable_crawler: true
+  enable_api_discovery: true
+  enable_directory_api: false
+specialized:
+  enable_container: true
+  enable_protocol_enumeration: true
+scan:
+  profile: "kubernetes"
+  targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+

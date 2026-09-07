@@ -2,9 +2,12 @@ package api
 
 import (
 	"context"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -16,15 +19,78 @@ import (
 	"enumscan/internal/store"
 )
 
-func TestPostgresAndNeo4jStoreInit(t *testing.T) {
+func TestScreenshotContentServesOnlyVerifiedArtifact(t *testing.T) {
+	ctx := context.Background()
+	root := filepath.Join(t.TempDir(), "screenshots")
+	path := filepath.Join(root, "scan", "shot.png")
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		t.Fatal(err)
+	}
+	image, err := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9WQAAAABJRU5ErkJggg==")
+	if err != nil || os.WriteFile(path, image, 0600) != nil {
+		t.Fatal("write screenshot fixture")
+	}
+	db, err := store.OpenSQLiteCLI(filepath.Join(t.TempDir(), "screenshots.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	checksum, err := screenshotChecksum(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AddAsset(ctx, models.Asset{ScanID: "scan", Type: "screenshot", Value: path, Metadata: "sha256=" + checksum}); err != nil {
+		t.Fatal(err)
+	}
+	items, err := db.ScreenshotAssets(ctx, "scan")
+	if err != nil || len(items) != 1 {
+		t.Fatalf("expected screenshot asset, got %#v (%v)", items, err)
+	}
+	srv := NewServer(db, 0)
+	srv.SetConfig(models.Config{HTTP: models.HTTPConfig{ScreenshotOutputDir: root}})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/screenshots/"+strconv.FormatInt(items[0].ID, 10)+"/content", nil)
+	rec := httptest.NewRecorder()
+	srv.handleScreenshotContent(rec, req)
+	if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "image/png" {
+		t.Fatalf("expected verified image response, got %d %s", rec.Code, rec.Header().Get("Content-Type"))
+	}
+	if err := os.WriteFile(path, []byte("tampered"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	rec = httptest.NewRecorder()
+	srv.handleScreenshotContent(rec, req)
+	if rec.Code != http.StatusGone {
+		t.Fatalf("tampered artifact must not be served, got %d", rec.Code)
+	}
+}
+
+func TestAPITokensAssignRolesWithoutTrustingRoleHeader(t *testing.T) {
+	srv := NewServer(nil, 0)
+	srv.SetAPITokens(map[string]string{"viewer-token": "viewer"})
+	protected := srv.authMiddleware(srv.rbacMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scans/run", nil)
+	req.Header.Set("Authorization", "Bearer viewer-token")
+	req.Header.Set("X-User-Role", "admin")
+	response := httptest.NewRecorder()
+	protected.ServeHTTP(response, req)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("server must use token-assigned viewer role, got %d", response.Code)
+	}
+}
+
+func TestPostgresAndNeo4jStoresDoNotSilentlySucceedWhenUnavailable(t *testing.T) {
 	pg := store.NewPostgresStore("postgres://user:pass@localhost:5432/enumscan")
-	if err := pg.Migrate(context.Background()); err != nil {
-		t.Fatalf("pg.Migrate: %v", err)
+	if err := pg.Migrate(context.Background()); err == nil {
+		t.Fatal("pg.Migrate unexpectedly succeeded before a Postgres connection was opened")
 	}
 
 	neo := store.NewNeo4jStore("bolt://localhost:7687", "neo4j", "password")
-	if err := neo.SyncAsset(context.Background(), models.Asset{ScanID: "test", Type: "host", Value: "127.0.0.1"}); err != nil {
-		t.Fatalf("neo.SyncAsset: %v", err)
+	if err := neo.SyncAsset(context.Background(), models.Asset{ScanID: "test", Type: "host", Value: "127.0.0.1"}); err == nil {
+		t.Fatal("neo.SyncAsset unexpectedly succeeded while Neo4j was unavailable")
 	}
 }
 

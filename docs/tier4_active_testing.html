@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Enumscan documentation for authorized security assessments">
+  <title>Tier 4 active testing — Enumscan documentation</title>
+  <link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="index.html">enumscan docs</a>
+      <nav class="doc-nav" aria-label="Documentation">
+        <a href="getting-started.html">Start</a>
+        <a href="configuration.html">Configure</a>
+        <a href="cli.html">CLI</a>
+        <a href="scanning.html">Scanning</a>
+        <a href="reporting-api.html">API &amp; reports</a>
+        <a href="operations.html">Operations</a>
+        <a href="security.html">Security</a>
+        <a href="architecture-guide.html">Architecture</a>
+        <a href="plugins.html">Plugins</a>
+        <a href="development.html">Develop</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+<h1 id="tier-4-active-testing">Tier 4 active testing</h1>
+<p>Tier 4 contains intrusive checks that can change application state,
+expose sensitive data, consume credentials, trigger monitoring, or
+involve another system. It is never enabled by an ordinary enumscan
+authorization reference.</p>
+<h2 id="current-implementation-status">Current implementation
+status</h2>
+<p>The shared authorization gate is implemented and tested. The
+individual Tier 4 probe runners are not yet connected to scans.
+Selecting a technique today authorizes that future runner and creates an
+audit record; it does not fabricate a finding or claim that a
+vulnerability was tested.</p>
+<table>
+<thead>
+<tr>
+<th>Family</th>
+<th>Technique names</th>
+<th>Probe runner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Raw third-party scans</td>
+<td><code>idle_scan</code>, <code>decoy_scan</code></td>
+<td>Not yet connected</td>
+</tr>
+<tr>
+<td>TLS</td>
+<td><code>tls_heartbleed</code>, <code>tls_robot</code>,
+<code>tls_crime</code>, <code>tls_breach</code></td>
+<td>Not yet connected</td>
+</tr>
+<tr>
+<td>Web payloads</td>
+<td><code>web_sqli</code>, <code>web_xss</code>, <code>web_ssrf</code>,
+<code>web_lfi_rfi</code>, <code>web_xxe</code>, <code>web_ssti</code>,
+<code>web_host_header</code>, <code>web_request_smuggling</code>,
+<code>web_prototype_pollution</code></td>
+<td>Not yet connected</td>
+</tr>
+<tr>
+<td>Out-of-band</td>
+<td><code>oob_interaction</code></td>
+<td>Not yet connected</td>
+</tr>
+<tr>
+<td>Credentialed hosts and AD</td>
+<td><code>ssh_credentialed</code>, <code>winrm_credentialed</code>,
+<code>active_directory_authenticated</code></td>
+<td>Not yet connected</td>
+</tr>
+<tr>
+<td>Kerberos and LAPS</td>
+<td><code>kerberos_roast_discovery</code>, <code>kerberos_asrep</code>,
+<code>laps_acl_audit</code></td>
+<td>Not yet connected</td>
+</tr>
+<tr>
+<td>Network services</td>
+<td><code>smb_permission_audit</code>, <code>ssh_auth_audit</code>,
+<code>ftp_write_audit</code>, <code>smtp_relay_audit</code>,
+<code>snmp_mib_walk</code></td>
+<td>Not yet connected</td>
+</tr>
+<tr>
+<td>Container and cloud</td>
+<td><code>kubernetes_secret_audit</code>,
+<code>docker_compose_audit</code>, <code>cloud_imds_audit</code></td>
+<td>Not yet connected</td>
+</tr>
+<tr>
+<td>DNS</td>
+<td><code>dns_axfr</code>, <code>dnssec_zone_walk</code>,
+<code>dns_cache_snoop</code></td>
+<td>Not yet connected</td>
+</tr>
+</tbody>
+</table>
+<h2 id="authorization-contract">Authorization contract</h2>
+<p>All of the following conditions must hold before enumscan accepts an
+active testing configuration:</p>
+<ol type="1">
+<li><code>scope.authorization</code> identifies the written engagement
+authorization.</li>
+<li><code>active_testing.enabled</code> is <code>true</code>.</li>
+<li><code>authorization_expires</code> is a future RFC3339
+timestamp.</li>
+<li><code>operator</code> identifies the accountable operator.</li>
+<li><code>allowed_techniques</code> explicitly lists every approved
+technique.</li>
+<li><code>acknowledgement_env</code> names an environment variable
+containing exactly
+<code>I_ACKNOWLEDGE_ACTIVE_TESTING_IS_AUTHORIZED</code>.</li>
+<li>Per-host requests, concurrency, and minimum delay remain within the
+hard bounds enforced by configuration validation.</li>
+<li>Every scan target still matches
+<code>scope.allowed_targets</code>.</li>
+</ol>
+<p>The acknowledgment belongs in the process environment, not YAML,
+source control, shell history, or a report. It is a deliberate
+confirmation, not a substitute for written authorization.</p>
+<h2 id="create-and-run-an-engagement-template">Create and run an
+engagement template</h2>
+<p>Create a private copy:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> active-scan-template ACTIVE_CONFIG=configs/acme-active.yaml</span></code></pre></div>
+<p>Replace every <code>REPLACE_</code> value. Leave
+<code>active_testing.enabled: false</code> for a normal bounded scan. To
+exercise the authorization gate, set a future expiry, operator,
+acknowledgment variable name, and only the approved techniques:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">active_testing</span><span class="kw">:</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">enabled</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">authorization_expires</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;2026-09-08T17:00:00Z&quot;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">operator</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;analyst@example.com&quot;</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">acknowledgement_env</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;ENUMSCAN_ACTIVE_ACK&quot;</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">allowed_techniques</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="st">&quot;tls_heartbleed&quot;</span><span class="kw">,</span><span class="at"> </span><span class="st">&quot;web_sqli&quot;</span><span class="kw">]</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">max_requests_per_host</span><span class="kw">:</span><span class="at"> </span><span class="dv">25</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">max_concurrency</span><span class="kw">:</span><span class="at"> </span><span class="dv">1</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">minimum_request_delay_ms</span><span class="kw">:</span><span class="at"> </span><span class="dv">500</span></span></code></pre></div>
+<p>Export the acknowledgment without putting it in the
+configuration:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">ENUMSCAN_ACTIVE_ACK</span><span class="op">=</span>I_ACKNOWLEDGE_ACTIVE_TESTING_IS_AUTHORIZED</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> active-scan CONFIG=configs/acme-active.yaml SCAN_ID=acme-active-001</span></code></pre></div>
+<p>Unset it when the authorized work is finished:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">unset</span> <span class="va">ENUMSCAN_ACTIVE_ACK</span></span></code></pre></div>
+<h2 id="fail-closed-behavior">Fail-closed behavior</h2>
+<p>Enumscan rejects expired or malformed timestamps, absent or incorrect
+acknowledgments, empty allowlists, unknown or duplicate techniques, and
+safety limits outside their permitted ranges. A failed gate occurs
+before network modules start. Accepted active authorization is recorded
+as an <code>audit_log_entry</code>, including its reference, expiry,
+operator, allowlist, and limits, but never the acknowledgment value or
+credentials.</p>
+<p>Idle and decoy scanning require every participating zombie or decoy
+system to be separately and explicitly covered by the engagement. Their
+eventual runners must not infer third-party authorization from
+authorization of the destination.</p>
+<p>Credentialed runners must use environment or configured
+secret-manager references. Credentials and retrieved secret values must
+never be stored as assets, findings, events, logs, or report
+evidence.</p>
+  </main>
+  <footer>
+    Enumscan is for explicitly authorized security assessments. Generated from the canonical Markdown documentation.
+  </footer>
+</body>
+</html>

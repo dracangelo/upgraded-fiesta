@@ -107,6 +107,114 @@ CREATE TABLE IF NOT EXISTS port_observations (
 CREATE INDEX IF NOT EXISTS idx_port_observations_host_port ON port_observations(host, port, protocol, observed_at DESC);
 `,
 	},
+	{
+		Version: 7,
+		Name:    "task39_performance_indices",
+		SQLStatement: `
+CREATE INDEX IF NOT EXISTS idx_assets_value ON assets(value);
+CREATE INDEX IF NOT EXISTS idx_assets_parent ON assets(parent);
+CREATE INDEX IF NOT EXISTS idx_findings_asset ON findings(asset);
+CREATE INDEX IF NOT EXISTS idx_findings_severity ON findings(severity);
+CREATE INDEX IF NOT EXISTS idx_events_target ON events(target);
+`,
+	},
+	{
+		Version: 8,
+		Name:    "bounded_operator_cache",
+		SQLStatement: `
+CREATE TABLE IF NOT EXISTS operator_cache (
+ cache_key TEXT PRIMARY KEY,
+ value TEXT NOT NULL,
+ expires_at TEXT NOT NULL,
+ updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_operator_cache_expiry ON operator_cache(expires_at);
+`,
+	},
+	{
+		Version: 9,
+		Name:    "scheduler_runtime_snapshots",
+		SQLStatement: `
+CREATE TABLE IF NOT EXISTS scan_runtime_stats (
+ scan_id TEXT PRIMARY KEY, worker_capacity INTEGER NOT NULL DEFAULT 0,
+ active_workers INTEGER NOT NULL DEFAULT 0, running_modules INTEGER NOT NULL DEFAULT 0,
+ queue_high INTEGER NOT NULL DEFAULT 0, queue_normal INTEGER NOT NULL DEFAULT 0,
+ queue_low INTEGER NOT NULL DEFAULT 0, enqueued_events INTEGER NOT NULL DEFAULT 0,
+ completed_events INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+`,
+	},
+	{
+		Version: 10,
+		Name:    "durable_distributed_scan_jobs",
+		SQLStatement: `
+CREATE TABLE IF NOT EXISTS distributed_scan_jobs (
+ id TEXT PRIMARY KEY,
+ scan_id TEXT NOT NULL,
+ authorization_ref TEXT NOT NULL,
+ config_digest TEXT NOT NULL,
+ status TEXT NOT NULL,
+ lease_owner TEXT NOT NULL DEFAULT '',
+ lease_until TEXT NOT NULL DEFAULT '',
+ attempts INTEGER NOT NULL DEFAULT 0,
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ completed_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_distributed_jobs_lease ON distributed_scan_jobs(status, lease_until, created_at);
+`,
+	},
+	{
+		Version: 11,
+		Name:    "durable_distributed_agent_enrollment",
+		SQLStatement: `
+CREATE TABLE IF NOT EXISTS distributed_agents (
+ id TEXT PRIMARY KEY,
+ public_key_fingerprint TEXT NOT NULL UNIQUE,
+ status TEXT NOT NULL,
+ last_heartbeat TEXT NOT NULL,
+ registered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_distributed_agents_status_heartbeat ON distributed_agents(status, last_heartbeat);
+`,
+	},
+	{
+		Version: 12,
+		Name:    "api_audit_records",
+		SQLStatement: `
+CREATE TABLE IF NOT EXISTS api_audit_records (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ actor TEXT NOT NULL,
+ role TEXT NOT NULL,
+ action TEXT NOT NULL,
+ scan_id TEXT NOT NULL DEFAULT '',
+ status INTEGER NOT NULL,
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_api_audit_created ON api_audit_records(created_at DESC);
+`,
+	},
+	{
+		Version: 13,
+		Name:    "authenticated_distributed_agent_transport",
+		SQLStatement: `
+ALTER TABLE distributed_agents ADD COLUMN public_key TEXT NOT NULL DEFAULT '';
+CREATE TABLE IF NOT EXISTS distributed_agent_nonces (
+ agent_id TEXT NOT NULL, nonce TEXT NOT NULL, used_at TEXT NOT NULL,
+ PRIMARY KEY(agent_id, nonce),
+ FOREIGN KEY(agent_id) REFERENCES distributed_agents(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_distributed_agent_nonces_used ON distributed_agent_nonces(used_at);
+`,
+	},
+	{
+		Version: 14,
+		Name:    "live_evidence_encryption_metadata",
+		SQLStatement: `
+CREATE TABLE IF NOT EXISTS datastore_encryption (
+ id INTEGER PRIMARY KEY CHECK(id=1), verifier TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+`,
+	},
 }
 
 type MigrationManager struct {

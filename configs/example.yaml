@@ -1,5 +1,11 @@
 database:
   path: "data/enumscan.sqlite"
+  encryption_key_env: ""
+
+neo4j:
+  uri: ""
+  username: ""
+  password_env: "ENUMSCAN_NEO4J_PASSWORD"
 
 scope:
   allowed_targets: ["127.0.0.1", "localhost"]
@@ -7,6 +13,8 @@ scope:
 
 scheduler:
   concurrency: 1
+  enable_adaptive_workers: false
+  min_concurrency: 1
   global_rate_limit_ms: 100
   per_target_rate_limit_ms: 250
   module_timeout_ms: 10000
@@ -48,13 +56,18 @@ http:
   enable_crawler: true
   enable_js_analysis: true
   enable_api_discovery: true
-  enable_screenshots: true
+  # A renderer command and output directory are required before enabling captures.
+  enable_screenshots: false
   enable_directory_api: true
   enable_secret_intelligence: true
   enable_web_manifest: true
   enable_redirect_tracking: true
   enable_method_enumeration: true
   enable_source_map_analysis: true
+  enable_cookie_jar: false
+  enable_authenticated_crawling: false
+  auth_cookie_env: ""
+  enable_http3: false
   max_directory_paths: 80
   directory_wordlist: []
   api_paths: ["/openapi.json", "/swagger.json", "/swagger/v1/swagger.json", "/api-docs", "/graphql", "/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo", "/soap?wsdl"]
@@ -72,7 +85,15 @@ specialized:
 
 passive_intel:
   enabled: false
-  sources: ["wayback"]
+  # Add only provider sources explicitly authorized for this engagement.
+  sources: []
+  # Optional overrides can disable listed sources or enable centrally managed ones.
+  provider_controls: [] # e.g. ["shodan=false", "github=true"]
+  provider_versions: [] # e.g. ["github=2026-03-10"]
+  enable_quota_discovery: false
+  enable_update_checks: false
+  provider_min_interval_ms: 1000
+  max_retry_after_ms: 30000
 
 scan:
   profile: "quick"
@@ -81,3 +102,19 @@ scan:
 
 reporting:
   output_dir: "reports"
+  local_llm_url: ""
+  local_llm_model: ""
+  local_llm_timeout_ms: 30000
+
+notifications:
+  enable_scan_completed_webhook: false
+  webhook_url: ""
+
+api:
+  require_auth: false
+  tokens_env: "ENUMSCAN_API_TOKENS"
+
+monitoring:
+  enabled: false
+  interval_minutes: 60
+  max_runs: 1

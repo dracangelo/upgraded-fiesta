@@ -19,13 +19,18 @@ import (
 // implementation is now a native, process-local SQLite connection rather
 // than a sqlite3 command bridge.
 type SQLiteCLI struct {
-	path string
-	db   *sql.DB
+	path      string
+	db        *sql.DB
+	encryptor *DatastoreEncryptor
 }
 
 func OpenSQLiteCLI(path string) (*SQLiteCLI, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, err
+	}
+	if err := os.Chmod(dir, 0700); err != nil {
+		return nil, fmt.Errorf("restrict SQLite directory permissions: %w", err)
 	}
 	dsn := "file:" + path + "?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)"
 	db, err := sql.Open("sqlite", dsn)
@@ -49,16 +54,41 @@ func OpenSQLiteCLI(path string) (*SQLiteCLI, error) {
 	return &SQLiteCLI{path: path, db: db}, nil
 }
 
+func OpenEncryptedSQLiteCLI(path string, key []byte) (*SQLiteCLI, error) {
+	encryptor, err := NewDatastoreEncryptorKey(key)
+	if err != nil {
+		return nil, err
+	}
+	store, err := OpenSQLiteCLI(path)
+	if err != nil {
+		return nil, err
+	}
+	store.encryptor = encryptor
+	return store, nil
+}
+
 func (s *SQLiteCLI) Close() error {
 	if s == nil || s.db == nil {
 		return nil
 	}
-	return s.db.Close()
+	err := s.db.Close()
+	if s.encryptor != nil {
+		for index := range s.encryptor.key {
+			s.encryptor.key[index] = 0
+		}
+	}
+	return err
 }
 
 func (s *SQLiteCLI) Migrate(ctx context.Context) error {
 	mm := NewMigrationManager(s.db)
-	return mm.RunMigrations(ctx)
+	if err := mm.RunMigrations(ctx); err != nil {
+		return err
+	}
+	if s.encryptor != nil {
+		return s.initializeEvidenceEncryption(ctx)
+	}
+	return nil
 }
 
 func (s *SQLiteCLI) StartScan(ctx context.Context, scanID string) error {
@@ -68,7 +98,12 @@ ON CONFLICT(scan_id) DO UPDATE SET status='running', error='', finished_at=NULL`
 }
 
 func (s *SQLiteCLI) FinishScan(ctx context.Context, scanID, status, message string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE scan_runs SET status=?, error=?, finished_at=CURRENT_TIMESTAMP WHERE scan_id=?`, status, message, scanID)
+	var err error
+	message, err = s.seal("scan_runs.error", message)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx, `UPDATE scan_runs SET status=?, error=?, finished_at=CURRENT_TIMESTAMP WHERE scan_id=?`, status, message, scanID)
 	return err
 }
 
@@ -87,9 +122,111 @@ func (s *SQLiteCLI) GetScanStatus(ctx context.Context, scanID string) (string, e
 	return status, err
 }
 
-func (s *SQLiteCLI) AddAsset(ctx context.Context, asset models.Asset) error {
-	_, err := s.db.ExecContext(ctx, `INSERT OR IGNORE INTO assets(scan_id,type,value,parent,metadata) VALUES(?,?,?,?,?)`, asset.ScanID, asset.Type, asset.Value, asset.Parent, asset.Metadata)
+// ScanRuns returns recent persisted scans with evidence counts for the
+// dashboard history explorer. limit is bounded to keep the endpoint responsive
+// for long-lived operator databases.
+func (s *SQLiteCLI) ScanRuns(ctx context.Context, limit int) ([]models.ScanRun, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT sr.scan_id, sr.status, sr.error, sr.started_at, sr.finished_at,
+		(SELECT COUNT(*) FROM assets a WHERE a.scan_id = sr.scan_id),
+		(SELECT COUNT(*) FROM findings f WHERE f.scan_id = sr.scan_id),
+		(SELECT COUNT(*) FROM events e WHERE e.scan_id = sr.scan_id)
+		FROM scan_runs sr ORDER BY sr.started_at DESC, sr.scan_id DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	runs := make([]models.ScanRun, 0)
+	for rows.Next() {
+		var run models.ScanRun
+		var started string
+		var finished sql.NullString
+		if err := rows.Scan(&run.ScanID, &run.Status, &run.Error, &started, &finished, &run.AssetCount, &run.FindingCount, &run.EventCount); err != nil {
+			return nil, err
+		}
+		run.StartedAt = parseSQLiteTime(started)
+		if run.Error, err = s.open("scan_runs.error", run.Error); err != nil {
+			return nil, err
+		}
+		if finished.Valid {
+			parsed := parseSQLiteTime(finished.String)
+			run.FinishedAt = &parsed
+		}
+		runs = append(runs, run)
+	}
+	return runs, rows.Err()
+}
+
+// CachedValue is a bounded, non-sensitive operator cache. Callers must use it
+// only for reproducible local inputs (for example parsed signature files), not
+// scan responses or credentials whose freshness or handling matters.
+func (s *SQLiteCLI) CachedValue(ctx context.Context, key string) (string, bool, error) {
+	var value, expires string
+	err := s.db.QueryRowContext(ctx, `SELECT value, expires_at FROM operator_cache WHERE cache_key=?`, key).Scan(&value, &expires)
+	if err == sql.ErrNoRows {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	if time.Now().After(parseSQLiteTime(expires)) {
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM operator_cache WHERE cache_key=?`, key)
+		return "", false, nil
+	}
+	return value, true, nil
+}
+
+func (s *SQLiteCLI) PutCachedValue(ctx context.Context, key, value string, ttl time.Duration) error {
+	const maxCacheEntries = 512
+	const maxCacheValueBytes = 1 << 20
+	if key == "" || len(value) > maxCacheValueBytes {
+		return fmt.Errorf("invalid operator cache value")
+	}
+	if ttl <= 0 {
+		return fmt.Errorf("operator cache TTL must be positive")
+	}
+	expires := time.Now().Add(ttl).UTC().Format(time.RFC3339Nano)
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM operator_cache WHERE expires_at <= ?`, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+		return err
+	}
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO operator_cache(cache_key,value,expires_at,updated_at) VALUES(?,?,?,CURRENT_TIMESTAMP)
+ON CONFLICT(cache_key) DO UPDATE SET value=excluded.value, expires_at=excluded.expires_at, updated_at=CURRENT_TIMESTAMP`, key, value, expires); err != nil {
+		return err
+	}
+	_, err := s.db.ExecContext(ctx, `DELETE FROM operator_cache WHERE cache_key IN (
+SELECT cache_key FROM operator_cache ORDER BY updated_at DESC, cache_key DESC LIMIT -1 OFFSET ?
+)`, maxCacheEntries)
 	return err
+}
+
+func (s *SQLiteCLI) AddAsset(ctx context.Context, asset models.Asset) error {
+	asset, err := s.protectAsset(asset)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT OR IGNORE INTO assets(scan_id,type,value,parent,metadata) VALUES(?,?,?,?,?)`, asset.ScanID, asset.Type, asset.Value, asset.Parent, asset.Metadata)
+	return err
+}
+
+func (s *SQLiteCLI) AssetByID(ctx context.Context, id int64) (models.Asset, error) {
+	var asset models.Asset
+	var created string
+	err := s.db.QueryRowContext(ctx, `SELECT id,scan_id,type,value,parent,metadata,created_at FROM assets WHERE id=?`, id).Scan(
+		&asset.ID, &asset.ScanID, &asset.Type, &asset.Value, &asset.Parent, &asset.Metadata, &created,
+	)
+	if err != nil {
+		return asset, err
+	}
+	asset.CreatedAt = parseSQLiteTime(created)
+	if err := s.revealAsset(&asset); err != nil {
+		return asset, err
+	}
+	return asset, nil
 }
 
 func (s *SQLiteCLI) DeleteAssets(ctx context.Context, ids []int64) error {
@@ -123,6 +260,11 @@ func (s *SQLiteCLI) DeleteFindings(ctx context.Context, ids []int64) error {
 }
 
 func (s *SQLiteCLI) AddFinding(ctx context.Context, finding models.Finding) error {
+	var err error
+	finding, err = s.protectFinding(finding)
+	if err != nil {
+		return err
+	}
 	references, err := json.Marshal(finding.References)
 	if err != nil {
 		return err
@@ -140,7 +282,11 @@ func (s *SQLiteCLI) AddFinding(ctx context.Context, finding models.Finding) erro
 }
 
 func (s *SQLiteCLI) AddEvent(ctx context.Context, event models.Event) (int64, error) {
-	result, err := s.db.ExecContext(ctx, `INSERT INTO events(scan_id,type,target,data) VALUES(?,?,?,?)`, event.ScanID, event.Type, event.Target, flatten(event.Data))
+	event, data, err := s.protectEvent(event)
+	if err != nil {
+		return 0, err
+	}
+	result, err := s.db.ExecContext(ctx, `INSERT INTO events(scan_id,type,target,data) VALUES(?,?,?,?)`, event.ScanID, event.Type, event.Target, data)
 	if err != nil {
 		return 0, err
 	}
@@ -148,8 +294,13 @@ func (s *SQLiteCLI) AddEvent(ctx context.Context, event models.Event) (int64, er
 }
 
 func (s *SQLiteCLI) CheckpointStatus(ctx context.Context, scanID, module, eventType, target string) (string, error) {
+	var err error
+	target, err = s.seal("checkpoints.target", target)
+	if err != nil {
+		return "", err
+	}
 	var status string
-	err := s.db.QueryRowContext(ctx, `SELECT status FROM checkpoints WHERE scan_id=? AND module=? AND event_type=? AND target=?`, scanID, module, eventType, target).Scan(&status)
+	err = s.db.QueryRowContext(ctx, `SELECT status FROM checkpoints WHERE scan_id=? AND module=? AND event_type=? AND target=?`, scanID, module, eventType, target).Scan(&status)
 	if err == sql.ErrNoRows {
 		return "", nil
 	}
@@ -157,7 +308,16 @@ func (s *SQLiteCLI) CheckpointStatus(ctx context.Context, scanID, module, eventT
 }
 
 func (s *SQLiteCLI) UpsertCheckpoint(ctx context.Context, checkpoint models.Checkpoint) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO checkpoints(scan_id,module,event_type,target,status,error,updated_at) VALUES(?,?,?,?,?,?,CURRENT_TIMESTAMP)
+	var err error
+	checkpoint.Target, err = s.seal("checkpoints.target", checkpoint.Target)
+	if err != nil {
+		return err
+	}
+	checkpoint.Error, err = s.seal("checkpoints.error", checkpoint.Error)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO checkpoints(scan_id,module,event_type,target,status,error,updated_at) VALUES(?,?,?,?,?,?,CURRENT_TIMESTAMP)
 ON CONFLICT(scan_id,module,event_type,target) DO UPDATE SET status=excluded.status,error=excluded.error,updated_at=CURRENT_TIMESTAMP`, checkpoint.ScanID, checkpoint.Module, checkpoint.EventType, checkpoint.Target, checkpoint.Status, checkpoint.Error)
 	return err
 }
@@ -182,6 +342,9 @@ func (s *SQLiteCLI) Assets(ctx context.Context, scanID string) ([]models.Asset, 
 			return nil, err
 		}
 		a.CreatedAt = parseSQLiteTime(created)
+		if err := s.revealAsset(&a); err != nil {
+			return nil, err
+		}
 		assets = append(assets, a)
 	}
 	return assets, rows.Err()
@@ -210,6 +373,9 @@ func (s *SQLiteCLI) Findings(ctx context.Context, scanID string) ([]models.Findi
 		f.KEV = kev != 0
 		_ = json.Unmarshal([]byte(refs), &f.References)
 		f.CreatedAt = parseSQLiteTime(created)
+		if err := s.revealFinding(&f); err != nil {
+			return nil, err
+		}
 		findings = append(findings, f)
 	}
 	return findings, rows.Err()
@@ -234,7 +400,9 @@ func (s *SQLiteCLI) Events(ctx context.Context, scanID string) ([]models.Event, 
 		if err := rows.Scan(&e.ID, &e.ScanID, &e.Type, &e.Target, &data); err != nil {
 			return nil, err
 		}
-		e.Data = inflate(data)
+		if err := s.revealEvent(&e, data); err != nil {
+			return nil, err
+		}
 		events = append(events, e)
 	}
 	return events, rows.Err()

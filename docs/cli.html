@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Enumscan documentation for authorized security assessments">
+  <title>CLI reference — Enumscan documentation</title>
+  <link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="index.html">enumscan docs</a>
+      <nav class="doc-nav" aria-label="Documentation">
+        <a href="getting-started.html">Start</a>
+        <a href="configuration.html">Configure</a>
+        <a href="cli.html">CLI</a>
+        <a href="scanning.html">Scanning</a>
+        <a href="reporting-api.html">API &amp; reports</a>
+        <a href="operations.html">Operations</a>
+        <a href="security.html">Security</a>
+        <a href="architecture-guide.html">Architecture</a>
+        <a href="plugins.html">Plugins</a>
+        <a href="development.html">Develop</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+<h1 id="cli-reference">CLI reference</h1>
+<p>General form:</p>
+<pre class="text"><code>enumscan -config &lt;configuration.yaml&gt; &lt;command&gt; [arguments]</code></pre>
+<h2 id="scan-and-inspect">Scan and inspect</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>init-db</code></td>
+<td>Initialize or migrate the configured datastore</td>
+</tr>
+<tr>
+<td><code>run &lt;scan-id&gt;</code></td>
+<td>Run one scope-validated scan</td>
+</tr>
+<tr>
+<td><code>monitor [-prefix name]</code></td>
+<td>Run the configured bounded monitoring schedule</td>
+</tr>
+<tr>
+<td><code>server</code> / <code>dashboard</code></td>
+<td>Start the local API and web dashboard</td>
+</tr>
+<tr>
+<td><code>tui</code></td>
+<td>Open the read-only terminal interface</td>
+</tr>
+<tr>
+<td><code>doctor [-remote] [-format text|json]</code></td>
+<td>Validate provider configuration; <code>-remote</code> performs
+explicit bounded provider calls</td>
+</tr>
+</tbody>
+</table>
+<h2 id="analyze-and-report">Analyze and report</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>report &lt;scan-id&gt; -format &lt;format&gt;</code></td>
+<td>Generate a report from stored evidence</td>
+</tr>
+<tr>
+<td><code>analyze-vulnerabilities &lt;scan-id&gt;</code></td>
+<td>Correlate findings with imported intelligence</td>
+</tr>
+<tr>
+<td><code>score-risk &lt;scan-id&gt;</code></td>
+<td>Calculate deterministic risk scores</td>
+</tr>
+<tr>
+<td><code>correlate &lt;scan-id&gt;</code></td>
+<td>Build exposure relationships and attack-path narratives</td>
+</tr>
+<tr>
+<td><code>compare-scans &lt;baseline&gt; &lt;current&gt;</code></td>
+<td>Produce differential results</td>
+</tr>
+<tr>
+<td><code>local-llm-summary &lt;scan-id&gt;</code></td>
+<td>Request an advisory from a configured loopback Ollama service</td>
+</tr>
+<tr>
+<td><code>sync-neo4j &lt;scan-id&gt;</code></td>
+<td>Explicitly synchronize evidence to configured Neo4j</td>
+</tr>
+</tbody>
+</table>
+<h2 id="import">Import</h2>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">enumscan</span> <span class="at">-config</span> configs/my-scan.yaml import-report scan-001 <span class="dt">\</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">-tool</span> nuclei <span class="at">-file</span> findings.json</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">enumscan</span> <span class="at">-config</span> configs/my-scan.yaml import-nvd <span class="at">-file</span> nvd-delta.json</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ex">enumscan</span> <span class="at">-config</span> configs/my-scan.yaml git-secrets repo-001 <span class="dt">\</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">-repo</span> /absolute/path/to/authorized/repository</span></code></pre></div>
+<p>Supported report importers are <code>nuclei</code>,
+<code>openvas</code>, and <code>nessus</code>.</p>
+<h2 id="notifications">Notifications</h2>
+<p><code>notify-webhook</code>, <code>notify-slack</code>, and
+<code>notify-email</code> are explicit delivery commands. Automatic
+webhook delivery occurs only when the scan-completed subscription is
+enabled.</p>
+<h2 id="storage-and-secrets">Storage and secrets</h2>
+<ul>
+<li><code>backup-encrypted &lt;path&gt; -key-env &lt;name&gt;</code></li>
+<li><code>restore-encrypted &lt;path&gt; -confirm -key-env &lt;name&gt;</code></li>
+<li><code>postgres-migrate</code></li>
+<li><code>secret-check &lt;name&gt;</code></li>
+<li><code>secret-set &lt;name&gt; -value-env &lt;name&gt;</code></li>
+<li><code>secret-rotate &lt;name&gt; -value-env &lt;name&gt;</code></li>
+</ul>
+<h2 id="distributed-operation">Distributed operation</h2>
+<ul>
+<li><code>distributed-status</code></li>
+<li><code>distributed-enqueue &lt;scan-id&gt;</code></li>
+<li><code>distributed-enroll -agent &lt;id&gt; -public-key &lt;base64&gt;</code></li>
+<li><code>distributed-heartbeat -agent &lt;id&gt;</code></li>
+<li><code>distributed-lease -agent &lt;id&gt;</code></li>
+<li><code>distributed-complete -agent &lt;id&gt; -job &lt;id&gt; -status completed|failed</code></li>
+<li><code>distributed-agent -agent &lt;id&gt; -coordinator &lt;https-url&gt;</code></li>
+</ul>
+<h2 id="plugins">Plugins</h2>
+<p>Plugin subcommands include <code>plugin-search</code>,
+<code>plugin-install</code>, <code>plugin-update</code>,
+<code>plugin-rate</code>, and <code>plugin-registry</code>. Run the
+binary without a command for the complete built-in usage output.</p>
+  </main>
+  <footer>
+    Enumscan is for explicitly authorized security assessments. Generated from the canonical Markdown documentation.
+  </footer>
+</body>
+</html>

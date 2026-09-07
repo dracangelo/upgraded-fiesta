@@ -11,7 +11,9 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"enumscan/internal/models"
@@ -28,32 +30,57 @@ type PassiveIntel struct {
 	cfg     models.PassiveIntelConfig
 	client  *http.Client
 	baseURL map[string]string // test/enterprise endpoint overrides
+	rateMu  sync.Mutex
+	nextAt  map[string]time.Time
+	seenMu  sync.Mutex
+	seen    map[string]struct{}
 }
 
 func NewPassiveIntel(db *store.SQLiteCLI, guard scope.Guard, cfg models.PassiveIntelConfig) *PassiveIntel {
-	return &PassiveIntel{db: db, guard: guard, cfg: cfg, client: &http.Client{Timeout: 8 * time.Second}, baseURL: map[string]string{}}
+	return &PassiveIntel{db: db, guard: guard, cfg: cfg, client: &http.Client{Timeout: 8 * time.Second}, baseURL: map[string]string{}, nextAt: make(map[string]time.Time), seen: make(map[string]struct{})}
 }
 
-func (m *PassiveIntel) Name() string            { return "passive_intelligence" }
-func (m *PassiveIntel) Subscriptions() []string { return []string{EventTarget, EventHost} }
+func (m *PassiveIntel) Name() string { return "passive_intelligence" }
+func (m *PassiveIntel) Subscriptions() []string {
+	return []string{EventTarget, EventHost, EventService}
+}
 
 func (m *PassiveIntel) Handle(ctx context.Context, event models.Event) ([]models.Event, error) {
 	host := intelligenceHost(event.Target)
 	if host == "" || !m.guard.Allowed(host) {
 		return nil, nil
 	}
-	for _, source := range m.cfg.Sources {
+	for _, source := range effectiveProviderSources(m.cfg) {
 		source = strings.ToLower(strings.TrimSpace(source))
 		if source == "" {
 			continue
 		}
+		if event.Type == EventService && source != "circl_cve" {
+			continue
+		}
+		if source == "circl_cve" && event.Type != EventService {
+			continue
+		}
 		if source == "bucket" {
+			if !m.reserveTarget(event.ScanID, source, host) {
+				continue
+			}
 			m.discoverPublicBuckets(ctx, event.ScanID, host)
 			continue
 		}
-		req, ok := m.request(ctx, source, host)
+		req, ok := m.requestForEvent(ctx, source, host, event)
 		if !ok {
 			continue // source is not credentialed/configured
+		}
+		reservationTarget := host
+		if source == "circl_cve" {
+			reservationTarget += "\x00" + event.Data["cpe"]
+		}
+		if !m.reserveTarget(event.ScanID, source, reservationTarget) {
+			continue
+		}
+		if err := m.waitForProvider(ctx, source); err != nil {
+			continue
 		}
 		resp, err := m.doWithRetry(ctx, req)
 		if err != nil {
@@ -64,12 +91,69 @@ func (m *PassiveIntel) Handle(ctx context.Context, event models.Event) ([]models
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 || !validPassiveResponse(source, body) {
 			continue
 		}
-		m.recordResponse(ctx, event.ScanID, host, source, string(body))
+		m.recordResponse(ctx, event.ScanID, host, source, string(safePassiveResponse(source, body)))
 	}
 	return nil, nil
 }
 
+// reserveTarget prevents multiple event types from querying the same passive
+// provider for the same scan and host. It is intentionally in-memory: passive
+// evidence remains fresh on later scans and is never cached as scan output.
+func (m *PassiveIntel) reserveTarget(scanID, source, host string) bool {
+	key := strings.ToLower(strings.TrimSpace(scanID)) + "\x00" + source + "\x00" + strings.ToLower(strings.TrimSpace(host))
+	m.seenMu.Lock()
+	defer m.seenMu.Unlock()
+	if m.seen == nil {
+		m.seen = make(map[string]struct{})
+	}
+	if _, seen := m.seen[key]; seen {
+		return false
+	}
+	m.seen[key] = struct{}{}
+	return true
+}
+
+// waitForProvider enforces an operator-configured minimum interval separately
+// for each provider. Reservations are made before waiting so concurrent module
+// workers cannot burst a provider with the same configured source.
+func (m *PassiveIntel) waitForProvider(ctx context.Context, source string) error {
+	interval := time.Duration(m.cfg.ProviderMinIntervalMS) * time.Millisecond
+	if interval <= 0 {
+		return nil
+	}
+	m.rateMu.Lock()
+	if m.nextAt == nil {
+		m.nextAt = make(map[string]time.Time)
+	}
+	now := time.Now()
+	start := m.nextAt[source]
+	if start.Before(now) {
+		start = now
+	}
+	m.nextAt[source] = start.Add(interval)
+	m.rateMu.Unlock()
+	if delay := time.Until(start); delay > 0 {
+		timer := time.NewTimer(delay)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+	return nil
+}
+
 func (m *PassiveIntel) request(ctx context.Context, source, host string) (*http.Request, bool) {
+	return m.requestForEvent(ctx, source, host, models.Event{})
+}
+
+func (m *PassiveIntel) requestForEvent(ctx context.Context, source, host string, event models.Event) (*http.Request, bool) {
+	definition, known := passiveProviderDefinition(source)
+	targetIP := net.ParseIP(host)
+	if !known || (definition.IPOnly && targetIP == nil) || (definition.DomainOnly && targetIP != nil) {
+		return nil, false
+	}
 	endpoint := ""
 	headers := make(http.Header)
 	switch source {
@@ -108,8 +192,61 @@ func (m *PassiveIntel) request(ctx context.Context, source, host string) (*http.
 		if key == "" {
 			return nil, false
 		}
-		endpoint = "https://www.virustotal.com/api/v3/domains/" + url.PathEscape(host)
+		collection := "domains"
+		if net.ParseIP(host) != nil {
+			collection = "ip_addresses"
+		}
+		endpoint = "https://www.virustotal.com/api/v3/" + collection + "/" + url.PathEscape(host)
 		headers.Set("x-apikey", key)
+	case "abuseipdb":
+		key := os.Getenv("ABUSEIPDB_API_KEY")
+		if key == "" {
+			return nil, false
+		}
+		endpoint = addQuery("https://api.abuseipdb.com/api/v2/check", "ipAddress", host)
+		endpoint = addQuery(endpoint, "maxAgeInDays", "90")
+		headers.Set("Key", key)
+		headers.Set("Accept", "application/json")
+	case "greynoise":
+		key := os.Getenv("GREYNOISE_API_KEY")
+		if key == "" {
+			return nil, false
+		}
+		endpoint = "https://api.greynoise.io/v3/community/" + url.PathEscape(host)
+		headers.Set("key", key)
+	case "binaryedge":
+		key := os.Getenv("BINARYEDGE_API_KEY")
+		if key == "" {
+			return nil, false
+		}
+		endpoint = "https://api.binaryedge.io/v2/query/ip/" + url.PathEscape(host)
+		headers.Set("X-Key", key)
+	case "urlscan":
+		key := os.Getenv("URLSCAN_API_KEY")
+		if key == "" {
+			return nil, false
+		}
+		query := "domain:" + host
+		if net.ParseIP(host) != nil {
+			query = "ip:" + host
+		}
+		endpoint = addQuery("https://urlscan.io/api/v1/search/", "q", query)
+		endpoint = addQuery(endpoint, "size", "20")
+		headers.Set("API-Key", key)
+	case "otx":
+		key := os.Getenv("OTX_API_KEY")
+		if key == "" {
+			return nil, false
+		}
+		indicatorType := "hostname"
+		if net.ParseIP(host) != nil {
+			indicatorType = "IPv4"
+			if strings.Contains(host, ":") {
+				indicatorType = "IPv6"
+			}
+		}
+		endpoint = "https://otx.alienvault.com/api/v1/indicators/" + indicatorType + "/" + url.PathEscape(host) + "/general"
+		headers.Set("X-OTX-API-KEY", key)
 	case "wayback":
 		endpoint = "https://web.archive.org/cdx/search/cdx?url=" + url.QueryEscape("*."+host+"/*") + "&output=json&fl=original,statuscode&filter=statuscode:200&collapse=urlkey"
 	case "github":
@@ -120,6 +257,9 @@ func (m *PassiveIntel) request(ctx context.Context, source, host string) (*http.
 		endpoint = "https://api.github.com/search/code?q=" + url.QueryEscape(`"`+host+`"`)
 		headers.Set("Authorization", "Bearer "+key)
 		headers.Set("Accept", "application/vnd.github+json")
+		if version := configuredProviderVersion(m.cfg, source, definition); version != "" {
+			headers.Set("X-GitHub-Api-Version", version)
+		}
 	case "gitlab":
 		key := os.Getenv("GITLAB_TOKEN")
 		if key == "" {
@@ -127,6 +267,46 @@ func (m *PassiveIntel) request(ctx context.Context, source, host string) (*http.
 		}
 		endpoint = firstNonEmpty(os.Getenv("GITLAB_API_URL"), "https://gitlab.com/api/v4") + "/search?scope=blobs&search=" + url.QueryEscape(host)
 		headers.Set("PRIVATE-TOKEN", key)
+	case "hunter":
+		key := os.Getenv("HUNTER_API_KEY")
+		if key == "" || net.ParseIP(host) != nil {
+			return nil, false
+		}
+		endpoint = addQuery("https://api.hunter.io/v2/domain-search", "domain", host)
+		endpoint = addQuery(endpoint, "api_key", key)
+		endpoint = addQuery(endpoint, "limit", "10")
+	case "whoisxml":
+		key := os.Getenv("WHOISXML_API_KEY")
+		if key == "" || net.ParseIP(host) != nil {
+			return nil, false
+		}
+		endpoint = addQuery("https://subdomains.whoisxmlapi.com/api/v2", "apiKey", key)
+		endpoint = addQuery(endpoint, "domainName", host)
+		endpoint = addQuery(endpoint, "outputFormat", "JSON")
+	case "hibp":
+		key := os.Getenv("HIBP_API_KEY")
+		if key == "" || net.ParseIP(host) != nil {
+			return nil, false
+		}
+		endpoint = "https://haveibeenpwned.com/api/v3/breachedDomain/" + url.PathEscape(host)
+		headers.Set("hibp-api-key", key)
+		headers.Set("User-Agent", "enumscan-passive-intelligence")
+	case "dnsdb":
+		key := os.Getenv("DNSDB_API_KEY")
+		if key == "" || net.ParseIP(host) != nil {
+			return nil, false
+		}
+		endpoint = "https://api.dnsdb.info/dnsdb/v2/lookup/rrset/name/" + url.PathEscape(host)
+		endpoint = addQuery(endpoint, "limit", "100")
+		headers.Set("X-API-Key", key)
+		headers.Set("Accept", "application/x-ndjson")
+	case "circl_cve":
+		vendor, product, valid := cpeVendorProduct(event.Data["cpe"])
+		if !valid || event.Type != EventService {
+			return nil, false
+		}
+		endpoint = "https://cve.circl.lu/api/search/" + url.PathEscape(vendor) + "/" + url.PathEscape(product)
+		headers.Set("Accept", "application/json")
 	case "paste":
 		endpoint = os.Getenv("PASTE_MONITOR_URL")
 		if endpoint == "" {
@@ -168,6 +348,31 @@ func (m *PassiveIntel) recordResponse(ctx context.Context, scanID, host, source,
 			_ = m.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "passive_domain", Value: domain, Parent: host, Metadata: "source=" + source})
 		}
 	}
+	for _, domain := range providerDerivedDomains(source, host, body) {
+		if m.guard.Allowed(domain) {
+			_ = m.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "passive_domain", Value: domain, Parent: host, Metadata: "source=" + source})
+		}
+	}
+}
+
+func providerDerivedDomains(source, host, body string) []string {
+	if source != "securitytrails" {
+		return nil
+	}
+	var payload struct {
+		Subdomains []string `json:"subdomains"`
+	}
+	if json.Unmarshal([]byte(body), &payload) != nil {
+		return nil
+	}
+	result := make([]string, 0, len(payload.Subdomains))
+	for _, label := range payload.Subdomains {
+		label = strings.Trim(strings.ToLower(strings.TrimSpace(label)), ".")
+		if label != "" && !strings.ContainsAny(label, "/:@") {
+			result = append(result, label+"."+strings.ToLower(host))
+		}
+	}
+	return uniqueStrings(result, 200)
 }
 
 func (m *PassiveIntel) doWithRetry(ctx context.Context, req *http.Request) (*http.Response, error) {
@@ -178,6 +383,7 @@ func (m *PassiveIntel) doWithRetry(ctx context.Context, req *http.Request) (*htt
 		if err == nil && resp.StatusCode != http.StatusTooManyRequests && resp.StatusCode < 500 {
 			return resp, nil
 		}
+		delay := retryDelay(resp, attempt, time.Duration(m.cfg.MaxRetryAfterMS)*time.Millisecond)
 		if resp != nil {
 			_ = resp.Body.Close()
 		}
@@ -189,10 +395,33 @@ func (m *PassiveIntel) doWithRetry(ctx context.Context, req *http.Request) (*htt
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-time.After(time.Duration(attempt+1) * 250 * time.Millisecond):
+		case <-time.After(delay):
 		}
 	}
 	return nil, lastErr
+}
+
+func retryDelay(resp *http.Response, attempt int, maxRetryAfter time.Duration) time.Duration {
+	if maxRetryAfter < 0 {
+		maxRetryAfter = 0
+	}
+	delay := time.Duration(attempt+1) * 250 * time.Millisecond
+	if resp == nil || resp.StatusCode != http.StatusTooManyRequests {
+		return delay
+	}
+	retryAfter := strings.TrimSpace(resp.Header.Get("Retry-After"))
+	if seconds, err := strconv.Atoi(retryAfter); err == nil && seconds >= 0 {
+		delay = time.Duration(seconds) * time.Second
+	} else if when, err := http.ParseTime(retryAfter); err == nil {
+		delay = time.Until(when)
+	}
+	if delay < 0 {
+		delay = 0
+	}
+	if delay > maxRetryAfter {
+		return maxRetryAfter
+	}
+	return delay
 }
 
 func validPassiveResponse(source string, body []byte) bool {
@@ -200,22 +429,123 @@ func validPassiveResponse(source string, body []byte) bool {
 	if source == "paste" {
 		return len(body) > 0
 	}
+	if source == "dnsdb" {
+		return validNDJSON(body)
+	}
 	var payload any
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return false
 	}
-	// Each supported provider returns JSON; accepting only a JSON object/array
-	// rejects HTML error pages and malformed intermediary responses.
-	switch payload.(type) {
-	case map[string]any, []any:
-		return true
+	return validProviderPayload(source, payload)
+}
+
+func validProviderPayload(source string, payload any) bool {
+	object, isObject := payload.(map[string]any)
+	_, isArray := payload.([]any)
+	switch source {
+	case "shodan":
+		_, ipOK := object["ip_str"]
+		_, portsOK := object["ports"]
+		return isObject && (ipOK || portsOK)
+	case "censys":
+		_, ok := object["result"]
+		return isObject && ok
+	case "securitytrails":
+		_, ok := object["subdomains"]
+		return isObject && ok
+	case "fofa":
+		_, ok := object["results"]
+		return isObject && ok
+	case "virustotal", "hunter":
+		_, ok := object["data"]
+		return isObject && ok
+	case "github":
+		_, ok := object["items"]
+		return isObject && ok
+	case "gitlab", "circl_cve":
+		return isArray || isObject
+	case "whoisxml":
+		_, ok := object["result"]
+		return isObject && ok
+	case "hibp":
+		return isObject
 	default:
+		return isObject || isArray
+	}
+}
+
+func validNDJSON(body []byte) bool {
+	lines := strings.Split(strings.TrimSpace(string(body)), "\n")
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) == "" {
 		return false
 	}
+	for _, line := range lines {
+		var value map[string]any
+		if json.Unmarshal([]byte(line), &value) != nil {
+			return false
+		}
+	}
+	return true
+}
+
+// safePassiveResponse removes provider-returned email aliases and code
+// snippets that are unnecessary for scoped asset attribution.
+func safePassiveResponse(source string, body []byte) []byte {
+	switch source {
+	case "hibp":
+		var entries map[string][]string
+		if json.Unmarshal(body, &entries) != nil {
+			return []byte(`{"error":"invalid provider response"}`)
+		}
+		breaches := make([]string, 0)
+		for _, names := range entries {
+			breaches = append(breaches, names...)
+		}
+		result, _ := json.Marshal(map[string]any{"breached_alias_count": len(entries), "breaches": uniqueStrings(breaches, 200)})
+		return result
+	case "hunter":
+		var payload struct {
+			Data struct {
+				Domain  string `json:"domain"`
+				Pattern string `json:"pattern"`
+				Emails  []any  `json:"emails"`
+			} `json:"data"`
+		}
+		if json.Unmarshal(body, &payload) == nil {
+			result, _ := json.Marshal(map[string]any{"data": map[string]any{"domain": payload.Data.Domain, "pattern": payload.Data.Pattern, "email_count": len(payload.Data.Emails)}})
+			return result
+		}
+	case "gitlab":
+		var entries []map[string]any
+		if json.Unmarshal(body, &entries) == nil {
+			for _, entry := range entries {
+				delete(entry, "data")
+				delete(entry, "content")
+			}
+			result, _ := json.Marshal(entries)
+			return result
+		}
+	}
+	return body
+}
+
+func cpeVendorProduct(value string) (string, string, bool) {
+	parts := strings.Split(strings.TrimSpace(value), ":")
+	if len(parts) < 5 || parts[0] != "cpe" || parts[1] != "2.3" {
+		return "", "", false
+	}
+	vendor, product := strings.TrimSpace(parts[3]), strings.TrimSpace(parts[4])
+	if vendor == "" || product == "" || vendor == "*" || product == "*" {
+		return "", "", false
+	}
+	return vendor, product, true
 }
 
 func (m *PassiveIntel) discoverPublicBuckets(ctx context.Context, scanID, host string) {
 	for _, bucket := range bucketCandidates(host) {
+		if err := m.waitForProvider(ctx, "bucket"); err != nil {
+			return
+		}
 		target := "https://" + bucket + ".s3.amazonaws.com"
 		req, err := http.NewRequestWithContext(ctx, http.MethodHead, target, nil)
 		if err != nil {

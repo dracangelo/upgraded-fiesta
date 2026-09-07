@@ -38,6 +38,45 @@ type cypherPayload struct {
 	Statements []cypherStatement `json:"statements"`
 }
 
+type cypherResponse struct {
+	Results []struct {
+		Data []struct {
+			Row []any `json:"row"`
+		} `json:"data"`
+	} `json:"results"`
+	Errors []struct{ Code, Message string } `json:"errors"`
+}
+
+// SyncScanToNeo4j transfers persisted assets and findings only when invoked by
+// an explicit operator command. It does not run as part of enumeration.
+func SyncScanToNeo4j(ctx context.Context, local *SQLiteCLI, remote *Neo4jStore, scanID string) (int, error) {
+	if local == nil || remote == nil {
+		return 0, fmt.Errorf("local and Neo4j stores are required")
+	}
+	assets, err := local.Assets(ctx, scanID)
+	if err != nil {
+		return 0, err
+	}
+	findings, err := local.Findings(ctx, scanID)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, asset := range assets {
+		if err := remote.SyncAsset(ctx, asset); err != nil {
+			return count, err
+		}
+		count++
+	}
+	for _, finding := range findings {
+		if err := remote.SyncFinding(ctx, finding); err != nil {
+			return count, err
+		}
+		count++
+	}
+	return count, nil
+}
+
 func (n *Neo4jStore) SyncAsset(ctx context.Context, asset models.Asset) error {
 	cypher := fmt.Sprintf(
 		"MERGE (a:Asset {value: %s}) SET a.type = %s, a.scan_id = %s",
@@ -63,43 +102,86 @@ func (n *Neo4jStore) SyncFinding(ctx context.Context, finding models.Finding) er
 }
 
 func (n *Neo4jStore) executeCypher(ctx context.Context, cypher string) error {
-	if n.uri == "" {
-		return nil
-	}
+	_, err := n.queryCypher(ctx, cypher)
+	return err
+}
 
-	// Normalize http endpoint
-	endpoint := n.uri
-	if strings.HasPrefix(endpoint, "bolt://") {
-		endpoint = strings.Replace(endpoint, "bolt://", "http://", 1)
+// LoadScanGraph runs one fixed, scan-scoped read query against a configured
+// Neo4j store. No user-supplied Cypher is accepted by this API path.
+func (n *Neo4jStore) LoadScanGraph(ctx context.Context, scanID string) (models.AssetGraph, error) {
+	cypher := "MATCH (a:Asset {scan_id: " + neoQuote(scanID) + "}) OPTIONAL MATCH (a)-[r]->(b) RETURN a.value, a.type, type(r), b.value, coalesce(b.type, labels(b)[0])"
+	response, err := n.queryCypher(ctx, cypher)
+	if err != nil {
+		return models.AssetGraph{}, err
 	}
+	nodes := make(map[string]models.GraphNode)
+	edges := make([]models.GraphEdge, 0)
+	for _, result := range response.Results {
+		for _, item := range result.Data {
+			if len(item.Row) < 5 {
+				continue
+			}
+			source, _ := item.Row[0].(string)
+			sourceType, _ := item.Row[1].(string)
+			if source == "" {
+				continue
+			}
+			nodes[source] = models.GraphNode{ID: source, Label: source, Type: sourceType}
+			target, _ := item.Row[3].(string)
+			if target == "" {
+				continue
+			}
+			targetType, _ := item.Row[4].(string)
+			nodes[target] = models.GraphNode{ID: target, Label: target, Type: targetType}
+			relation, _ := item.Row[2].(string)
+			if relation != "" {
+				edges = append(edges, models.GraphEdge{Source: source, Target: target, Relation: relation})
+			}
+		}
+	}
+	graph := models.AssetGraph{Nodes: make([]models.GraphNode, 0, len(nodes)), Edges: edges}
+	for _, node := range nodes {
+		graph.Nodes = append(graph.Nodes, node)
+	}
+	return graph, nil
+}
+
+func (n *Neo4jStore) queryCypher(ctx context.Context, cypher string) (cypherResponse, error) {
+	if n.uri == "" {
+		return cypherResponse{}, fmt.Errorf("neo4j URI is not configured")
+	}
+	endpoint := n.uri
 	if !strings.HasSuffix(endpoint, "/db/neo4j/tx/commit") && !strings.HasSuffix(endpoint, "/db/data/transaction/commit") {
 		endpoint = strings.TrimRight(endpoint, "/") + "/db/neo4j/tx/commit"
 	}
-
-	payload := cypherPayload{
-		Statements: []cypherStatement{{Statement: cypher}},
-	}
-	bodyBytes, err := json.Marshal(payload)
+	bodyBytes, err := json.Marshal(cypherPayload{Statements: []cypherStatement{{Statement: cypher}}})
 	if err != nil {
-		return err
+		return cypherResponse{}, err
 	}
-
 	req, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewBuffer(bodyBytes))
 	if err != nil {
-		return err
+		return cypherResponse{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if n.username != "" {
 		req.SetBasicAuth(n.username, n.password)
 	}
-
 	resp, err := n.client.Do(req)
 	if err != nil {
-		// Silent non-blocking return when DB server is offline in tests
-		return nil
+		return cypherResponse{}, fmt.Errorf("execute Neo4j Cypher: %w", err)
 	}
-	_ = resp.Body.Close()
-	return nil
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return cypherResponse{}, fmt.Errorf("execute Neo4j Cypher: server returned %s", resp.Status)
+	}
+	var decoded cypherResponse
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return cypherResponse{}, fmt.Errorf("decode Neo4j response: %w", err)
+	}
+	if len(decoded.Errors) > 0 {
+		return cypherResponse{}, fmt.Errorf("Neo4j query error %s: %s", decoded.Errors[0].Code, decoded.Errors[0].Message)
+	}
+	return decoded, nil
 }
 
 func neoQuote(v string) string {

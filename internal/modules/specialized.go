@@ -47,7 +47,6 @@ func (s Specialized) Handle(ctx context.Context, event models.Event) ([]models.E
 	switch event.Type {
 	case EventTarget, EventHost:
 		s.probeDNS(ctx, event)
-		s.probeCloudIMDS(ctx, event)
 		if s.cfg.EnableCloud {
 			newEvts := s.probeCloudTarget(ctx, event)
 			results = append(results, newEvts...)
@@ -232,7 +231,7 @@ func readSMTPOrFTPResponse(reader *bufio.Reader, expectedCode string) string {
 // -----------------------------------------------------------------------------
 
 func (s Specialized) probeSMB(ctx context.Context, event models.Event, host string, port int) []models.Event {
-	address := fmt.Sprintf("%s:%d", host, port)
+	address := net.JoinHostPort(host, strconv.Itoa(port))
 	conn, err := (&net.Dialer{Timeout: 2 * time.Second}).DialContext(ctx, "tcp", address)
 	if err != nil {
 		return nil
@@ -318,7 +317,7 @@ func (s Specialized) probeSMB(ctx context.Context, event models.Event, host stri
 // -----------------------------------------------------------------------------
 
 func (s Specialized) probeLDAP(ctx context.Context, event models.Event, host string, port int) []models.Event {
-	address := fmt.Sprintf("%s:%d", host, port)
+	address := net.JoinHostPort(host, strconv.Itoa(port))
 	useTLS := (port == 636 || port == 3269)
 
 	var conn net.Conn
@@ -411,7 +410,7 @@ func (s Specialized) probeSNMP(ctx context.Context, event models.Event, host str
 	if port == 0 {
 		port = 161
 	}
-	address := fmt.Sprintf("%s:%d", host, port)
+	address := net.JoinHostPort(host, strconv.Itoa(port))
 	conn, err := net.DialTimeout("udp", address, 1500*time.Millisecond)
 	if err != nil {
 		return nil
@@ -650,8 +649,9 @@ func (s Specialized) probeCloudURL(ctx context.Context, event models.Event) []mo
 	}
 
 	client := &http.Client{
-		Timeout:   2 * time.Second,
-		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
+		Timeout:       2 * time.Second,
+		Transport:     &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
 	if err != nil {
@@ -767,10 +767,11 @@ func isContainerPort(port int, service string) bool {
 }
 
 func (s Specialized) probeContainer(ctx context.Context, event models.Event, host string, port int) []models.Event {
-	address := fmt.Sprintf("%s:%d", host, port)
+	address := net.JoinHostPort(host, strconv.Itoa(port))
 	client := &http.Client{
-		Timeout:   2 * time.Second,
-		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
+		Timeout:       2 * time.Second,
+		Transport:     &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 
 	scheme := "http"
@@ -828,6 +829,17 @@ func (s Specialized) probeContainer(ctx context.Context, event models.Event, hos
 			Parent:   event.Target,
 			Metadata: metadata,
 		})
+		if (check.kind == "podman" || check.kind == "docker_socket") && len(bodyBytes) > 0 {
+			if version := observedJSONVersion(bodyBytes); version != "" {
+				_ = s.db.AddAsset(ctx, models.Asset{
+					ScanID:   event.ScanID,
+					Type:     "container_runtime_version",
+					Value:    version,
+					Parent:   targetURL,
+					Metadata: fmt.Sprintf("runtime=%s;source=%s;verification=observed", check.kind, path),
+				})
+			}
+		}
 
 		severity := "high"
 		if check.kind == "runtime" || check.kind == "registry" {
@@ -873,9 +885,6 @@ func containerChecks(port int, service string) []containerCheck {
 			containerCheck{"/version", "docker_socket"},
 			containerCheck{"/info", "runtime"},
 			containerCheck{"/containers/json", "runtime"},
-			containerCheck{"/docker-compose.yml", "compose"},
-			containerCheck{"/docker-compose.yaml", "compose"},
-			containerCheck{"/compose.yaml", "compose"},
 		)
 	}
 	if port == 5000 || port == 5001 || service == "docker-registry" {
@@ -885,8 +894,6 @@ func containerChecks(port int, service string) []containerCheck {
 		checks = append(checks,
 			containerCheck{"/version", "runtime"},
 			containerCheck{"/api/v1", "runtime"},
-			containerCheck{"/api/v1/secrets", "kubernetes_secrets"},
-			containerCheck{"/api/v1/namespaces/default/secrets", "kubernetes_secrets"},
 		)
 	}
 	if port == 2379 || service == "etcd" {
@@ -975,7 +982,7 @@ func isDatabasePort(port int, service string) bool {
 }
 
 func (s Specialized) probeDatabase(ctx context.Context, event models.Event, host string, port int) []models.Event {
-	address := fmt.Sprintf("%s:%d", host, port)
+	address := net.JoinHostPort(host, strconv.Itoa(port))
 	serviceName := event.Data["service"]
 
 	switch {
@@ -1035,7 +1042,18 @@ func (s Specialized) checkInfluxDB(ctx context.Context, event models.Event, addr
 	if response.StatusCode != http.StatusOK || !strings.Contains(strings.ToLower(string(body)), "status") {
 		return nil
 	}
-	return s.recordDatabaseEvidence(ctx, event, address, "influxdb", "health_endpoint=responded", false)
+	evidence := "health_endpoint=responded"
+	if version := observedJSONVersion(body); version != "" {
+		evidence += ";version=" + version
+		_ = s.db.AddAsset(ctx, models.Asset{
+			ScanID:   event.ScanID,
+			Type:     "database_version",
+			Value:    version,
+			Parent:   address,
+			Metadata: "db=influxdb;source=health_endpoint;verification=observed",
+		})
+	}
+	return s.recordDatabaseEvidence(ctx, event, address, "influxdb", evidence, false)
 }
 
 func (s Specialized) checkCassandra(ctx context.Context, event models.Event, address string) []models.Event {
@@ -1050,12 +1068,123 @@ func (s Specialized) checkCassandra(ctx context.Context, event models.Event, add
 	if _, err := conn.Write([]byte{0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00}); err != nil {
 		return nil
 	}
-	buf := make([]byte, 16)
-	n, err := conn.Read(buf)
-	if err != nil || n < 5 || buf[4] != 0x06 {
+	header := make([]byte, 9)
+	if _, err := io.ReadFull(conn, header); err != nil || header[4] != 0x06 {
 		return nil
 	}
-	return s.recordDatabaseEvidence(ctx, event, address, "cassandra", "native_options=supported", false)
+	payloadLength := int(binary.BigEndian.Uint32(header[5:9]))
+	if payloadLength < 0 || payloadLength > 4096 {
+		return nil
+	}
+	payload := make([]byte, payloadLength)
+	if _, err := io.ReadFull(conn, payload); err != nil {
+		return nil
+	}
+	capabilities := cassandraSupportedCapabilities(payload)
+	evidence := "native_options=supported"
+	if cqlVersion := capabilities["CQL_VERSION"]; cqlVersion != "" {
+		evidence += ";cql_version=" + cqlVersion
+	}
+	for _, name := range []string{"CQL_VERSION", "PROTOCOL_VERSIONS"} {
+		if value := capabilities[name]; value != "" {
+			_ = s.db.AddAsset(ctx, models.Asset{
+				ScanID:   event.ScanID,
+				Type:     "database_capability",
+				Value:    name + "=" + value,
+				Parent:   address,
+				Metadata: "db=cassandra;source=native_options;verification=observed",
+			})
+		}
+	}
+	return s.recordDatabaseEvidence(ctx, event, address, "cassandra", evidence, false)
+}
+
+// observedJSONVersion extracts only a compact, explicitly returned version
+// value. It never follows a link or makes a second request.
+func observedJSONVersion(body []byte) string {
+	var value any
+	if err := json.Unmarshal(body, &value); err != nil {
+		return ""
+	}
+	var find func(any) string
+	find = func(current any) string {
+		switch item := current.(type) {
+		case map[string]any:
+			for _, key := range []string{"version", "server_version", "api_version"} {
+				for actualKey, raw := range item {
+					if strings.EqualFold(actualKey, key) {
+						if text, ok := raw.(string); ok && text != "" {
+							return cleanEvidence(text)
+						}
+					}
+				}
+			}
+			for _, raw := range item {
+				if version := find(raw); version != "" {
+					return version
+				}
+			}
+		case []any:
+			for _, raw := range item {
+				if version := find(raw); version != "" {
+					return version
+				}
+			}
+		}
+		return ""
+	}
+	return find(value)
+}
+
+func cassandraSupportedCapabilities(payload []byte) map[string]string {
+	capabilities := make(map[string]string)
+	if len(payload) < 2 {
+		return capabilities
+	}
+	readString := func(offset *int) (string, bool) {
+		if *offset+2 > len(payload) {
+			return "", false
+		}
+		length := int(binary.BigEndian.Uint16(payload[*offset : *offset+2]))
+		*offset += 2
+		if length < 0 || *offset+length > len(payload) {
+			return "", false
+		}
+		value := string(payload[*offset : *offset+length])
+		*offset += length
+		return value, true
+	}
+	offset := 0
+	count := int(binary.BigEndian.Uint16(payload[offset : offset+2]))
+	offset += 2
+	if count > 64 {
+		return capabilities
+	}
+	for i := 0; i < count; i++ {
+		name, ok := readString(&offset)
+		if !ok || offset+2 > len(payload) {
+			return capabilities
+		}
+		valueCount := int(binary.BigEndian.Uint16(payload[offset : offset+2]))
+		offset += 2
+		if valueCount > 32 {
+			return capabilities
+		}
+		values := make([]string, 0, valueCount)
+		for j := 0; j < valueCount; j++ {
+			value, ok := readString(&offset)
+			if !ok {
+				return capabilities
+			}
+			if value != "" {
+				values = append(values, cleanEvidence(value))
+			}
+		}
+		if len(values) > 0 {
+			capabilities[strings.ToUpper(name)] = strings.Join(values, ",")
+		}
+	}
+	return capabilities
 }
 
 func (s Specialized) recordDatabaseEvidence(ctx context.Context, event models.Event, address, vendor, evidence string, unauthenticated bool) []models.Event {
@@ -1419,15 +1548,13 @@ func (s Specialized) probeDNS(ctx context.Context, event models.Event) {
 		}
 	}
 
-	// 2. DNS Cache Snooping
-	snooped := "example.com"
-	if ips, err := resolver.LookupHost(ctx, snooped); err == nil && len(ips) > 0 {
-		_ = s.db.AddAsset(ctx, models.Asset{ScanID: event.ScanID, Type: "dns_cache_snoop_hit", Value: snooped, Parent: domain, Metadata: "technique=non_recursive_query"})
-	}
 }
 
 func (s Specialized) probeCloudIMDS(ctx context.Context, event models.Event) {
-	// Probe Cloud Instance Metadata Service (IMDSv1 & IMDSv2 reachability)
+	// This helper is intentionally not wired into target scans. These are
+	// link-local endpoints on the scanner's own network namespace, so probing
+	// them says nothing about a remote target and can expose local credentials.
+	// Keep the function for controlled, local integration tests only.
 	imdsURLs := []struct {
 		Name string
 		URL  string

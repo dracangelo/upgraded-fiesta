@@ -1,0 +1,32 @@
+# Public perimeter inventory, DNS, TLS, HTTP, and service enumeration.
+database:
+  path: "data/REPLACE_external.sqlite"
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+scheduler:
+  concurrency: 4
+  min_concurrency: 1
+  global_rate_limit_ms: 250
+  per_target_rate_limit_ms: 500
+  module_timeout_ms: 30000
+discovery:
+  cidr_max_hosts: 256
+  enable_dns_discovery: true
+  enable_dns_records: true
+  enable_reverse_dns: true
+  enable_wildcard_dns: true
+  enable_rdap: false
+  enable_tcp_host_probes: true
+  tcp_probe_ports: [80, 443]
+http:
+  enable_tls: true
+  enable_crawler: true
+  enable_js_analysis: true
+  enable_api_discovery: true
+  enable_web_manifest: true
+  enable_redirect_tracking: true
+scan:
+  profile: "external_infrastructure"
+  targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+

@@ -21,11 +21,9 @@ type AuthProtocolScanner struct {
 
 func NewAuthProtocolScanner(db *store.SQLiteCLI, guard scope.Guard) *AuthProtocolScanner {
 	return &AuthProtocolScanner{
-		db:    db,
-		guard: guard,
-		client: &http.Client{
-			Timeout: 3 * time.Second,
-		},
+		db:     db,
+		guard:  guard,
+		client: scopedHTTPClient(guard, 3*time.Second, nil),
 	}
 }
 
@@ -42,10 +40,7 @@ func (m *AuthProtocolScanner) Handle(ctx context.Context, evt models.Event) ([]m
 		return nil, nil
 	}
 
-	targetIP := evt.Target
-	if idx := strings.Index(targetIP, ":"); idx != -1 {
-		targetIP = targetIP[:idx]
-	}
+	targetIP := eventHost(evt.Target)
 
 	if !m.guard.Allowed(targetIP) {
 		return nil, nil

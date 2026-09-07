@@ -1,37 +1,16 @@
 package modules
 
-import (
-	"context"
-	"testing"
-)
+import "testing"
 
 func TestTask27IntegrationsFramework(t *testing.T) {
-	registry := NewProviderRegistry()
-
-	// 1. Check registry contains all 17 providers
-	providers := []string{
-		"VirusTotal", "AbuseIPDB", "Shodan", "Censys", "SecurityTrails",
-		"GreyNoise", "BinaryEdge", "FOFA", "AlienVault OTX", "URLScan.io",
-		"Hunter.io", "WhoisXML API", "Have I Been Pwned", "GitHub", "GitLab",
-		"DNSDB", "CIRCL CVE Search",
+	provider, ok := passiveProviderDefinition("urlscan")
+	if !ok || provider.Name != "urlscan" || !provider.RemoteProbe {
+		t.Fatalf("expected concrete urlscan provider definition, got %#v", provider)
 	}
-
-	for _, name := range providers {
-		p, ok := registry.Get(name)
-		if !ok {
-			t.Fatalf("provider %s not found in registry", name)
-		}
-		if p.Name() != name {
-			t.Fatalf("provider name mismatch: expected %s, got %s", name, p.Name())
-		}
-		if err := p.ValidateAPIKey("valid-key"); err != nil {
-			t.Fatalf("API key validation failed for %s: %v", name, err)
-		}
+	if _, ok := passiveProviderDefinition("not-a-provider"); ok {
+		t.Fatal("unknown providers must not be represented as configured integrations")
 	}
-
-	// 2. Diagnostics test (enumscan doctor)
-	diag := registry.RunDiagnostics(context.Background())
-	if len(diag) < 17 {
-		t.Fatalf("expected at least 17 diagnostic results, got %d", len(diag))
+	if !passiveProviderCatalog["abuseipdb"].IPOnly {
+		t.Fatal("AbuseIPDB integration must remain limited to documented IP lookups")
 	}
 }

@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -33,6 +34,22 @@ func TestSchemaMigrationsAndVersioning(t *testing.T) {
 
 	if version < 2 {
 		t.Errorf("expected migration version >= 2, got %d", version)
+	}
+}
+
+func TestOpenSQLiteRestrictsExistingDirectory(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "existing-store-dir")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	st, err := OpenSQLiteCLI(filepath.Join(dir, "state.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	info, err := os.Stat(dir)
+	if err != nil || info.Mode().Perm() != 0700 {
+		t.Fatalf("store directory permissions = %v, %v", info.Mode().Perm(), err)
 	}
 }
 

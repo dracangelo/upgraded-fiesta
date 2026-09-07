@@ -1,0 +1,148 @@
+# Copy this file to a private engagement-specific name (for example,
+# configs/acme-internal.yaml), then replace every REPLACE_ value before use.
+# This template performs safe, unauthenticated enumeration only.
+
+database:
+  path: "data/REPLACE_engagement.sqlite"
+  encryption_key_env: "ENUMSCAN_DATASTORE_KEY"
+
+neo4j:
+  # Optional explicit evidence synchronization. Password stays in this env var.
+  uri: ""
+  username: ""
+  password_env: "ENUMSCAN_NEO4J_PASSWORD"
+
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_IP_OR_CIDR"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+
+# Intrusive probes require this separate, expiring authorization gate. To
+# enable it, explicitly list approved techniques and set acknowledgement_env
+# to a variable containing I_ACKNOWLEDGE_ACTIVE_TESTING_IS_AUTHORIZED.
+active_testing:
+  enabled: false
+  authorization_expires: ""
+  operator: ""
+  acknowledgement_env: ""
+  allowed_techniques: []
+  max_requests_per_host: 25
+  max_concurrency: 1
+  minimum_request_delay_ms: 500
+
+scheduler:
+  concurrency: 4
+  enable_adaptive_workers: false
+  min_concurrency: 1
+  global_rate_limit_ms: 100
+  per_target_rate_limit_ms: 250
+  module_timeout_ms: 15000
+
+discovery:
+  cidr_max_hosts: 256
+  enable_dns_discovery: true
+  enable_dns_records: true
+  enable_reverse_dns: true
+  enable_wildcard_dns: true
+  enable_rdap: false
+  enable_icmp_sweep: false
+  enable_tcp_host_probes: true
+  tcp_probe_ports: [22, 80, 443]
+  enable_udp_live_probes: false
+  udp_probe_ports: [53, 123]
+  passive_dns_files: []
+  certificate_transparency_files: []
+  passive_capture_files: []
+  # Plain-text URL exports from approved sources; no third-party lookup occurs.
+  historical_url_files: []
+
+portscan:
+  # quick, standard, or exhaustive. Keep tcp_ports empty to use the profile.
+  profile: "standard"
+  tcp_ports: []
+  udp_ports: []
+  enable_tcp: true
+  enable_udp: false
+  enable_banner: true
+  enable_raw_syn: false
+  enable_raw_scanning: false
+  max_concurrent_ports: 8
+  record_closed_ports: false
+  base_timeout_ms: 750
+  max_timeout_ms: 3000
+
+http:
+  max_depth: 1
+  max_pages_per_host: 25
+  enable_tls: true
+  enable_crawler: true
+  enable_js_analysis: true
+  enable_api_discovery: true
+  enable_screenshots: false
+  # Explicit local browser wrapper. Arguments must include {url} and {output}.
+  screenshot_renderer: ""
+  screenshot_renderer_args: []
+  screenshot_output_dir: ""
+  max_screenshots_per_scan: 25
+  enable_directory_api: true
+  enable_secret_intelligence: true
+  enable_web_manifest: true
+  enable_redirect_tracking: true
+  enable_method_enumeration: true
+  enable_source_map_analysis: true
+  # Preserve server-issued cookies while crawling; no credentials are supplied.
+  enable_cookie_jar: false
+  # Authenticated enumeration uses an operator-supplied session cookie only;
+  # enumscan never performs a login or stores the cookie.
+  enable_authenticated_crawling: false
+  auth_cookie_env: ""
+  # Confirm advertised HTTP/3 over QUIC with a scoped, literal-IP HEAD request.
+  enable_http3: false
+  # Read-only service-name listing over plaintext gRPC on explicitly selected ports.
+  enable_grpc_reflection: false
+  grpc_reflection_ports: []
+  max_directory_paths: 80
+  directory_wordlist: []
+  api_paths: []
+
+specialized:
+  enable_protocol_enumeration: true
+  enable_smb: false
+  enable_ldap: false
+  enable_snmp: false
+  enable_cloud: false
+  enable_container: false
+  enable_database: false
+  snmp_communities: []
+
+passive_intel:
+  enabled: false
+  sources: []
+  provider_controls: []
+  provider_versions: []
+  enable_quota_discovery: false
+  enable_update_checks: false
+  # Per-provider pacing and bounded Retry-After compliance for third-party APIs.
+  provider_min_interval_ms: 1000
+  max_retry_after_ms: 30000
+
+scan:
+  profile: "standard"
+  targets: ["REPLACE_WITH_AUTHORIZED_IP_OR_CIDR"]
+  ports: []
+
+reporting:
+  output_dir: "reports"
+  # Disabled by default. Only an operator-local Ollama endpoint is accepted.
+  local_llm_url: ""
+  local_llm_model: ""
+  local_llm_timeout_ms: 30000
+
+notifications:
+  # Optional event subscription; it sends only after a healthy completed scan.
+  enable_scan_completed_webhook: false
+  webhook_url: ""
+
+monitoring:
+  enabled: false
+  interval_minutes: 60
+  max_runs: 1

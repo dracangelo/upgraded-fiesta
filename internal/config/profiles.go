@@ -6,6 +6,17 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"enumscan/internal/models"
+)
+
+const (
+	ModuleDiscovery    = "discovery"
+	ModulePortScan     = "portscan"
+	ModuleService      = "service"
+	ModuleHTTP         = "http"
+	ModuleSpecialized  = "specialized"
+	ModulePassiveIntel = "passive_intel"
 )
 
 type ProfileType string
@@ -34,6 +45,152 @@ type ScanProfile struct {
 	TimeoutSec  int      `json:"timeout_sec"`
 }
 
+// ApplyRequestedProfile applies a named built-in profile to a scan that was
+// explicitly requested by an operator (for example through the dashboard).
+// It deliberately replaces port and scheduler defaults so the selected
+// profile has an observable effect. File-based configuration retains explicit
+// port and scheduler values; those are the operator's more specific choices.
+func ApplyRequestedProfile(cfg models.Config, name string) (models.Config, error) {
+	key := ProfileType(normalizeProfileName(name))
+	profile, ok := GetBuiltinProfiles()[key]
+	if !ok {
+		return cfg, fmt.Errorf("unknown scan profile %q", name)
+	}
+
+	cfg = applyProfile(cfg, profile, string(key), nil)
+	cfg.Scan.Ports = nil
+	cfg.PortScan.UDPPorts = nil
+	cfg.PortScan.EnableUDP = false
+	cfg.PortScan.EnableRawSYN = false
+	cfg.PortScan.EnableRawScanning = false
+	cfg.PortScan.RawTechniques = nil
+	cfg.PortScan.DecoyIPs = nil
+	cfg.PortScan.ZombieHost = ""
+	return cfg, nil
+}
+
+// ApplyConfiguredProfile applies profile defaults to file-based configuration.
+// Values the operator explicitly supplied in the YAML file win over profile
+// defaults. The resulting ModulePlan is consumed by the engine.
+func ApplyConfiguredProfile(cfg models.Config, name string, explicit map[string]bool) (models.Config, error) {
+	key := ProfileType(normalizeProfileName(name))
+	profile, ok := GetBuiltinProfiles()[key]
+	if !ok {
+		return cfg, fmt.Errorf("unknown scan profile %q", name)
+	}
+	return applyProfile(cfg, profile, string(key), explicit), nil
+}
+
+// ApplyEngineProfile provides the same profile behavior for callers that
+// construct a Config in code instead of loading YAML. Loaded configurations
+// are already marked as applied, so their explicit overrides are preserved.
+func ApplyEngineProfile(cfg models.Config) (models.Config, error) {
+	if cfg.Scan.ProfileApplied || strings.TrimSpace(cfg.Scan.Profile) == "" {
+		return cfg, nil
+	}
+	return ApplyConfiguredProfile(cfg, cfg.Scan.Profile, nil)
+}
+
+func applyProfile(cfg models.Config, profile ScanProfile, profileName string, explicit map[string]bool) models.Config {
+	wasExplicit := func(key string) bool { return explicit != nil && explicit[key] }
+	cfg.Scan.Profile = profileName
+	cfg.Scan.ModulePlan = mergeModulePlan(profile.Modules, explicit)
+	cfg.Scan.ProfileApplied = true
+
+	if !wasExplicit("portscan.profile") {
+		cfg.PortScan.Profile = profileName
+	}
+	if !wasExplicit("scheduler.concurrency") && profile.Concurrency > 0 {
+		cfg.Scheduler.Concurrency = profile.Concurrency
+	}
+	if !wasExplicit("scheduler.module_timeout_ms") && profile.TimeoutSec > 0 {
+		cfg.Scheduler.ModuleTimeoutMS = profile.TimeoutSec * 1000
+	}
+	if !wasExplicit("portscan.tcp_ports") && !wasExplicit("scan.ports") {
+		if profileName == string(ProfileExhaustive) {
+			// The port scanner expands this lazily into the valid port range.
+			cfg.PortScan.TCPPorts = nil
+		} else {
+			cfg.PortScan.TCPPorts = append([]int(nil), profile.Ports...)
+		}
+	}
+	if !wasExplicit("portscan.enable_tcp") {
+		cfg.PortScan.EnableTCP = true
+	}
+	return cfg
+}
+
+func mergeModulePlan(profileModules []string, explicit map[string]bool) []string {
+	set := make(map[string]bool, len(profileModules)+4)
+	for _, module := range profileModules {
+		if normalized := normalizeModuleName(module); normalized != "" {
+			set[normalized] = true
+		}
+	}
+	for key := range explicit {
+		switch {
+		case strings.HasPrefix(key, "discovery."):
+			set[ModuleDiscovery] = true
+		case strings.HasPrefix(key, "portscan.") || key == "scan.ports":
+			set[ModulePortScan] = true
+		case strings.HasPrefix(key, "http."):
+			set[ModuleHTTP] = true
+		case strings.HasPrefix(key, "specialized."):
+			set[ModuleSpecialized] = true
+		case strings.HasPrefix(key, "passive_intel."):
+			set[ModulePassiveIntel] = true
+		}
+	}
+	plan := make([]string, 0, len(set))
+	for _, module := range []string{ModuleDiscovery, ModulePortScan, ModuleService, ModuleHTTP, ModuleSpecialized, ModulePassiveIntel} {
+		if set[module] {
+			plan = append(plan, module)
+		}
+	}
+	return plan
+}
+
+func normalizeModuleName(module string) string {
+	switch normalizeProfileName(module) {
+	case "discovery", "dns", "icmp_sweep":
+		return ModuleDiscovery
+	case "portscan", "port_scan":
+		return ModulePortScan
+	case "service", "service_fingerprint":
+		return ModuleService
+	case "http", "wappalyzer", "dir_fuzzing", "directory_api", "web_vuln_engine", "container_checks", "cis_compliance":
+		return ModuleHTTP
+	case "specialized", "smb", "ldap", "kerberos", "bloodhound":
+		return ModuleSpecialized
+	case "passive_intel", "wayback", "secret_intel":
+		return ModulePassiveIntel
+	default:
+		return ""
+	}
+}
+
+// ModuleEnabled reports whether a profile-derived plan permits a module
+// family. Configurations without a selected profile retain the legacy behavior
+// of enabling all registered safe module families.
+func ModuleEnabled(cfg models.Config, module string) bool {
+	if len(cfg.Scan.ModulePlan) == 0 {
+		return true
+	}
+	module = normalizeModuleName(module)
+	for _, planned := range cfg.Scan.ModulePlan {
+		if planned == module {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeProfileName(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	name = strings.NewReplacer("-", "_", " ", "_").Replace(name)
+	return name
+}
+
 func GetBuiltinProfiles() map[ProfileType]ScanProfile {
 	return map[ProfileType]ScanProfile{
 		ProfileQuick: {
@@ -54,24 +211,24 @@ func GetBuiltinProfiles() map[ProfileType]ScanProfile {
 		},
 		ProfileExhaustive: {
 			Name:        "Exhaustive",
-			Description: "Deep exhaustive scan covering all ports and specialized modules",
-			Modules:     []string{"discovery", "portscan", "service_fingerprint", "specialized", "vulnerability", "web"},
+			Description: "Deep authorized enumeration across all TCP ports and safe fingerprinting modules",
+			Modules:     []string{"discovery", "portscan", "service", "specialized", "http", "passive_intel"},
 			Ports:       []int{1, 65535},
 			Concurrency: 10,
 			TimeoutSec:  300,
 		},
 		ProfileExternalInfrastructure: {
 			Name:        "External Infrastructure",
-			Description: "External perimeter discovery and DNS/cloud enumeration",
-			Modules:     []string{"discovery", "dns", "cloud_imds", "portscan"},
+			Description: "External perimeter discovery, DNS enrichment, and web/service enumeration",
+			Modules:     []string{"discovery", "portscan", "service", "http", "passive_intel"},
 			Ports:       []int{80, 443, 53, 8080, 8443},
 			Concurrency: 25,
 			TimeoutSec:  120,
 		},
 		ProfileInternalNetwork: {
 			Name:        "Internal Network",
-			Description: "Internal subnet sweep, NetBIOS, and SMB discovery",
-			Modules:     []string{"icmp_sweep", "smb", "ldap", "portscan"},
+			Description: "Internal subnet discovery and safe service enumeration",
+			Modules:     []string{"discovery", "portscan", "service", "specialized"},
 			Ports:       []int{139, 445, 389, 636, 88},
 			Concurrency: 30,
 			TimeoutSec:  90,
@@ -79,7 +236,7 @@ func GetBuiltinProfiles() map[ProfileType]ScanProfile {
 		ProfileWebApplication: {
 			Name:        "Web Application",
 			Description: "Web technology stack, directory fuzzing, and CORS/CSRF heuristic analysis",
-			Modules:     []string{"http", "wappalyzer", "dir_fuzzing", "web_vuln_engine"},
+			Modules:     []string{"discovery", "portscan", "service", "http"},
 			Ports:       []int{80, 443, 8000, 8080, 8443},
 			Concurrency: 15,
 			TimeoutSec:  180,
@@ -87,39 +244,39 @@ func GetBuiltinProfiles() map[ProfileType]ScanProfile {
 		ProfileAPIAssessment: {
 			Name:        "API Assessment",
 			Description: "REST/GraphQL API endpoint harvesting and CORS testing",
-			Modules:     []string{"http", "directory_api", "web_vuln_engine"},
+			Modules:     []string{"discovery", "portscan", "service", "http"},
 			Ports:       []int{80, 443, 3000, 5000, 8080},
 			Concurrency: 20,
 			TimeoutSec:  120,
 		},
 		ProfileActiveDirectory: {
 			Name:        "Active Directory",
-			Description: "Kerberoasting, LAPS, and LDAP schema auditing",
-			Modules:     []string{"ldap", "kerberos", "bloodhound"},
+			Description: "Directory-service endpoint discovery and unauthenticated service fingerprinting",
+			Modules:     []string{"discovery", "portscan", "service", "specialized"},
 			Ports:       []int{88, 389, 636, 3268},
 			Concurrency: 10,
 			TimeoutSec:  180,
 		},
 		ProfileKubernetes: {
 			Name:        "Kubernetes",
-			Description: "K8s API server and Kubelet unauthenticated probe",
-			Modules:     []string{"container_checks", "http"},
+			Description: "Kubernetes endpoint and web/service metadata enumeration",
+			Modules:     []string{"discovery", "portscan", "service", "http", "specialized"},
 			Ports:       []int{6443, 10250, 10255},
 			Concurrency: 15,
 			TimeoutSec:  60,
 		},
 		ProfileCloudInfrastructure: {
 			Name:        "Cloud Infrastructure",
-			Description: "IMDS reachability and public cloud asset discovery",
-			Modules:     []string{"cloud_imds", "passive_intel"},
+			Description: "Cloud-facing endpoint, TLS, and passive-intelligence enumeration",
+			Modules:     []string{"discovery", "portscan", "service", "http", "passive_intel"},
 			Ports:       []int{80, 443},
 			Concurrency: 20,
 			TimeoutSec:  60,
 		},
 		ProfileBugBounty: {
 			Name:        "Bug Bounty",
-			Description: "Subdomain enumeration, historical URLs, and secret harvesting",
-			Modules:     []string{"discovery", "wayback", "secret_intel"},
+			Description: "Authorized external surface enumeration with optional passive intelligence",
+			Modules:     []string{"discovery", "portscan", "service", "http", "passive_intel"},
 			Ports:       []int{80, 443},
 			Concurrency: 30,
 			TimeoutSec:  240,
@@ -127,7 +284,7 @@ func GetBuiltinProfiles() map[ProfileType]ScanProfile {
 		ProfileCompliance: {
 			Name:        "Compliance",
 			Description: "CIS benchmarks and web header security hardening audit",
-			Modules:     []string{"cis_compliance", "http"},
+			Modules:     []string{"discovery", "portscan", "service", "http"},
 			Ports:       []int{80, 443},
 			Concurrency: 10,
 			TimeoutSec:  60,

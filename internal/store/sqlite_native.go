@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sync"
 
 	"enumscan/internal/models"
@@ -28,7 +29,7 @@ func (n *NativeSQLiteStore) Open() error {
 		return nil
 	}
 
-	// Dynamic fallback abstraction for standard database/sql driver
+	// Dynamic fallback abstraction for standard database/sql driver.
 	for _, driver := range []string{"sqlite3", "sqlite"} {
 		db, err := sql.Open(driver, n.dbPath)
 		if err == nil && db.Ping() == nil {
@@ -36,7 +37,7 @@ func (n *NativeSQLiteStore) Open() error {
 			return nil
 		}
 	}
-	return nil
+	return fmt.Errorf("no supported SQLite driver is available; use OpenSQLiteCLI")
 }
 
 func (n *NativeSQLiteStore) Close() error {
@@ -51,18 +52,12 @@ func (n *NativeSQLiteStore) Close() error {
 }
 
 func (n *NativeSQLiteStore) Migrate(ctx context.Context) error {
-	if n.db == nil {
-		if err := n.Open(); err != nil {
-			// CLI fallback if pure Go driver registration is handled dynamically
-			return nil
-		}
-	}
-	return nil
+	return fmt.Errorf("NativeSQLiteStore is deprecated and has no migration contract; use OpenSQLiteCLI")
 }
 
 func (n *NativeSQLiteStore) AddAsset(ctx context.Context, asset models.Asset) error {
 	if n.db == nil {
-		return nil
+		return fmt.Errorf("native SQLite store is not open")
 	}
 	_, err := n.db.ExecContext(ctx, "INSERT INTO assets(scan_id,type,value,parent,metadata) VALUES(?,?,?,?,?)",
 		asset.ScanID, asset.Type, asset.Value, asset.Parent, asset.Metadata)
@@ -71,7 +66,7 @@ func (n *NativeSQLiteStore) AddAsset(ctx context.Context, asset models.Asset) er
 
 func (n *NativeSQLiteStore) AddFinding(ctx context.Context, finding models.Finding) error {
 	if n.db == nil {
-		return nil
+		return fmt.Errorf("native SQLite store is not open")
 	}
 	_, err := n.db.ExecContext(ctx, "INSERT INTO findings(scan_id,severity,confidence,asset,title,evidence,remediation,cwe,cve,cvss,epss,kev) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
 		finding.ScanID, finding.Severity, finding.Confidence, finding.Asset, finding.Title, finding.Evidence, finding.Remediation, finding.CWE, finding.CVE, finding.CVSS, finding.EPSS, finding.KEV)

@@ -28,14 +28,14 @@ func TestTask31BackendImprovements(t *testing.T) {
 	tokReq := httptest.NewRequest(http.MethodPost, "/api/v1/auth/token?role=analyst", nil)
 	tokW := httptest.NewRecorder()
 	srv.handleAuthToken(tokW, tokReq)
-	if tokW.Code != http.StatusOK || !strings.Contains(tokW.Body.String(), "enumscan-token-") {
-		t.Fatalf("handleAuthToken failed: %d, body: %s", tokW.Code, tokW.Body.String())
+	if tokW.Code != http.StatusNotImplemented {
+		t.Fatalf("token endpoint must reject unconfigured token issuance: %d, body: %s", tokW.Code, tokW.Body.String())
 	}
 
 	// 2. Test RBAC Restriction (Viewer role forbidden on POST)
 	runReq := httptest.NewRequest(http.MethodPost, "/api/v1/scans/run", strings.NewReader(`{"target":"127.0.0.1"}`))
 	runReq.Header.Set("X-API-Key", "test-api-key")
-	runReq.Header.Set("X-User-Role", "viewer")
+	runReq = runReq.WithContext(context.WithValue(runReq.Context(), apiPrincipalContextKey{}, apiPrincipal{role: "viewer"}))
 	runW := httptest.NewRecorder()
 	srv.rbacMiddleware(http.HandlerFunc(srv.handleRunScan)).ServeHTTP(runW, runReq)
 

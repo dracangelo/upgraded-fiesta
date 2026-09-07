@@ -1,0 +1,31 @@
+# Passive/provider-assisted discovery. Add only approved sources and credentials.
+database:
+  path: "data/REPLACE_passive.sqlite"
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+scheduler:
+  concurrency: 1
+  min_concurrency: 1
+  global_rate_limit_ms: 1000
+  per_target_rate_limit_ms: 1500
+  module_timeout_ms: 30000
+discovery:
+  cidr_max_hosts: 64
+  enable_dns_discovery: true
+  enable_dns_records: true
+  enable_reverse_dns: true
+  enable_rdap: false
+passive_intel:
+  enabled: false
+  sources: []
+  provider_controls: []
+  provider_versions: []
+  enable_quota_discovery: true
+  enable_update_checks: true
+  provider_min_interval_ms: 1000
+  max_retry_after_ms: 30000
+scan:
+  profile: "external_infrastructure"
+  targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+

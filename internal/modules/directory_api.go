@@ -3,10 +3,13 @@ package modules
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"regexp"
 	"sort"
@@ -28,13 +31,26 @@ type DirectoryAPIEnumerator struct {
 	client *http.Client
 }
 
+type directoryBaseline struct {
+	status int
+	length int
+	body   string
+}
+
 func NewDirectoryAPIEnumerator(db *store.SQLiteCLI, guard scope.Guard, config models.HTTPConfig) *DirectoryAPIEnumerator {
 	if config.MaxDirectoryPaths <= 0 {
 		config.MaxDirectoryPaths = 80
 	}
+	client := scopedHTTPClient(guard, 5*time.Second, nil)
+	if config.EnableCookieJar {
+		jar, err := cookiejar.New(nil)
+		if err == nil {
+			client.Jar = jar
+		}
+	}
 	return &DirectoryAPIEnumerator{
 		db: db, guard: guard, config: config,
-		client: &http.Client{Timeout: 5 * time.Second},
+		client: client,
 	}
 }
 
@@ -51,10 +67,11 @@ func (m *DirectoryAPIEnumerator) Handle(ctx context.Context, evt models.Event) (
 	if err != nil {
 		return nil, nil
 	}
+	baseline := m.notFoundBaseline(ctx, root)
 
 	paths := m.wordlist(landing)
 	for _, path := range paths {
-		m.probePath(ctx, evt.ScanID, root, path, "wordlist")
+		m.probePath(ctx, evt.ScanID, root, path, "wordlist", baseline)
 	}
 	m.probeSensitiveFiles(ctx, evt.ScanID, root)
 	m.generateFromJavaScript(ctx, evt.ScanID, root, landing)
@@ -81,16 +98,53 @@ func (m *DirectoryAPIEnumerator) wordlist(landing string) []string {
 	return uniquePaths(paths, m.config.MaxDirectoryPaths)
 }
 
-func (m *DirectoryAPIEnumerator) probePath(ctx context.Context, scanID string, root *url.URL, path, source string) {
+func (m *DirectoryAPIEnumerator) probePath(ctx context.Context, scanID string, root *url.URL, path, source string, baseline *directoryBaseline) {
 	item, ok := scopedPath(root, path)
 	if !ok {
 		return
 	}
-	resp, _, err := m.get(ctx, item.String())
+	resp, body, err := m.get(ctx, item.String())
 	if err != nil || resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone {
 		return
 	}
-	_ = m.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "directory", Value: item.String(), Parent: root.String(), Metadata: fmt.Sprintf("status=%s;source=%s", resp.Status, source)})
+	if baseline != nil && baseline.matches(resp.StatusCode, body) {
+		return
+	}
+	_ = m.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "directory", Value: item.String(), Parent: root.String(), Metadata: fmt.Sprintf("status=%s;source=%s;bytes=%d", resp.Status, source, len(body))})
+}
+
+func (m *DirectoryAPIEnumerator) notFoundBaseline(ctx context.Context, root *url.URL) *directoryBaseline {
+	random := make([]byte, 12)
+	if _, err := rand.Read(random); err != nil {
+		return nil
+	}
+	item, ok := scopedPath(root, "/.enumscan-not-found-"+hex.EncodeToString(random))
+	if !ok {
+		return nil
+	}
+	resp, body, err := m.get(ctx, item.String())
+	if err != nil {
+		return nil
+	}
+	return &directoryBaseline{status: resp.StatusCode, length: len(body), body: normalizeDirectoryBody(body)}
+}
+
+func (b directoryBaseline) matches(status int, body string) bool {
+	if status != b.status {
+		return false
+	}
+	if len(body) == b.length {
+		return true
+	}
+	return normalizeDirectoryBody(body) == b.body
+}
+
+func normalizeDirectoryBody(body string) string {
+	// Many wildcard handlers echo the requested path. Replacing long path-like
+	// and numeric tokens yields a stable comparison without retaining content.
+	body = strings.ToLower(body)
+	body = regexp.MustCompile(`[a-f0-9]{16,}|\d{4,}|/[a-z0-9_./-]{8,}`).ReplaceAllString(body, "<dynamic>")
+	return strings.TrimSpace(body)
 }
 
 func (m *DirectoryAPIEnumerator) probeSensitiveFiles(ctx context.Context, scanID string, root *url.URL) {
@@ -141,7 +195,7 @@ func (m *DirectoryAPIEnumerator) generateFromJavaScript(ctx context.Context, sca
 				continue
 			}
 			_ = m.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "generated_wordlist_path", Value: item.String(), Parent: link.String(), Metadata: "source=javascript"})
-			m.probePath(ctx, scanID, root, path, "javascript")
+			m.probePath(ctx, scanID, root, path, "javascript", nil)
 		}
 		if m.config.EnableSourceMapAnalysis {
 			m.parseSourceMap(ctx, scanID, root, link, body)
@@ -268,19 +322,10 @@ func (m *DirectoryAPIEnumerator) extractSOAP(ctx context.Context, scanID, endpoi
 }
 
 func (m *DirectoryAPIEnumerator) probeGRPCReflection(ctx context.Context, scanID string, endpoint *url.URL) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.String(), nil)
-	if err != nil {
-		return
-	}
-	req.Header.Set("Content-Type", "application/grpc")
-	resp, err := m.client.Do(req)
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 500 {
-		_ = m.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "grpc_reflection", Value: endpoint.String(), Metadata: "status=" + resp.Status})
-	}
+	// gRPC reflection uses HTTP/2 framing and protobuf messages; an empty HTTP
+	// POST cannot establish that it is enabled. Keep the endpoint as a candidate
+	// for an explicitly configured gRPC client, but do not report reflection.
+	_ = m.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "grpc_reflection_candidate", Value: endpoint.String(), Metadata: "verification=unverified;requires=grpc_reflection_client"})
 }
 
 func (m *DirectoryAPIEnumerator) get(ctx context.Context, target string) (*http.Response, string, error) {

@@ -31,14 +31,11 @@ func (m *KerberosADFingerprint) Subscriptions() []string {
 }
 
 func (m *KerberosADFingerprint) Handle(ctx context.Context, evt models.Event) ([]models.Event, error) {
-	if !strings.HasSuffix(evt.Target, ":88") && !strings.HasSuffix(evt.Target, ":389") && !strings.HasSuffix(evt.Target, ":636") {
+	if !strings.HasSuffix(evt.Target, ":88") {
 		return nil, nil
 	}
 
-	targetIP := evt.Target
-	if idx := strings.Index(targetIP, ":"); idx != -1 {
-		targetIP = targetIP[:idx]
-	}
+	targetIP := eventHost(evt.Target)
 
 	if !m.guard.Allowed(targetIP) {
 		return nil, nil
@@ -107,7 +104,7 @@ func (m *OSStackFingerprint) Name() string {
 }
 
 func (m *OSStackFingerprint) Subscriptions() []string {
-	return []string{"port.open"}
+	return []string{EventPort, EventPassiveTCPTraits}
 }
 
 func (m *OSStackFingerprint) Handle(ctx context.Context, evt models.Event) ([]models.Event, error) {
@@ -120,9 +117,8 @@ func (m *OSStackFingerprint) Handle(ctx context.Context, evt models.Event) ([]mo
 		return nil, nil
 	}
 
-	// Raw packet collection is intentionally not part of this production build.
-	// If a separately authorized passive collector supplies TCP/IP traits, retain
-	// them as heuristic evidence rather than fabricating an OS conclusion.
+	// TCP/IP traits come only from an operator-provided passive capture import.
+	// The output is a broad heuristic label, never an asserted operating system.
 	ttl, window, options := evt.Data["ttl"], evt.Data["tcp_window"], evt.Data["tcp_options"]
 	if ttl == "" && window == "" && options == "" {
 		return nil, nil

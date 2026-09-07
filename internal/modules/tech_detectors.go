@@ -21,11 +21,9 @@ type CMSEnumerator struct {
 
 func NewCMSEnumerator(db *store.SQLiteCLI, guard scope.Guard) *CMSEnumerator {
 	return &CMSEnumerator{
-		db:    db,
-		guard: guard,
-		client: &http.Client{
-			Timeout: 3 * time.Second,
-		},
+		db:     db,
+		guard:  guard,
+		client: scopedHTTPClient(guard, 3*time.Second, nil),
 	}
 }
 
@@ -42,10 +40,7 @@ func (m *CMSEnumerator) Handle(ctx context.Context, evt models.Event) ([]models.
 		return nil, nil
 	}
 
-	targetIP := evt.Target
-	if idx := strings.Index(targetIP, ":"); idx != -1 {
-		targetIP = targetIP[:idx]
-	}
+	targetIP := eventHost(evt.Target)
 
 	if !m.guard.Allowed(targetIP) {
 		return nil, nil
@@ -113,11 +108,9 @@ type FrameworkEnumerator struct {
 
 func NewFrameworkEnumerator(db *store.SQLiteCLI, guard scope.Guard) *FrameworkEnumerator {
 	return &FrameworkEnumerator{
-		db:    db,
-		guard: guard,
-		client: &http.Client{
-			Timeout: 3 * time.Second,
-		},
+		db:     db,
+		guard:  guard,
+		client: scopedHTTPClient(guard, 3*time.Second, nil),
 	}
 }
 
@@ -134,10 +127,7 @@ func (m *FrameworkEnumerator) Handle(ctx context.Context, evt models.Event) ([]m
 		return nil, nil
 	}
 
-	targetIP := evt.Target
-	if idx := strings.Index(targetIP, ":"); idx != -1 {
-		targetIP = targetIP[:idx]
-	}
+	targetIP := eventHost(evt.Target)
 
 	if !m.guard.Allowed(targetIP) {
 		return nil, nil
@@ -190,11 +180,9 @@ type EnterpriseAppEnumerator struct {
 
 func NewEnterpriseAppEnumerator(db *store.SQLiteCLI, guard scope.Guard) *EnterpriseAppEnumerator {
 	return &EnterpriseAppEnumerator{
-		db:    db,
-		guard: guard,
-		client: &http.Client{
-			Timeout: 3 * time.Second,
-		},
+		db:     db,
+		guard:  guard,
+		client: scopedHTTPClient(guard, 3*time.Second, nil),
 	}
 }
 
@@ -211,10 +199,7 @@ func (m *EnterpriseAppEnumerator) Handle(ctx context.Context, evt models.Event) 
 		return nil, nil
 	}
 
-	targetIP := evt.Target
-	if idx := strings.Index(targetIP, ":"); idx != -1 {
-		targetIP = targetIP[:idx]
-	}
+	targetIP := eventHost(evt.Target)
 
 	if !m.guard.Allowed(targetIP) {
 		return nil, nil
@@ -304,11 +289,9 @@ type FrontendFrameworkDetector struct {
 
 func NewFrontendFrameworkDetector(db *store.SQLiteCLI, guard scope.Guard) *FrontendFrameworkDetector {
 	return &FrontendFrameworkDetector{
-		db:    db,
-		guard: guard,
-		client: &http.Client{
-			Timeout: 3 * time.Second,
-		},
+		db:     db,
+		guard:  guard,
+		client: scopedHTTPClient(guard, 3*time.Second, nil),
 	}
 }
 
@@ -317,7 +300,9 @@ func (m *FrontendFrameworkDetector) Name() string {
 }
 
 func (m *FrontendFrameworkDetector) Subscriptions() []string {
-	return []string{"url.crawled"}
+	// HTTP enumeration emits http.url events. Subscribing to the historical
+	// url.crawled name left this detector permanently disconnected.
+	return []string{EventHTTPURL}
 }
 
 func (m *FrontendFrameworkDetector) Handle(ctx context.Context, evt models.Event) ([]models.Event, error) {

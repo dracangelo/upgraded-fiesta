@@ -1,0 +1,39 @@
+# Bounded continuous-monitoring template. Replace placeholders, retain written
+# authorization, set an interval appropriate to the engagement, then run:
+# make monitor CONFIG=configs/monitor.template.yaml
+database:
+  path: "data/enumscan-monitor.sqlite"
+  encryption_key_env: "ENUMSCAN_DATASTORE_KEY"
+
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+
+scheduler:
+  concurrency: 1
+  enable_adaptive_workers: false
+  min_concurrency: 1
+  global_rate_limit_ms: 1000
+  per_target_rate_limit_ms: 1500
+  module_timeout_ms: 10000
+
+portscan:
+  profile: "quick"
+  tcp_ports: [80, 443]
+  udp_ports: []
+  enable_tcp: true
+  enable_udp: false
+  enable_banner: false
+  max_concurrent_ports: 2
+  base_timeout_ms: 1000
+  max_timeout_ms: 3000
+
+scan:
+  profile: "quick"
+  targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+  ports: [80, 443]
+
+monitoring:
+  enabled: true
+  interval_minutes: 60
+  max_runs: 24

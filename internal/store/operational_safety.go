@@ -15,7 +15,16 @@ func (s *SQLiteCLI) RecordModuleRun(ctx context.Context, run models.ModuleRun) e
 	if s == nil || s.db == nil {
 		return fmt.Errorf("database connection is nil")
 	}
-	_, err := s.db.ExecContext(ctx, `INSERT INTO module_runs(scan_id,module,event_type,target,status,duration_ms,error) VALUES(?,?,?,?,?,?,?)`,
+	var err error
+	run.Target, err = s.seal("module_runs.target", run.Target)
+	if err != nil {
+		return err
+	}
+	run.Error, err = s.seal("module_runs.error", run.Error)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO module_runs(scan_id,module,event_type,target,status,duration_ms,error) VALUES(?,?,?,?,?,?,?)`,
 		run.ScanID, run.Module, run.EventType, run.Target, run.Status, run.Duration.Milliseconds(), run.Error)
 	return err
 }

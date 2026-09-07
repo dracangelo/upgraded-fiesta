@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -38,6 +39,43 @@ func (d Discovery) discoverDNSRecords(ctx context.Context, scanID, domain string
 			_ = d.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "dns_dmarc", Value: value, Parent: domain, Metadata: "source=dns_txt"})
 		}
 	}
+	if canonical, err := net.DefaultResolver.LookupCNAME(ctx, domain); err == nil {
+		canonical = strings.TrimSuffix(strings.ToLower(canonical), ".")
+		if canonical != "" && canonical != strings.TrimSuffix(strings.ToLower(domain), ".") {
+			_ = d.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "dns_cname", Value: canonical, Parent: domain, Metadata: "source=resolver"})
+		}
+	}
+	if records, err := net.DefaultResolver.LookupMX(ctx, domain); err == nil {
+		for _, record := range records {
+			host := strings.TrimSuffix(strings.ToLower(record.Host), ".")
+			if host == "" {
+				continue
+			}
+			_ = d.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "dns_mx", Value: host, Parent: domain, Metadata: fmt.Sprintf("preference=%d;source=resolver", record.Pref)})
+		}
+	}
+	if records, err := net.DefaultResolver.LookupNS(ctx, domain); err == nil {
+		for _, record := range records {
+			host := strings.TrimSuffix(strings.ToLower(record.Host), ".")
+			if host == "" {
+				continue
+			}
+			_ = d.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "dns_ns", Value: host, Parent: domain, Metadata: "source=resolver"})
+		}
+	}
+	if addresses, err := net.DefaultResolver.LookupIPAddr(ctx, domain); err == nil {
+		for _, address := range addresses {
+			if address.IP == nil {
+				continue
+			}
+			kind := "dns_a"
+			if address.IP.To4() == nil {
+				kind = "dns_aaaa"
+			}
+			_ = d.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: kind, Value: address.IP.String(), Parent: domain, Metadata: "source=resolver"})
+		}
+	}
+	d.discoverDNSAuthorityRecords(ctx, scanID, domain)
 	for _, service := range []struct{ service, proto string }{{"_http", "_tcp"}, {"_https", "_tcp"}, {"_sip", "_tcp"}, {"_sip", "_udp"}, {"_xmpp-client", "_tcp"}} {
 		_, records, err := net.DefaultResolver.LookupSRV(ctx, service.service, service.proto, domain)
 		if err != nil {
@@ -107,7 +145,9 @@ func (d Discovery) probeLiveHost(ctx context.Context, scanID, host, parent strin
 		}
 		communities := d.config.SNMPCommunities
 		if len(communities) == 0 {
-			communities = []string{"public", "private"}
+			// SNMP community strings are credentials. Enabling the probe alone
+			// must not turn into a default-credential guess.
+			return
 		}
 		for _, port := range ports {
 			for _, comm := range communities {
@@ -188,12 +228,17 @@ func dnsProbePayload() []byte {
 
 var captureIP = regexp.MustCompile(`(?i)(?:\b(?:ip6?|arp)\s+)?(?:\[)?([0-9a-f:.]{2,})\]?`)
 var captureHost = regexp.MustCompile(`(?i)\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}\b`)
+var captureTCPTraitSource = regexp.MustCompile(`(?i)\bIP(?:\s+\([^)]*\))?\s+((?:\d{1,3}\.){3}\d{1,3})(?:\.(\d{1,5}))?\s+>`)
+var captureTTL = regexp.MustCompile(`(?i)\bttl\s+(\d{1,3})\b`)
+var captureWindow = regexp.MustCompile(`(?i)\bwin\s+(\d+)\b`)
+var captureOptions = regexp.MustCompile(`(?i)\boptions\s+\[([^\]]{1,300})\]`)
 
 // importCaptureObservations imports existing tcpdump/tshark text exports. It
 // is intentionally offline: live packet capture requires explicit platform
 // privileges and is not silently attempted by a scan.
 func (d Discovery) importCaptureObservations(ctx context.Context, scanID, parent string) []models.Event {
 	next, seen := make([]models.Event, 0), map[string]bool{}
+	seenTraits := make(map[string]bool)
 	for _, path := range d.config.PassiveCaptureFiles {
 		file, err := os.Open(path)
 		if err != nil {
@@ -203,6 +248,7 @@ func (d Discovery) importCaptureObservations(ctx context.Context, scanID, parent
 		scanner.Buffer(make([]byte, 4096), 1024*1024)
 		for scanner.Scan() {
 			line := scanner.Text()
+			next = append(next, d.importTCPTraits(ctx, scanID, parent, line, seenTraits)...)
 			for _, match := range captureIP.FindAllStringSubmatch(line, -1) {
 				value := normalizeCaptureIP(match[1])
 				if net.ParseIP(value) == nil || !d.guard.Allowed(value) || seen[value] {
@@ -225,6 +271,64 @@ func (d Discovery) importCaptureObservations(ctx context.Context, scanID, parent
 		_ = file.Close()
 	}
 	return next
+}
+
+// importTCPTraits accepts tcpdump/tshark text exports supplied by the
+// operator. It never opens a socket. A trait must include an observed TTL, so
+// ordinary capture lines cannot become an OS-family hint by accident.
+func (d Discovery) importTCPTraits(ctx context.Context, scanID, parent, line string, seen map[string]bool) []models.Event {
+	endpoint := captureTCPTraitSource.FindStringSubmatch(line)
+	ttlMatch := captureTTL.FindStringSubmatch(line)
+	if len(endpoint) < 2 || len(ttlMatch) < 2 {
+		return nil
+	}
+	host := endpoint[1]
+	if net.ParseIP(host) == nil || !d.guard.Allowed(host) {
+		return nil
+	}
+	ttl, err := strconv.Atoi(ttlMatch[1])
+	if err != nil || ttl < 1 || ttl > 255 {
+		return nil
+	}
+	port := ""
+	if len(endpoint) > 2 {
+		port = endpoint[2]
+	}
+	if port != "" {
+		value, err := strconv.Atoi(port)
+		if err != nil || value < 1 || value > 65535 {
+			port = ""
+		}
+	}
+	window := ""
+	if match := captureWindow.FindStringSubmatch(line); len(match) > 1 {
+		window = match[1]
+	}
+	options := ""
+	if match := captureOptions.FindStringSubmatch(line); len(match) > 1 {
+		options = cleanEvidence(match[1])
+	}
+	target := host
+	if port != "" {
+		target = net.JoinHostPort(host, port)
+	}
+	key := target + "|" + ttlMatch[1] + "|" + window + "|" + options
+	if seen[key] {
+		return nil
+	}
+	seen[key] = true
+	metadata := fmt.Sprintf("source=packet_capture_import;ttl=%d", ttl)
+	if window != "" {
+		metadata += ";tcp_window=" + window
+	}
+	if options != "" {
+		metadata += ";tcp_options=" + options
+	}
+	_ = d.db.AddAsset(ctx, models.Asset{ScanID: scanID, Type: "passive_tcp_traits", Value: target, Parent: parent, Metadata: metadata})
+	return []models.Event{{
+		ScanID: scanID, Type: EventPassiveTCPTraits, Target: target,
+		Data: map[string]string{"source": "packet_capture_import", "ttl": ttlMatch[1], "tcp_window": window, "tcp_options": options},
+	}}
 }
 
 func normalizeCaptureIP(value string) string {
@@ -437,69 +541,4 @@ func buildSNMPGetRequest(community string) []byte {
 	msgBody = append(msgBody, pdu...)
 
 	return append([]byte{0x30, byte(len(msgBody))}, msgBody...)
-}
-
-func (d Discovery) captureLiveTraffic(ctx context.Context, scanID, parent string) []models.Event {
-	htonsETH_P_ALL := uint16(0x0300)
-	fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW, int(htonsETH_P_ALL))
-	if err != nil {
-		_ = d.db.AddAsset(ctx, models.Asset{
-			ScanID:   scanID,
-			Type:     "discovery_note",
-			Value:    parent,
-			Metadata: "live_packet_capture_status=disabled_or_unprivileged",
-		})
-		return nil
-	}
-	defer syscall.Close(fd)
-
-	dur := d.config.CaptureDurationMS
-	if dur <= 0 {
-		dur = 1000
-	}
-	sec := int64(dur / 1000)
-	usec := int64((dur % 1000) * 1000)
-	tv := syscall.Timeval{Sec: sec, Usec: usec}
-	_ = syscall.SetsockoptTimeval(fd, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv)
-
-	buf := make([]byte, 4096)
-	deadline := time.Now().Add(time.Duration(dur) * time.Millisecond)
-	next := make([]models.Event, 0)
-	seen := make(map[string]bool)
-
-	for time.Now().Before(deadline) {
-		select {
-		case <-ctx.Done():
-			return next
-		default:
-		}
-		n, _, err := syscall.Recvfrom(fd, buf, 0)
-		if err != nil || n < 14 {
-			break
-		}
-		ethProto := binary.BigEndian.Uint16(buf[12:14])
-		if ethProto == 0x0800 && n >= 34 {
-			srcIP := net.IP(buf[26:30]).String()
-			dstIP := net.IP(buf[30:34]).String()
-			for _, ip := range []string{srcIP, dstIP} {
-				if ip != "" && d.guard.Allowed(ip) && !seen[ip] {
-					seen[ip] = true
-					_ = d.db.AddAsset(ctx, models.Asset{
-						ScanID:   scanID,
-						Type:     "passive_observed_ip",
-						Value:    ip,
-						Parent:   parent,
-						Metadata: "source=live_packet_capture",
-					})
-					next = append(next, models.Event{
-						ScanID: scanID,
-						Type:   EventHost,
-						Target: ip,
-						Data:   map[string]string{"source": "live_packet_capture"},
-					})
-				}
-			}
-		}
-	}
-	return next
 }

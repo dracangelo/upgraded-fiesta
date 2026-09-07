@@ -62,6 +62,7 @@ func TestEndToEndRuntimeScanWithFixtures(t *testing.T) {
 	cfg := config.Default()
 	cfg.Database.Path = dbPath
 	cfg.Scan.Targets = []string{"127.0.0.1"}
+	cfg.Scope.Authorization = "TEST-AUTHORIZED-LOCAL-FIXTURE"
 	cfg.Scope.AllowedTargets = []string{"127.0.0.1", "localhost", httpAddr}
 	cfg.Scheduler.Concurrency = 4
 

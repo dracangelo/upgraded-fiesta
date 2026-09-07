@@ -1,7 +1,9 @@
 package reporting
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -22,6 +24,9 @@ func Write(ctx context.Context, db *store.SQLiteCLI, scanID, format, outputDir s
 	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		return "", err
 	}
+	if err := os.Chmod(outputDir, 0700); err != nil {
+		return "", fmt.Errorf("restrict report directory permissions: %w", err)
+	}
 	assets, err := db.Assets(ctx, scanID)
 	if err != nil {
 		return "", err
@@ -38,37 +43,79 @@ func Write(ctx context.Context, db *store.SQLiteCLI, scanID, format, outputDir s
 		if err != nil {
 			return "", err
 		}
-		return path, os.WriteFile(path, data, 0600)
+		return path, writePrivateFile(path, data)
 	case "markdown", "md":
 		path := filepath.Join(outputDir, scanID+".md")
-		return path, os.WriteFile(path, []byte(markdown(r)), 0600)
+		return path, writePrivateFile(path, []byte(markdown(r)))
+	case "executive", "executive-summary":
+		path := filepath.Join(outputDir, scanID+"-executive.md")
+		return path, writePrivateFile(path, []byte(ExecutiveSummary(r)))
+	case "technical", "technical-summary":
+		path := filepath.Join(outputDir, scanID+"-technical.md")
+		return path, writePrivateFile(path, []byte(TechnicalSummary(r)))
+	case "triage", "recommendations":
+		path := filepath.Join(outputDir, scanID+"-triage.md")
+		return path, writePrivateFile(path, []byte(TriageReport(r)))
 	case "html":
 		path := filepath.Join(outputDir, scanID+".html")
-		return path, os.WriteFile(path, []byte(ExportHTML(r)), 0600)
+		return path, writePrivateFile(path, []byte(ExportHTML(r)))
 	case "pdf":
 		path := filepath.Join(outputDir, scanID+".pdf")
-		return path, os.WriteFile(path, ExportPDFText(r), 0600)
+		return path, writePrivateFile(path, ExportPDFText(r))
 	case "sarif":
 		path := filepath.Join(outputDir, scanID+".sarif")
 		data, err := ExportSARIF(r)
 		if err != nil {
 			return "", err
 		}
-		return path, os.WriteFile(path, data, 0600)
+		return path, writePrivateFile(path, data)
+	case "csv":
+		path := filepath.Join(outputDir, scanID+".csv")
+		return path, writePrivateFile(path, ExportCSV(r))
 	case "neo4j", "cypher":
 		path := filepath.Join(outputDir, scanID+".cypher")
 		cypherText := ExportNeo4jCypher(r)
-		return path, os.WriteFile(path, []byte(cypherText), 0600)
+		return path, writePrivateFile(path, []byte(cypherText))
 	case "neo4j-json":
 		path := filepath.Join(outputDir, scanID+".neo4j.json")
 		data, err := ExportNeo4jJSON(r)
 		if err != nil {
 			return "", err
 		}
-		return path, os.WriteFile(path, data, 0600)
+		return path, writePrivateFile(path, data)
 	default:
 		return "", fmt.Errorf("unsupported report format %q", format)
 	}
+}
+
+func writePrivateFile(path string, data []byte) error {
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		return err
+	}
+	return os.Chmod(path, 0600)
+}
+
+// ExportCSV creates a spreadsheet-safe flat finding report. Assets remain in
+// richer report formats because flattening them into finding rows is ambiguous.
+func ExportCSV(r report) []byte {
+	var out bytes.Buffer
+	writer := csv.NewWriter(&out)
+	_ = writer.Write([]string{"scan_id", "severity", "confidence", "verification", "asset", "title", "cve", "cwe", "cvss", "epss", "kev", "evidence", "remediation", "references"})
+	for _, finding := range r.Findings {
+		verification := finding.Verification
+		if verification == "" {
+			verification = "confirmed"
+		}
+		_ = writer.Write([]string{
+			r.ScanID, finding.Severity, finding.Confidence, verification, finding.Asset,
+			finding.Title, finding.CVE, finding.CWE,
+			fmt.Sprintf("%.1f", finding.CVSS), fmt.Sprintf("%.4f", finding.EPSS),
+			fmt.Sprintf("%t", finding.KEV), finding.Evidence, finding.Remediation,
+			strings.Join(finding.References, " | "),
+		})
+	}
+	writer.Flush()
+	return out.Bytes()
 }
 
 func markdown(r report) string {

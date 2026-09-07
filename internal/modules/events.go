@@ -1,10 +1,11 @@
 package modules
 
 const (
-	EventTarget       = "target.discovered"
-	EventHost         = "host.discovered"
-	EventPort         = "port.open"
-	EventHTTPURL      = "http.url"
-	EventService      = "service.fingerprinted"
-	EventAssetChanged = "asset.changed"
+	EventTarget           = "target.discovered"
+	EventHost             = "host.discovered"
+	EventPort             = "port.open"
+	EventHTTPURL          = "http.url"
+	EventService          = "service.fingerprinted"
+	EventAssetChanged     = "asset.changed"
+	EventPassiveTCPTraits = "passive.tcp_traits"
 )

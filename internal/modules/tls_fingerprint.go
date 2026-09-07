@@ -37,10 +37,7 @@ func (m *TLSFingerprinter) Handle(ctx context.Context, evt models.Event) ([]mode
 		return nil, nil
 	}
 
-	targetIP := evt.Target
-	if idx := strings.Index(targetIP, ":"); idx != -1 {
-		targetIP = targetIP[:idx]
-	}
+	targetIP := eventHost(evt.Target)
 
 	if !m.guard.Allowed(targetIP) {
 		return nil, nil
@@ -89,17 +86,6 @@ func (m *TLSFingerprinter) Handle(ctx context.Context, evt models.Event) ([]mode
 		}
 	}
 
-	// Perform SSL/TLS Vulnerability Checks (Heartbleed, ROBOT, CRIME, BREACH)
-	for _, vuln := range checkTLSVulnerabilities(evt.Target, state) {
-		_ = m.db.AddAsset(ctx, models.Asset{
-			ScanID:   evt.ScanID,
-			Type:     "vulnerability",
-			Value:    vuln.Name,
-			Parent:   evt.Target,
-			Metadata: fmt.Sprintf("severity=%s;cve=%s;evidence=%s", vuln.Severity, vuln.CVE, vuln.Evidence),
-		})
-	}
-
 	// OCSP Certificate Status Checking
 	if len(state.PeerCertificates) > 0 {
 		cert := state.PeerCertificates[0]
@@ -119,45 +105,18 @@ func (m *TLSFingerprinter) Handle(ctx context.Context, evt models.Event) ([]mode
 type tlsVuln struct{ Name, Severity, CVE, Evidence string }
 
 func checkTLSVulnerabilities(target string, state tls.ConnectionState) []tlsVuln {
-	vulns := make([]tlsVuln, 0)
-
-	// Heartbleed Check
-	if state.Version == tls.VersionTLS10 || state.Version == tls.VersionTLS11 || state.Version == tls.VersionTLS12 {
-		if isHeartbleedVulnerable(target) {
-			vulns = append(vulns, tlsVuln{
-				Name:     "Heartbleed OpenSSL TLS Heartbeat Extension Vulnerability",
-				Severity: "high",
-				CVE:      "CVE-2014-0160",
-				Evidence: "TLS Heartbeat extension response memory leak detected",
-			})
-		}
-	}
-
-	// ROBOT Check (Bleichenbacher RSA padding oracle)
-	if isRSACipherSuite(state.CipherSuite) {
-		vulns = append(vulns, tlsVuln{
-			Name:     "ROBOT RSA Padding Oracle Vulnerability",
-			Severity: "medium",
-			CVE:      "CVE-2017-13099",
-			Evidence: fmt.Sprintf("RSA PKCS#1 v1.5 cipher suite 0x%x enabled without TLS 1.3 requirement", state.CipherSuite),
-		})
-	}
-
-	// CRIME / BREACH Checks (TLS/HTTP Compression)
-	if state.Version < tls.VersionTLS13 {
-		vulns = append(vulns, tlsVuln{
-			Name:     "CRIME TLS Compression Side-Channel Leakage",
-			Severity: "low",
-			CVE:      "CVE-2012-4929",
-			Evidence: "Pre-TLS 1.3 protocol version negotiation without strict compression disablement",
-		})
-	}
-
-	return vulns
+	// These vulnerabilities cannot be established from a normal TLS handshake.
+	// Heartbleed needs a heartbeat-memory-leak proof, ROBOT needs an oracle
+	// comparison, and CRIME/BREACH need compression behavior correlated with a
+	// secret-bearing response. Returning no finding is deliberate: callers must
+	// use a dedicated, explicitly authorized verifier before claiming any of
+	// them as detected.
+	return nil
 }
 
 func isHeartbleedVulnerable(target string) bool {
-	// Probe TLS Heartbeat payload
+	// No synthetic heartbeat claim: this function remains false until a real,
+	// dedicated verifier is supplied by an explicitly authorized integration.
 	return false
 }
 

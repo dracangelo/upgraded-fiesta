@@ -1,0 +1,10 @@
+{
+  "name": "community_technology_tag",
+  "version": "1.0.0",
+  "author": "enumscan-community",
+  "description": "Records an observed technology from an existing scoped event.",
+  "type": "lua",
+  "exec": "technology_tag.lua",
+  "permissions": ["store_write"],
+  "subscriptions": ["technology.detected"]
+}

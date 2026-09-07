@@ -26,7 +26,14 @@ func NewPluginSigner(pubKeyHex string) (*PluginSigner, error) {
 		return nil, fmt.Errorf("invalid public key hex: %w", err)
 	}
 
+	if len(keyBytes) != ed25519.PublicKeySize {
+		return nil, fmt.Errorf("invalid Ed25519 public key length")
+	}
 	return &PluginSigner{publicKey: ed25519.PublicKey(keyBytes)}, nil
+}
+
+func (s *PluginSigner) VerifyBytes(data, signature []byte) bool {
+	return s != nil && len(s.publicKey) == ed25519.PublicKeySize && ed25519.Verify(s.publicKey, data, signature)
 }
 
 func (s *PluginSigner) VerifyPlugin(pluginFilePath, sigFilePath string) (bool, error) {

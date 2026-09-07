@@ -1,883 +1,1631 @@
 package api
 
-const dashboardHTML = `<!doctype html>
+const dashboardHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>enumscan operator console</title>
-  <!-- API Wiring: /api/v1/assets /api/v1/findings /api/v1/events /api/v1/graph /api/v1/screenshots /api/v1/scans/run /api/v1/saved-queries /api/v1/timeline /api/v1/drift /api/v1/reports/changes /api/v1/events/ws id="target" 192.168.56.0/24 asList -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style>
-    :root {
-      --bg: #090d16;
-      --sidebar: #0d1424;
-      --card: #131d33;
-      --line: #223454;
-      --text: #f0f6ff;
-      --muted: #8fa5c7;
-      --blue: #58a6ff;
-      --blue-glow: rgba(88, 166, 255, 0.15);
-      --red: #ff6b7a;
-      --green: #3fb950;
-      --orange: #f0883e;
-      --purple: #bc8cff;
-    }
-    body.light {
-      --bg: #f4f7fb;
-      --sidebar: #ffffff;
-      --card: #ffffff;
-      --line: #dce5f1;
-      --text: #162238;
-      --muted: #60728c;
-      --blue: #0969da;
-      --blue-glow: rgba(9, 105, 218, 0.1);
-      --red: #cf222e;
-      --green: #1a7f37;
-      --orange: #bc4c00;
-      --purple: #8250df;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-    .app-container {
-      display: flex;
-      min-height: 100vh;
-    }
-    .sidebar {
-      width: 260px;
-      background: var(--sidebar);
-      border-right: 1px solid var(--line);
-      display: flex;
-      flex-direction: column;
-      padding: 20px 14px;
-      flex-shrink: 0;
-    }
-    .brand {
-      font-size: 22px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      margin-bottom: 28px;
-      padding: 0 10px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .brand span { color: var(--blue); }
-    .nav-menu {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    .nav-item button {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 14px;
-      border: 1px solid transparent;
-      border-radius: 8px;
-      background: transparent;
-      color: var(--muted);
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      text-align: left;
-    }
-    .nav-item button:hover {
-      background: var(--blue-glow);
-      color: var(--text);
-    }
-    .nav-item.active button {
-      background: var(--blue-glow);
-      color: var(--blue);
-      border-color: rgba(88, 166, 255, 0.3);
-    }
-    .nav-badge {
-      margin-left: auto;
-      background: var(--line);
-      color: var(--text);
-      font-size: 11px;
-      padding: 2px 7px;
-      border-radius: 12px;
-    }
-    .main-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-    }
-    .top-header {
-      height: 64px;
-      border-bottom: 1px solid var(--line);
-      padding: 0 28px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      background: var(--card);
-    }
-    .scan-input {
-      background: var(--bg);
-      border: 1px solid var(--line);
-      color: var(--text);
-      padding: 8px 12px;
-      border-radius: 6px;
-      width: 220px;
-      font-weight: 500;
-    }
-    .header-actions {
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .btn {
-      background: var(--card);
-      border: 1px solid var(--line);
-      color: var(--text);
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .btn-primary {
-      background: var(--blue);
-      color: #051120;
-      border-color: transparent;
-    }
-    .btn-warn {
-      background: rgba(240, 136, 62, 0.2);
-      color: var(--orange);
-      border-color: var(--orange);
-    }
-    .status-badge {
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .status-ok { background: rgba(63, 185, 80, 0.15); color: var(--green); border: 1px solid var(--green); }
-    .status-bad { background: rgba(255, 107, 122, 0.15); color: var(--red); border: 1px solid var(--red); }
-    .content-area {
-      padding: 28px;
-      flex: 1;
-      overflow-y: auto;
-    }
-    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-    .metric-card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 20px;
-    }
-    .metric-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; }
-    .metric-val { font-size: 32px; font-weight: 800; margin-top: 6px; }
-    .card-title { font-size: 16px; font-weight: 700; margin: 0 0 16px; display: flex; justify-content: space-between; align-items: center; }
-    .table { width: 100%; border-collapse: collapse; }
-    .table th { text-align: left; padding: 10px 12px; color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--line); }
-    .table td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
-    .pill { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; background: var(--line); color: var(--text); cursor: pointer; }
-    .pill.active { background: var(--blue); color: #051120; }
-    .pill-red { background: rgba(255, 107, 122, 0.2); color: var(--red); }
-    .pill-orange { background: rgba(240, 136, 62, 0.2); color: var(--orange); }
-    .pill-green { background: rgba(63, 185, 80, 0.2); color: var(--green); }
-    .graph-container {
-      width: 100%;
-      height: 380px;
-      background: rgba(0, 0, 0, 0.25);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-    }
-    .progress-bar-bg { width: 100%; height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; margin-top: 8px; }
-    .progress-bar-fill { height: 100%; background: var(--blue); transition: width 0.3s ease; }
-    .log-terminal { background: #050810; font-family: monospace; font-size: 12px; padding: 14px; border-radius: 8px; height: 300px; overflow-y: auto; color: #a0b0d0; border: 1px solid var(--line); }
-  </style>
+<meta charset="UTF-8">
+<title>Recon OS — Enumeration Console</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- API Wiring: /api/v1/assets /api/v1/findings /api/v1/findings/stream /api/v1/events /api/v1/graph /api/v1/neo4j/graph /api/v1/screenshots /api/v1/scans/run /api/v1/integrations /api/v1/saved-queries /api/v1/timeline /api/v1/drift /api/v1/reports/changes /api/v1/knowledge-graph /api/v1/knowledge-graph/query /api/v1/events/ws id="target" 192.168.56.0/24 asList -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root {
+    --ink: #0A111F;
+    --panel: #111C2E;
+    --panel-2: #16233A;
+    --panel-3: #1B2A44;
+    --grid: #223252;
+    --grid-soft: #1A2740;
+    --brass: #C89B3C;
+    --brass-soft: #8A6D2C;
+    --brass-glow: rgba(200,155,60,0.18);
+    --rust: #C4432B;
+    --rust-glow: rgba(196,67,43,0.16);
+    --amber: #D9922F;
+    --teal: #4FA98A;
+    --blue: #5B7FA6;
+    --parchment: #E8E4D8;
+    --muted: #8B98AD;
+    --muted-2: #4C5A73;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'IBM Plex Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+
+  body.light-theme {
+    --ink: #f0f4f8;
+    --panel: #ffffff;
+    --panel-2: #e6ecf5;
+    --panel-3: #dbe4f0;
+    --grid: #cbd5e1;
+    --grid-soft: #e2e8f0;
+    --brass: #b3822a;
+    --brass-soft: #7a581a;
+    --brass-glow: rgba(179,130,42,0.15);
+    --rust: #a82e18;
+    --rust-glow: rgba(168,46,24,0.12);
+    --amber: #b8731d;
+    --teal: #2f8566;
+    --blue: #3b5f85;
+    --parchment: #1a2333;
+    --muted: #52637a;
+    --muted-2: #8494ab;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    background:
+      radial-gradient(ellipse at 15% 0%, rgba(200,155,60,0.05), transparent 45%),
+      radial-gradient(ellipse at 85% 100%, rgba(91,127,166,0.06), transparent 50%),
+      var(--ink);
+    color: var(--parchment);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  .chart-grid {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  button, input, select { font-family: inherit; }
+  button { cursor: pointer; }
+
+  ::selection { background: var(--brass-glow); color: var(--parchment); }
+
+  .shell {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 248px 1fr;
+    grid-template-rows: 64px 1fr;
+    grid-template-areas:
+      "brand header"
+      "nav main";
+    min-height: 100vh;
+  }
+
+  .brand {
+    grid-area: brand;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 22px;
+    border-bottom: 1px solid var(--grid-soft);
+    border-right: 1px solid var(--grid-soft);
+    background: var(--panel);
+  }
+  .brand-mark {
+    width: 26px; height: 26px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .brand-mark svg { width: 100%; height: 100%; }
+  .brand-text {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 15.5px;
+    letter-spacing: 0.02em;
+    color: var(--parchment);
+  }
+  .brand-text span { color: var(--brass); }
+  .brand-sub {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: var(--muted-2);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-top: 1px;
+  }
+
+  .header {
+    grid-area: header;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 26px;
+    border-bottom: 1px solid var(--grid-soft);
+    background: var(--panel);
+    gap: 20px;
+  }
+  .target-block {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .target-name {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--parchment);
+  }
+  .target-name b { color: var(--brass); font-weight: 600; }
+  .scan-input {
+    width: 170px;
+    color: var(--parchment);
+    background: var(--panel-2);
+    border: 1px solid var(--grid);
+    border-radius: 3px;
+    padding: 6px 9px;
+    font: 11px var(--font-mono);
+  }
+  .scan-input:focus { outline: 1px solid var(--brass); border-color: var(--brass); }
+  .scope-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--teal);
+    border: 1px solid rgba(79,169,138,0.35);
+    background: rgba(79,169,138,0.08);
+    padding: 4px 9px;
+    border-radius: 3px;
+  }
+  .scope-badge::before {
+    content: '';
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--teal);
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .scan-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .radar {
+    position: relative;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 1px solid var(--grid);
+    background: var(--panel-2);
+    overflow: hidden;
+  }
+  .radar::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: conic-gradient(from 0deg, var(--brass) 0deg, transparent 55deg, transparent 360deg);
+    animation: sweep 2.6s linear infinite;
+    opacity: 0.85;
+  }
+  .radar::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    background: var(--ink);
+    z-index: 1;
+  }
+  @keyframes sweep { to { transform: rotate(360deg); } }
+  .status-text { font-family: var(--font-mono); font-size: 11.5px; }
+  .status-text .phase { color: var(--muted); }
+  .status-text .n { color: var(--brass); font-weight: 600; }
+
+  .profile-pill {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--grid);
+    padding: 5px 10px;
+    border-radius: 3px;
+    background: var(--panel-2);
+  }
+  .profile-pill b { color: var(--parchment); font-weight: 500; }
+
+  .icon-btn {
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--grid);
+    border-radius: 4px;
+    background: var(--panel-2);
+    color: var(--muted);
+  }
+  .icon-btn:hover { color: var(--brass); border-color: var(--brass-soft); }
+  .icon-btn svg { width: 15px; height: 15px; }
+
+  .avatar {
+    width: 30px; height: 30px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, var(--brass), var(--brass-soft));
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-weight: 600; font-size: 11px;
+    color: var(--ink);
+  }
+
+  .nav {
+    grid-area: nav;
+    background: var(--panel);
+    border-right: 1px solid var(--grid-soft);
+    padding: 16px 12px;
+    overflow-y: auto;
+  }
+  .nav-label {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted-2);
+    padding: 10px 10px 6px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 5px;
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 1px;
+    border: 1px solid transparent;
+    position: relative;
+    cursor: pointer;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+  }
+  .nav-item:hover { background: var(--panel-2); color: var(--parchment); }
+  .nav-item.active {
+    background: var(--panel-3);
+    color: var(--parchment);
+    border-color: var(--grid);
+  }
+  .nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: -12px; top: 8px; bottom: 8px;
+    width: 2px;
+    background: var(--brass);
+    border-radius: 2px;
+  }
+  .nav-phase {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: var(--muted-2);
+    width: 16px;
+  }
+  .nav-item.active .nav-phase { color: var(--brass); }
+  .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.85; }
+  .nav-item span.label { flex: 1; }
+  .nav-count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--muted-2);
+    background: var(--grid-soft);
+    padding: 1px 6px;
+    border-radius: 8px;
+  }
+  .nav-count.warn { color: var(--rust); background: var(--rust-glow); }
+  .nav-divider {
+    height: 1px;
+    background: var(--grid-soft);
+    margin: 10px 4px;
+  }
+
+  .main {
+    grid-area: main;
+    padding: 24px 28px 48px;
+    overflow-y: auto;
+    max-height: calc(100vh - 64px);
+  }
+  .view { animation: fadein 0.35s ease; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .view-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .view-title {
+    font-family: var(--font-display);
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  .view-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--brass);
+    margin-bottom: 4px;
+  }
+  .view-desc { color: var(--muted); font-size: 13px; margin-top: 4px; max-width: 640px; }
+
+  .btn {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.03em;
+    padding: 7px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--grid);
+    background: var(--panel-2);
+    color: var(--parchment);
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .btn:hover { border-color: var(--brass-soft); }
+  .btn.primary {
+    background: linear-gradient(180deg, var(--brass), var(--brass-soft));
+    color: #14100A;
+    border-color: transparent;
+    font-weight: 600;
+  }
+  .btn svg { width: 13px; height: 13px; }
+
+  .grid { display: grid; gap: 16px; }
+  .grid.stats { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid.cols-2 { grid-template-columns: 1.4fr 1fr; }
+  .grid.cols-2b { grid-template-columns: 1fr 1fr; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--grid-soft);
+    border-radius: 7px;
+    padding: 18px;
+  }
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .card-title {
+    font-family: var(--font-display);
+    font-size: 13.5px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title svg { width: 15px; height: 15px; color: var(--brass); }
+  .card-more { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
+
+  .stat-card { position: relative; overflow: hidden; }
+  .stat-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .stat-value {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .stat-foot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted-2);
+  }
+  .stat-foot.up { color: var(--teal); }
+  .stat-foot.warn { color: var(--rust); }
+  .stat-card.accent-rust .stat-value { color: var(--rust); }
+  .stat-card.accent-amber .stat-value { color: var(--amber); }
+  .stat-card.accent-brass .stat-value { color: var(--brass); }
+  .stat-card.accent-teal .stat-value { color: var(--teal); }
+
+  .pipeline {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .pl-step {
+    flex: 0 0 auto;
+    width: 120px;
+    padding-right: 12px;
+    position: relative;
+  }
+  .pl-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 15px; right: 0;
+    width: 12px; height: 1px;
+    background: repeating-linear-gradient(90deg, var(--grid) 0 4px, transparent 4px 7px);
+  }
+  .pl-dot {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    border: 1px solid var(--grid);
+    background: var(--panel-2);
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .pl-step.done .pl-dot { background: rgba(79,169,138,0.12); border-color: rgba(79,169,138,0.4); color: var(--teal); }
+  .pl-step.active .pl-dot { background: var(--brass-glow); border-color: var(--brass); color: var(--brass); box-shadow: 0 0 0 3px rgba(200,155,60,0.08); }
+  .pl-name { font-size: 12px; color: var(--parchment); font-weight: 500; margin-bottom: 2px; }
+  .pl-meta { font-family: var(--font-mono); font-size: 10px; color: var(--muted-2); }
+  .pl-step.active .pl-meta { color: var(--brass); }
+
+  .feed-row {
+    display: grid;
+    grid-template-columns: 66px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--grid-soft);
+  }
+  .feed-row:last-child { border-bottom: none; }
+  .sev {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 3px 0;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+  .sev.critical { background: var(--rust-glow); color: var(--rust); }
+  .sev.high { background: rgba(217,146,47,0.14); color: var(--amber); }
+  .sev.medium { background: var(--brass-glow); color: var(--brass); }
+  .sev.low { background: rgba(79,169,138,0.12); color: var(--teal); }
+  .sev.info { background: rgba(91,127,166,0.14); color: var(--blue); }
+  .feed-text { font-size: 12.5px; }
+  .feed-text b { font-weight: 600; }
+  .feed-sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-2); margin-top: 2px; }
+  .feed-time { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-2); white-space: nowrap; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted-2);
+    padding: 0 12px 10px;
+    border-bottom: 1px solid var(--grid-soft);
+    font-weight: 500;
+  }
+  tbody td {
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--grid-soft);
+    font-size: 12.5px;
+    vertical-align: middle;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--panel-2); }
+  td.mono, .mono-cell { font-family: var(--font-mono); }
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: var(--panel-3);
+    border: 1px solid var(--grid);
+    color: var(--muted);
+  }
+  .tag.live { color: var(--teal); border-color: rgba(79,169,138,0.35); }
+  .kev {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: var(--rust);
+    border: 1px solid rgba(196,67,43,0.4);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  .method-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 6px 11px;
+    border: 1px solid var(--grid);
+    border-radius: 4px;
+    background: var(--panel-2);
+    color: var(--muted);
+  }
+  .method-chip.on { color: var(--parchment); border-color: var(--brass-soft); }
+  .method-chip.on::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); }
+  .method-chip.off::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--muted-2); }
+  .chip-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .tech-chip {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    padding: 5px 10px;
+    border-radius: 3px;
+    background: var(--panel-3);
+    border: 1px solid var(--grid);
+    color: var(--parchment);
+  }
+
+  .course {
+    position: relative;
+    padding: 30px 6px 10px;
+  }
+  .course-line {
+    position: absolute;
+    top: 46px; left: 24px; right: 24px;
+    height: 1px;
+    background: repeating-linear-gradient(90deg, var(--brass-soft) 0 6px, transparent 6px 11px);
+    z-index: 0;
+  }
+  .course-row {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    z-index: 1;
+  }
+  .waypoint {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 108px;
+    text-align: center;
+  }
+  .wp-dot {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--panel-2);
+    border: 1.5px solid var(--grid);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 10px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .waypoint.hit .wp-dot { border-color: var(--rust); color: var(--rust); background: var(--rust-glow); }
+  .waypoint.warn .wp-dot { border-color: var(--amber); color: var(--amber); background: rgba(217,146,47,0.1); }
+  .wp-name { font-size: 11.5px; font-weight: 500; color: var(--parchment); line-height: 1.3; }
+  .wp-sub { font-family: var(--font-mono); font-size: 9.5px; color: var(--muted-2); margin-top: 3px; }
+
+  .impact-banner {
+    margin-top: 22px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: 6px;
+    background: var(--rust-glow);
+    border: 1px solid rgba(196,67,43,0.35);
+  }
+  .impact-banner svg { width: 20px; height: 20px; color: var(--rust); flex-shrink: 0; }
+  .impact-title { font-size: 12.5px; font-weight: 600; color: var(--parchment); }
+  .impact-sub { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .graph-wrap {
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(200,155,60,0.05), transparent 60%),
+      var(--panel);
+    border: 1px solid var(--grid-soft);
+    border-radius: 7px;
+    padding: 10px;
+    overflow-x: auto;
+  }
+
+  .report-card { display: flex; flex-direction: column; gap: 10px; }
+  .report-icon {
+    width: 34px; height: 34px;
+    border-radius: 6px;
+    background: var(--panel-3);
+    border: 1px solid var(--grid);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--brass);
+  }
+  .report-icon svg { width: 16px; height: 16px; }
+  .report-name { font-family: var(--font-display); font-weight: 600; font-size: 14px; }
+  .report-desc { font-size: 11.5px; color: var(--muted); }
+  .report-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+
+  .donut-wrap { display: flex; align-items: center; gap: 22px; }
+  .donut {
+    width: 110px; height: 110px;
+    border-radius: 50%;
+    background: conic-gradient(
+      var(--rust) 0 16%,
+      var(--amber) 16% 38%,
+      var(--brass) 38% 72%,
+      var(--teal) 72% 88%,
+      var(--blue) 88% 100%
+    );
+    position: relative;
+    flex-shrink: 0;
+  }
+  .donut::after {
+    content: '';
+    position: absolute;
+    inset: 15px;
+    border-radius: 50%;
+    background: var(--panel);
+  }
+  .donut-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 1;
+    font-family: var(--font-display);
+  }
+  .donut-center b { font-size: 18px; }
+  .donut-center span { font-family: var(--font-mono); font-size: 8.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .donut-container { position: relative; }
+  .legend { display: flex; flex-direction: column; gap: 8px; }
+  .legend-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+  .legend-row .cnt { margin-left: auto; font-family: var(--font-mono); color: var(--muted); }
+
+  .scrollx { overflow-x: auto; scrollbar-color: var(--grid) var(--panel); }
+  .log-terminal {
+    background: #050914;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    padding: 14px;
+    border-radius: 6px;
+    height: 320px;
+    overflow-y: auto;
+    color: #a0b2ce;
+    border: 1px solid var(--grid);
+  }
+</style>
 </head>
 <body>
-  <div id="root"></div>
-  <script type="text/babel">
-    const { useState, useEffect, useMemo } = React;
-    const asList = v => Array.isArray(v) ? v : [];
 
-    function App() {
-      const [activeTab, setActiveTab] = useState('overview');
-      const [scanID, setScanID] = useState(location.hash.slice(1) || 'default');
-      const [theme, setTheme] = useState(localStorage.enumscanTheme || 'dark');
-      const [health, setHealth] = useState({ status: 'READY' });
-      const [assets, setAssets] = useState([]);
-      const [findings, setFindings] = useState([]);
-      const [events, setEvents] = useState([]);
-      const [screenshots, setScreenshots] = useState([]);
-      const [metrics, setMetrics] = useState({ progress_percent: 0, active_workers: 4, throughput_req_per_sec: 0, eta_seconds: 0, completed_modules: 0, total_modules: 10 });
-      const [logs, setLogs] = useState([]);
-      const [savedQueries, setSavedQueries] = useState([]);
-      const [searchCategory, setSearchCategory] = useState('global');
-      const [searchQueryStr, setSearchQueryStr] = useState('');
-      const [searchResults, setSearchResults] = useState({ assets: [], findings: [] });
-      const [timelineCategory, setTimelineCategory] = useState('all');
-      const [timelineEntries, setTimelineEntries] = useState([]);
-      const [driftReport, setDriftReport] = useState({ drift_items: [] });
-      const [dailyReport, setDailyReport] = useState({ drift_events: [] });
-      const [weeklyReport, setWeeklyReport] = useState({ drift_events: [] });
-      const [graphType, setGraphType] = useState('all');
-      const [graphData, setGraphData] = useState({ nodes: [], edges: [] });
-      const [targetInput, setTargetInput] = useState('');
-      const [profileInput, setProfileInput] = useState('standard');
-      const [filterQuery, setFilterQuery] = useState('');
-      const [selectedNode, setSelectedNode] = useState(null);
+<div class="chart-grid"></div>
+<div id="root"></div>
 
-      useEffect(() => {
-        document.body.className = theme;
-        localStorage.enumscanTheme = theme;
-      }, [theme]);
+<script type="text/babel">
+  const { useState, useEffect, useMemo } = React;
+  const asList = v => Array.isArray(v) ? v : [];
 
-      const fetchData = async () => {
-        try {
-          const [hRes, aRes, fRes, eRes, gRes, sRes, mRes, qRes] = await Promise.all([
-            fetch('/api/v1/health?scan_id=' + encodeURIComponent(scanID)).then(r => r.json()),
-            fetch('/api/v1/assets?scan_id=' + encodeURIComponent(scanID)).then(r => r.json()),
-            fetch('/api/v1/findings?scan_id=' + encodeURIComponent(scanID)).then(r => r.json()),
-            fetch('/api/v1/events?scan_id=' + encodeURIComponent(scanID)).then(r => r.json()),
-            fetch('/api/v1/graph?scan_id=' + encodeURIComponent(scanID) + '&type=' + encodeURIComponent(graphType)).then(r => r.json()),
-            fetch('/api/v1/screenshots?scan_id=' + encodeURIComponent(scanID)).then(r => r.json()),
-            fetch('/api/v1/metrics?scan_id=' + encodeURIComponent(scanID)).then(r => r.json()),
-            fetch('/api/v1/saved-queries').then(r => r.json())
-          ]);
-          setHealth(hRes);
-          setAssets(asList(aRes));
-          setFindings(asList(fRes));
-          setEvents(asList(eRes));
-          setGraphData(gRes || { nodes: [], edges: [] });
-          setScreenshots(asList(sRes));
-          setMetrics(mRes || {});
-          setSavedQueries(asList(qRes));
-        } catch (e) {
-          console.error("Fetch error", e);
-        }
-      };
+  function App() {
+    const [activeTab, setActiveTab] = useState('overview');
+    const [scanID, setScanID] = useState(location.hash.slice(1) || 'default');
+    const [targetInput, setTargetInput] = useState('192.168.56.0/24');
+    const [profileInput, setProfileInput] = useState('standard');
+    const [statusMsg, setStatusMsg] = useState('Scope verified');
+    const [theme, setTheme] = useState(localStorage.enumscanTheme || 'dark');
 
-      const fetchTimelineData = async () => {
-        try {
-          const [tRes, dRes, rDaily, rWeekly] = await Promise.all([
-            fetch('/api/v1/timeline?scan_id=' + encodeURIComponent(scanID) + '&category=' + encodeURIComponent(timelineCategory)).then(r => r.json()),
-            fetch('/api/v1/drift?baseline=' + encodeURIComponent(scanID) + '&current=' + encodeURIComponent(scanID)).then(r => r.json()),
-            fetch('/api/v1/reports/changes?type=daily&scan_id=' + encodeURIComponent(scanID)).then(r => r.json()),
-            fetch('/api/v1/reports/changes?type=weekly&scan_id=' + encodeURIComponent(scanID)).then(r => r.json())
-          ]);
-          setTimelineEntries(asList(tRes));
-          setDriftReport(dRes || { drift_items: [] });
-          setDailyReport(rDaily || { drift_events: [] });
-          setWeeklyReport(rWeekly || { drift_events: [] });
-        } catch (err) {
-          console.error("Timeline fetch error", err);
-        }
-      };
+    const [health, setHealth] = useState({ status: 'unknown' });
+    const [assets, setAssets] = useState([]);
+    const [findings, setFindings] = useState([]);
+    const [events, setEvents] = useState([]);
+    const [screenshots, setScreenshots] = useState([]);
+    const [metrics, setMetrics] = useState({});
+    const [logs, setLogs] = useState([]);
+    const [savedQueries, setSavedQueries] = useState([]);
+	const [scanRuns, setScanRuns] = useState([]);
+    const [integrations, setIntegrations] = useState({ providers: [], warnings: [] });
 
-      useEffect(() => {
-        fetchData();
-        const interval = setInterval(fetchData, 4000);
-        return () => clearInterval(interval);
-      }, [scanID, graphType]);
+    // Filters & States
+    const [assetFilter, setAssetFilter] = useState('');
+    const [searchQueryStr, setSearchQueryStr] = useState('');
+    const [searchResults, setSearchResults] = useState({ assets: [], findings: [] });
+    const [graphType, setGraphType] = useState('all');
+    const [graphData, setGraphData] = useState({ nodes: [], edges: [] });
+    const [selectedNode, setSelectedNode] = useState(null);
+    const [neoGraphData, setNeoGraphData] = useState({ nodes: [], edges: [] });
+    const [neoGraphError, setNeoGraphError] = useState('');
 
-      useEffect(() => {
-        if (activeTab === 'timeline') {
-          fetchTimelineData();
-        }
-      }, [activeTab, scanID, timelineCategory]);
+    // Knowledge Graph
+    const [kgFilterType, setKgFilterType] = useState('');
+    const [kgQueryStr, setKgQueryStr] = useState('');
+    const [kgGraphData, setKgGraphData] = useState({ nodes: [], edges: [] });
+    const [kgSelectedNode, setKgSelectedNode] = useState(null);
 
-      useEffect(() => {
-        let es;
-        try {
-          es = new EventSource('/api/v1/logs/stream?scan_id=' + encodeURIComponent(scanID));
-          es.onmessage = e => {
-            try {
-              const data = JSON.parse(e.data);
-              setLogs(prev => [...prev.slice(-100), data]);
-            } catch (_) {}
-          };
-        } catch (_) {}
-        return () => { if (es) es.close(); };
-      }, [scanID]);
+    useEffect(() => {
+      document.body.className = theme === 'light' ? 'light-theme' : '';
+      localStorage.enumscanTheme = theme;
+    }, [theme]);
 
-      const handleExecuteSearch = async (cat = searchCategory, q = searchQueryStr) => {
-        try {
-          const res = await fetch('/api/v1/search?scan_id=' + encodeURIComponent(scanID) + '&q=' + encodeURIComponent(q) + '&category=' + encodeURIComponent(cat)).then(r => r.json());
-          setSearchResults({ assets: asList(res.assets), findings: asList(res.findings) });
-        } catch (err) {
-          console.error("Search error", err);
-        }
-      };
+    const fetchData = async () => {
+      try {
+        const [snapshot, mRes, historyRes, integrationRes] = await Promise.all([
+          fetch('/api/v1/dashboard/snapshot?scan_id=' + encodeURIComponent(scanID)).then(r => {
+            if (!r.ok) throw new Error('scan evidence is unavailable');
+            return r.json();
+          }),
+          fetch('/api/v1/metrics?scan_id=' + encodeURIComponent(scanID)).then(r => r.ok ? r.json() : {}),
+          fetch('/api/v1/scans?limit=50').then(r => r.ok ? r.json() : []),
+          fetch('/api/v1/integrations').then(r => r.ok ? r.json() : ({ providers: [], warnings: [] }))
+        ]);
+        const graph = graphType === 'all'
+          ? snapshot.graph
+          : await fetch('/api/v1/graph?scan_id=' + encodeURIComponent(scanID) + '&type=' + encodeURIComponent(graphType)).then(r => r.ok ? r.json() : ({ nodes: [], edges: [] }));
+        setHealth(snapshot.health || { status: 'unknown' });
+        setAssets(asList(snapshot.assets));
+        setFindings(asList(snapshot.findings));
+        setEvents(asList(snapshot.events));
+        setGraphData(graph || { nodes: [], edges: [] });
+        setScreenshots(asList(snapshot.screenshots));
+        setMetrics(mRes || {});
+        setSavedQueries(asList(snapshot.saved_queries));
+		setScanRuns(asList(historyRes));
+        setIntegrations(integrationRes || { providers: [], warnings: [] });
+      } catch (err) {
+        console.error("Dashboard fetch error", err);
+      }
+    };
 
-      const handleSaveQuery = async () => {
-        if (!searchQueryStr) return;
-        const name = prompt("Enter a name for this saved search query:", searchQueryStr);
-        if (!name) return;
-        try {
-          await fetch('/api/v1/saved-queries', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, query: searchQueryStr })
-          });
-          fetchData();
-        } catch (err) {
-          alert('Save query failed: ' + err.message);
-        }
-      };
+    const fetchKGData = async () => {
+      try {
+        const res = await fetch('/api/v1/knowledge-graph?scan_id=' + encodeURIComponent(scanID) + '&type=' + encodeURIComponent(kgFilterType) + '&q=' + encodeURIComponent(kgQueryStr)).then(r => r.json()).catch(() => ({ nodes: [], edges: [] }));
+        setKgGraphData(res || { nodes: [], edges: [] });
+      } catch (err) {
+        console.error("Knowledge Graph error", err);
+      }
+    };
 
-      const handleRunScan = async (e) => {
-        e.preventDefault();
-        if (!targetInput) return;
-        try {
-          const r = await fetch('/api/v1/scans/run', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ target: targetInput, profile: profileInput })
-          });
-          const data = await r.json();
-          if (data.scan_id) {
-            setScanID(data.scan_id);
-            location.hash = data.scan_id;
-            setTargetInput('');
-            fetchData();
-          }
-        } catch (err) {
-          alert('Scan dispatch failed: ' + err.message);
-        }
-      };
+    useEffect(() => {
+      fetchData();
+      const interval = setInterval(fetchData, 4000);
+      return () => clearInterval(interval);
+    }, [scanID, graphType]);
 
-      const handleTogglePause = async () => {
-        const isPaused = metrics.status === 'paused';
-        const endpoint = isPaused ? '/api/v1/scans/resume' : '/api/v1/scans/pause';
-        await fetch(endpoint, {
+    useEffect(() => {
+      if (activeTab === 'kg') {
+        fetchKGData();
+      }
+    }, [activeTab, scanID, kgFilterType]);
+
+    useEffect(() => {
+      if (activeTab !== 'neo4j') return;
+      fetch('/api/v1/neo4j/graph?scan_id=' + encodeURIComponent(scanID))
+        .then(async r => r.ok ? r.json() : Promise.reject(new Error((await r.json().catch(() => ({}))).error || 'Neo4j graph unavailable')))
+        .then(graph => { setNeoGraphData(graph || { nodes: [], edges: [] }); setNeoGraphError(''); })
+        .catch(err => { setNeoGraphData({ nodes: [], edges: [] }); setNeoGraphError(err.message); });
+    }, [activeTab, scanID]);
+
+    useEffect(() => {
+      let es;
+      try {
+        es = new EventSource('/api/v1/logs/stream?scan_id=' + encodeURIComponent(scanID));
+        es.onmessage = e => {
+          try {
+            const data = JSON.parse(e.data);
+            setLogs(prev => prev.some(item => item.id === data.id) ? prev : [...prev.slice(-100), data]);
+          } catch (_) {}
+        };
+      } catch (_) {}
+      return () => { if (es) es.close(); };
+    }, [scanID]);
+
+    useEffect(() => {
+      let es;
+      try {
+        es = new EventSource('/api/v1/findings/stream?scan_id=' + encodeURIComponent(scanID));
+        es.addEventListener('finding', e => {
+          try {
+            const finding = JSON.parse(e.data);
+            setFindings(prev => prev.some(item => item.id === finding.id) ? prev : [finding, ...prev]);
+          } catch (_) {}
+        });
+      } catch (_) {}
+      return () => { if (es) es.close(); };
+    }, [scanID]);
+
+    const handleRunScan = async (e) => {
+      if (e) e.preventDefault();
+      if (!targetInput) return;
+      setStatusMsg('Dispatching scan...');
+      try {
+        const r = await fetch('/api/v1/scans/run', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scan_id: scanID })
+          body: JSON.stringify({ target: targetInput, profile: profileInput })
+        });
+        const res = await r.json();
+        if (res.scan_id) {
+          setScanID(res.scan_id);
+          location.hash = encodeURIComponent(res.scan_id);
+          setStatusMsg('Scan running: ' + res.scan_id);
+          fetchData();
+        } else {
+          setStatusMsg(res.error || 'Dispatch failed');
+        }
+      } catch (err) {
+        setStatusMsg('Scan error: ' + err.message);
+      }
+    };
+
+    const handleSaveQuery = async () => {
+      if (!searchQueryStr) return;
+      const name = prompt("Enter a name for this saved query:", searchQueryStr);
+      if (!name) return;
+      try {
+        await fetch('/api/v1/saved-queries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, query: searchQueryStr })
         });
         fetchData();
-      };
+      } catch (err) {
+        alert("Failed to save query: " + err.message);
+      }
+    };
 
-      const filteredAssets = useMemo(() => {
-        return assets.filter(a => JSON.stringify(a).toLowerCase().includes(filterQuery.toLowerCase()));
-      }, [assets, filterQuery]);
+    const handleSearch = async () => {
+      try {
+        const res = await fetch('/api/v1/search?scan_id=' + encodeURIComponent(scanID) + '&q=' + encodeURIComponent(searchQueryStr)).then(r => r.json());
+        setSearchResults({ assets: asList(res.assets), findings: asList(res.findings) });
+      } catch (err) {
+        console.error("Search failed", err);
+      }
+    };
 
-      const nodePositions = useMemo(() => {
-        const nodes = graphData.nodes || [];
-        const posMap = {};
-        nodes.forEach((n, i) => {
-          posMap[n.id] = {
-            cx: 100 + (i % 6) * 110,
-            cy: 70 + Math.floor(i / 6) * 80
-          };
-        });
-        return posMap;
-      }, [graphData]);
+    const filteredAssets = useMemo(() => {
+      if (!assetFilter) return assets;
+      const q = assetFilter.toLowerCase();
+      return assets.filter(a => (a.value && a.value.toLowerCase().includes(q)) || (a.type && a.type.toLowerCase().includes(q)));
+    }, [assets, assetFilter]);
 
-      return (
-        <div className="app-container">
-          <aside className="sidebar">
-            <div className="brand">enum<span>scan</span></div>
-            <ul className="nav-menu">
-              <li className={"nav-item " + (activeTab === 'overview' ? 'active' : '')}>
-                <button onClick={() => setActiveTab('overview')}>📊 Overview</button>
-              </li>
-              <li className={"nav-item " + (activeTab === 'search' ? 'active' : '')}>
-                <button onClick={() => setActiveTab('search')}>🔎 Task 33 Search Engine</button>
-              </li>
-              <li className={"nav-item " + (activeTab === 'telemetry' ? 'active' : '')}>
-                <button onClick={() => setActiveTab('telemetry')}>⚡ Live Monitoring</button>
-              </li>
-              <li className={"nav-item " + (activeTab === 'timeline' ? 'active' : '')}>
-                <button onClick={() => setActiveTab('timeline')}>🕒 Task 34 Timeline & Drift</button>
-              </li>
-              <li className={"nav-item " + (activeTab === 'assets' ? 'active' : '')}>
-                <button onClick={() => setActiveTab('assets')}>
-                  🌐 Asset Explorer <span className="nav-badge">{assets.length}</span>
-                </button>
-              </li>
-              <li className={"nav-item " + (activeTab === 'services' ? 'active' : '')}>
-                <button onClick={() => setActiveTab('services')}>🔌 Service Explorer</button>
-              </li>
-              <li className={"nav-item " + (activeTab === 'findings' ? 'active' : '')}>
-                <button onClick={() => setActiveTab('findings')}>
-                  🛡️ Vulnerabilities <span className="nav-badge">{findings.length}</span>
-                </button>
-              </li>
-              <li className={"nav-item " + (activeTab === 'gallery' ? 'active' : '')}>
-                <button onClick={() => setActiveTab('gallery')}>📷 Screenshots</button>
-              </li>
-              <li className={"nav-item " + (activeTab === 'graph' ? 'active' : '')}>
-                <button onClick={() => setActiveTab('graph')}>🕸️ Visualization Graph</button>
-              </li>
-            </ul>
-          </aside>
+    const liveHostCount = assets.filter(a => ['host', 'ip', 'live_host', 'hostname'].includes(a.type)).length;
+    const openPortCount = assets.filter(a => /^(open_port|port_observation)$/.test(a.type)).length;
+    const technologyCount = assets.filter(a => /technology|runtime|framework|wappalyzer/.test(a.type)).length;
+    const secretCount = assets.filter(a => /secret|credential|api_key|token/.test(a.type)).length;
+    const criticalCount = findings.filter(f => String(f.severity).toLowerCase() === 'critical').length;
+    const highCount = findings.filter(f => String(f.severity).toLowerCase() === 'high').length;
+    const medCount = findings.filter(f => String(f.severity).toLowerCase() === 'medium').length;
+    const lowCount = findings.filter(f => String(f.severity).toLowerCase() === 'low').length;
+    const infoCount = findings.filter(f => String(f.severity).toLowerCase() === 'info').length;
+    const serviceAssets = assets.filter(a => /port|service|banner|runtime|cpe/.test(a.type));
+    const webAssets = assets.filter(a => /http|tls|cert|technology|framework|wappalyzer|favicon|web/.test(a.type));
+    const headerFindings = findings.filter(f => /header|hsts|cookie|cors|clickjack/i.test(f.title || ''));
+    const graphNodes = asList(graphData.nodes).slice(0, 48);
+    const neoGraphNodes = asList(neoGraphData.nodes).slice(0, 48);
+    const neoGraphNodeIndex = new Map(neoGraphNodes.map((node, index) => [node.id, index]));
+    const graphNodeIndex = new Map(graphNodes.map((node, index) => [node.id, index]));
+    const graphPosition = index => ({ x: 80 + (index % 6) * 170, y: 60 + Math.floor(index / 6) * 82 });
+    const graphColour = type => type === 'finding' ? 'var(--rust)' : /port|service/.test(type) ? 'var(--teal)' : /technology|runtime|framework/.test(type) ? 'var(--amber)' : 'var(--blue)';
+    const queueETA = seconds => {
+      if (!seconds || seconds < 1) return 'not enough completed work';
+      if (seconds < 60) return seconds + ' sec';
+      return Math.ceil(seconds / 60) + ' min';
+    };
 
-          <div className="main-content">
-            <header className="top-header">
-              <input
-                className="scan-input"
-                value={scanID}
-                onChange={e => { setScanID(e.target.value); location.hash = e.target.value; }}
-                placeholder="Scan ID"
-              />
-              <div className="header-actions">
-                <button className="btn btn-warn" onClick={handleTogglePause}>
-                  {metrics.status === 'paused' ? '▶️ Resume Scan' : '⏸️ Pause Scan'}
-                </button>
-                <button className="btn" onClick={fetchData}>🔄 Refresh</button>
-                <button className="btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                  {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-                </button>
-                <span className={"status-badge " + (metrics.status === 'paused' ? 'status-bad' : 'status-ok')}>
-                  {metrics.status || health.status || 'READY'}
-                </span>
+    return (
+      <div className="shell">
+        {/* BRAND */}
+        <div className="brand">
+          <div className="brand-mark">
+            <svg viewBox="0 0 26 26" fill="none">
+              <circle cx="13" cy="13" r="10.5" stroke="var(--brass)" strokeWidth="1.4"/>
+              <circle cx="13" cy="13" r="6" stroke="var(--brass)" strokeWidth="1" opacity="0.5"/>
+              <line x1="13" y1="1" x2="13" y2="4.2" stroke="var(--brass)" strokeWidth="1.4"/>
+              <line x1="13" y1="21.8" x2="13" y2="25" stroke="var(--brass)" strokeWidth="1.4"/>
+              <line x1="1" y1="13" x2="4.2" y2="13" stroke="var(--brass)" strokeWidth="1.4"/>
+              <line x1="21.8" y1="13" x2="25" y2="13" stroke="var(--brass)" strokeWidth="1.4"/>
+              <circle cx="13" cy="13" r="1.6" fill="var(--brass)"/>
+            </svg>
+          </div>
+          <div>
+            <div className="brand-text">RECON<span>·</span>OS</div>
+            <div className="brand-sub">Enumeration Console</div>
+          </div>
+        </div>
+
+        {/* HEADER */}
+        <div className="header">
+          <div className="target-block">
+            <label className="target-name" htmlFor="scan-id">Scan ID</label>
+            <input
+              id="scan-id"
+              className="scan-input"
+              value={scanID}
+              onChange={e => setScanID(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && fetchData()}
+              aria-label="Scan ID"
+            />
+            <button className="btn primary" id="refresh-dashboard" onClick={fetchData}>Load scan</button>
+
+            <label className="target-name" htmlFor="target">Target</label>
+            <input
+              id="target"
+              className="scan-input"
+              value={targetInput}
+              onChange={e => setTargetInput(e.target.value)}
+              placeholder="192.168.56.0/24"
+              aria-label="Target network or host"
+            />
+            <select id="profile" className="scan-input" value={profileInput} onChange={e => setProfileInput(e.target.value)} aria-label="Scan profile">
+              <option value="quick">Quick</option>
+              <option value="standard">Standard</option>
+              <option value="exhaustive">Exhaustive</option>
+            </select>
+            <button className="btn" id="run-scan" onClick={handleRunScan}>Start scan</button>
+            <div className="scope-badge" id="dashboard-message">{statusMsg}</div>
+          </div>
+
+          <div className="header-right">
+            <div className="profile-pill">Profile: <b>{profileInput}</b></div>
+            <div className="scan-status">
+              <div className="radar"></div>
+              <div className="status-text"><span className="phase">{metrics.status || 'No scan selected'}</span> <span className="n">{metrics.completed_runs || 0} complete</span></div>
+            </div>
+            <button className="icon-btn" title="Toggle Theme" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            </button>
+            <div className="avatar">KO</div>
+          </div>
+        </div>
+
+        {/* NAVIGATION SIDEBAR */}
+        <div className="nav">
+          <div className="nav-label">Console</div>
+          <button className={"nav-item " + (activeTab === 'overview' ? 'active' : '')} onClick={() => setActiveTab('overview')}>
+            <span className="nav-phase"></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+            <span className="label">Overview</span>
+          </button>
+
+          <div className="nav-label">Pipeline</div>
+          <button className={"nav-item " + (activeTab === 'discovery' ? 'active' : '')} onClick={() => setActiveTab('discovery')}>
+            <span className="nav-phase">01</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.4-4.4"/></svg>
+            <span className="label">Host Discovery</span>
+            <span className="nav-count">{assets.length}</span>
+          </button>
+
+          <button className={"nav-item " + (activeTab === 'ports' ? 'active' : '')} onClick={() => setActiveTab('ports')}>
+            <span className="nav-phase">02</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="4" y="9" width="16" height="10" rx="1.5"/><path d="M8 9V6a4 4 0 018 0v3"/></svg>
+            <span className="label">Ports &amp; Services</span>
+            <span className="nav-count">{openPortCount}</span>
+          </button>
+
+          <button className={"nav-item " + (activeTab === 'web' ? 'active' : '')} onClick={() => setActiveTab('web')}>
+            <span className="nav-phase">06</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18 14 14 0 010-18z"/></svg>
+            <span className="label">Web &amp; Tech</span>
+            <span className="nav-count">{technologyCount}</span>
+          </button>
+
+          <button className={"nav-item " + (activeTab === 'vulns' ? 'active' : '')} onClick={() => setActiveTab('vulns')}>
+            <span className="nav-phase">20</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 2l9 4.5v6C21 17 17 21 12 22 7 21 3 17 3 12.5v-6z"/><path d="M12 8v5" strokeLinecap="round"/><circle cx="12" cy="16.2" r="0.6" fill="currentColor"/></svg>
+            <span className="label">Vulnerabilities</span>
+            <span className="nav-count warn">{findings.length}</span>
+          </button>
+
+          <button className={"nav-item " + (activeTab === 'correlation' ? 'active' : '')} onClick={() => setActiveTab('correlation')}>
+            <span className="nav-phase">27</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="5" cy="6" r="2.4"/><circle cx="19" cy="6" r="2.4"/><circle cx="12" cy="18" r="2.4"/><path d="M6.9 7.6L11 16.4M17.1 7.6L13 16.4"/></svg>
+            <span className="label">Correlation</span>
+          </button>
+
+          <button className={"nav-item " + (activeTab === 'graph' ? 'active' : '')} onClick={() => setActiveTab('graph')}>
+            <span className="nav-phase">28</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 3v4M12 17v4M4 12h4M16 12h4"/><circle cx="12" cy="12" r="3.4"/><circle cx="12" cy="3" r="1.2" fill="currentColor" stroke="none"/><circle cx="12" cy="21" r="1.2" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="21" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg>
+            <span className="label">Asset Graph</span>
+          </button>
+
+          <button className={"nav-item " + (activeTab === 'neo4j' ? 'active' : '')} onClick={() => setActiveTab('neo4j')}>
+            <span className="nav-phase">28</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7.7 7.1l3.2 9M16.3 7.1l-3.2 9M8 6h8"/></svg>
+            <span className="label">Neo4j Graph</span>
+          </button>
+
+          <button className={"nav-item " + (activeTab === 'kg' ? 'active' : '')} onClick={() => setActiveTab('kg')}>
+            <span className="nav-phase">36</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>
+            <span className="label">Knowledge Graph</span>
+          </button>
+
+          <button className={"nav-item " + (activeTab === 'reports' ? 'active' : '')} onClick={() => setActiveTab('reports')}>
+            <span className="nav-phase">29</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M9 12h6M9 15.5h6M9 8.5h3"/></svg>
+            <span className="label">Reports</span>
+          </button>
+
+          <button className={"nav-item " + (activeTab === 'screenshots' ? 'active' : '')} onClick={() => setActiveTab('screenshots')}>
+            <span className="nav-phase">26</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M8 5l1.2-2h5.6L16 5"/></svg>
+            <span className="label">Screenshots</span>
+            <span className="nav-count">{screenshots.length}</span>
+          </button>
+
+          <div className="nav-divider"></div>
+          <div className="nav-label">System</div>
+          <button className={"nav-item " + (activeTab === 'telemetry' ? 'active' : '')} onClick={() => setActiveTab('telemetry')}>
+            <span className="nav-phase"></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+            <span className="label">Live Telemetry</span>
+          </button>
+
+          <button className={"nav-item " + (activeTab === 'history' ? 'active' : '')} onClick={() => setActiveTab('history')}>
+            <span className="nav-phase"></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3 12a9 9 0 109-9"/><path d="M3 4v8h8"/><path d="M12 7v5l3.5 2"/></svg>
+            <span className="label">Scan History</span>
+            <span className="nav-count">{scanRuns.length}</span>
+          </button>
+          <button className={"nav-item " + (activeTab === 'search' ? 'active' : '')} onClick={() => setActiveTab('search')}>
+            <span className="nav-phase"></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <span className="label">Search &amp; Query</span>
+          </button>
+          <button className={"nav-item " + (activeTab === 'integrations' ? 'active' : '')} onClick={() => setActiveTab('integrations')}>
+            <span className="nav-phase"></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="8" cy="12" r="3"/><circle cx="16" cy="6" r="2"/><circle cx="16" cy="18" r="2"/><path d="M10.6 10.6l3.6-3.2M10.6 13.4l3.6 3.2"/></svg>
+            <span className="label">Integrations</span>
+            <span className="nav-count">{asList(integrations.providers).length}</span>
+          </button>
+        </div>
+
+        {/* MAIN VIEWPORT */}
+        <div className="main">
+
+          {/* OVERVIEW TAB */}
+          {activeTab === 'overview' && (
+            <div className="view">
+              <div className="view-head">
+                <div>
+                  <div className="view-eyebrow">Engagement Summary</div>
+                  <div className="view-title">Overview</div>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button className="btn" onClick={handleRunScan}>New scan</button>
+                  <button className="btn primary" onClick={() => setActiveTab('reports')}>Export report</button>
+                </div>
               </div>
-            </header>
 
-            <main className="content-area">
-              {activeTab === 'timeline' && (
-                <div>
-                  <div className="grid-2">
-                    <div className="metric-card">
-                      <div className="card-title">
-                        <span>Configuration Drift Detection</span>
-                        <span className={"pill " + (driftReport.drift_detected ? 'pill-red' : 'pill-green')}>
-                          {driftReport.drift_detected ? 'Drift Detected' : 'Baseline Stable'}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '12px' }}>
-                        Baseline: <code>{scanID}</code> vs Current: <code>{scanID}</code>
-                      </div>
-                      {driftReport.drift_items && driftReport.drift_items.length > 0 ? (
-                        <ul>
-                          {driftReport.drift_items.map((item, idx) => (
-                            <li key={idx} style={{ margin: '4px 0', color: 'var(--orange)' }}>{item}</li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <div style={{ color: 'var(--muted)', fontStyle: 'italic' }}>No configuration drift detected against baseline scan run.</div>
-                      )}
-                    </div>
+              <div className="grid stats" style={{ marginBottom: '16px' }}>
+                <div className="card stat-card accent-teal">
+                  <div className="stat-label">Live hosts</div>
+                  <div className="stat-value">{liveHostCount}</div>
+                  <div className="stat-foot">observed in this scan</div>
+                </div>
+                <div className="card stat-card accent-brass">
+                  <div className="stat-label">Open ports</div>
+                  <div className="stat-value">{openPortCount}</div>
+                  <div className="stat-foot">recorded open-port evidence</div>
+                </div>
+                <div className="card stat-card">
+                  <div className="stat-label">Technologies</div>
+                  <div className="stat-value" style={{ color: 'var(--parchment)' }}>{technologyCount}</div>
+                  <div className="stat-foot">fingerprinted evidence</div>
+                </div>
+                <div className="card stat-card accent-amber">
+                  <div className="stat-label">Secrets found</div>
+                  <div className="stat-value">{secretCount}</div>
+                  <div className="stat-foot">recorded indicators only</div>
+                </div>
+                <div className="card stat-card accent-rust">
+                  <div className="stat-label">Critical findings</div>
+                  <div className="stat-value">{criticalCount}</div>
+                  <div className="stat-foot">severity assigned from evidence</div>
+                </div>
+              </div>
 
-                    <div className="metric-card">
-                      <div className="card-title">Automated Posture Reports</div>
-                      <div style={{ marginBottom: '12px' }}>
-                        <strong>Daily Change Summary:</strong>
-                        <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '4px' }}>
-                          Period: {dailyReport.period} | Assets: {dailyReport.new_assets} | Findings: {dailyReport.new_findings}
-                        </div>
-                      </div>
-                      <div>
-                        <strong>Weekly Summary:</strong>
-                        <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '4px' }}>
-                          Period: {weeklyReport.period} | Monitored Assets: {weeklyReport.new_assets} | Risk Findings: {weeklyReport.new_findings}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="metric-card">
+              <div className="grid cols-2" style={{ marginBottom: '16px' }}>
+                <div className="card">
+                  <div className="card-head">
                     <div className="card-title">
-                      <span>Task 34 Timeline Sequence</span>
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        {['all', 'host', 'service', 'certificate', 'technology', 'vulnerability', 'secret'].map(cat => (
-                          <span
-                            key={cat}
-                            className={"pill " + (timelineCategory === cat ? 'active' : '')}
-                            onClick={() => setTimelineCategory(cat)}
-                          >
-                            {cat.toUpperCase()}
-                          </span>
-                        ))}
-                      </div>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+                      Pipeline progress
                     </div>
-
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>Timestamp</th>
-                          <th>Category</th>
-                          <th>Target</th>
-                          <th>Event / Status</th>
-                          <th>Details</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {timelineEntries.map((e, idx) => (
-                          <tr key={idx}>
-                            <td style={{ fontSize: '12px', color: 'var(--muted)' }}>{e.timestamp}</td>
-                            <td><span className="pill">{e.category}</span></td>
-                            <td><strong>{e.target}</strong></td>
-                            <td>{e.event}</td>
-                            <td style={{ color: 'var(--muted)', fontSize: '12px' }}>{e.details}</td>
-                          </tr>
-                        ))}
-                        {timelineEntries.length === 0 && (
-                          <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--muted)' }}>No timeline entries for category</td></tr>
-                        )}
-                      </tbody>
-                    </table>
+                    <div className="card-more">Persisted module outcomes</div>
+                  </div>
+                  <div className="pipeline">
+                    <div className="pl-step active"><div className="pl-dot">•</div><div className="pl-name">Scan status</div><div className="pl-meta">{health.status || 'unknown'}</div></div>
+                    <div className="pl-step"><div className="pl-dot">↔</div><div className="pl-name">Active workers</div><div className="pl-meta">{metrics.runtime ? ((metrics.runtime.active_workers || 0) + ' / ' + (metrics.runtime.worker_capacity || 0)) : 'not available'}</div></div>
+                    <div className="pl-step"><div className="pl-dot">≋</div><div className="pl-name">Queued events</div><div className="pl-meta">{metrics.runtime ? ((metrics.runtime.queue_high || 0) + (metrics.runtime.queue_normal || 0) + (metrics.runtime.queue_low || 0)) : 'not available'}</div></div>
+                    <div className="pl-step"><div className="pl-dot">◌</div><div className="pl-name">Running modules</div><div className="pl-meta">{metrics.runtime ? (metrics.runtime.running_modules || 0) : 'not available'}</div></div>
+                    <div className="pl-step"><div className="pl-dot">≈</div><div className="pl-name">Current queue ETA</div><div className="pl-meta" title={metrics.queue_eta_note || ''}>{queueETA(metrics.queue_eta_seconds)}</div></div>
+                    <div className="pl-step"><div className="pl-dot">✓</div><div className="pl-name">Completed module runs</div><div className="pl-meta">{metrics.completed_runs || 0} recorded</div></div>
+                    <div className="pl-step"><div className="pl-dot">!</div><div className="pl-name">Failed module runs</div><div className="pl-meta">{metrics.failed_runs || 0} recorded</div></div>
+					<div className="pl-step"><div className="pl-dot">→</div><div className="pl-name">Observed throughput</div><div className="pl-meta">{Number(metrics.throughput_per_minute || 0).toFixed(1)} completed runs/min</div></div>
+                    <div className="pl-step"><div className="pl-dot">%</div><div className="pl-name">Completion</div><div className="pl-meta">{metrics.progress_percent == null ? 'not available while running' : metrics.progress_percent + '%'}</div></div>
                   </div>
                 </div>
-              )}
 
-              {activeTab === 'search' && (
-                <div>
-                  <div className="metric-card" style={{ marginBottom: '24px' }}>
+                <div className="card">
+                  <div className="card-head">
                     <div className="card-title">
-                      <span>Task 33 Multi-Category Search Engine</span>
-                      <button className="btn btn-primary" onClick={handleSaveQuery}>⭐ Save Query</button>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-                      <input
-                        className="scan-input"
-                        style={{ flex: 1 }}
-                        placeholder="Enter search terms across global assets, CVEs, ports, tech, secrets..."
-                        value={searchQueryStr}
-                        onChange={e => setSearchQueryStr(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && handleExecuteSearch()}
-                      />
-                      <select
-                        className="scan-input"
-                        onChange={e => {
-                          if (e.target.value) {
-                            setSearchQueryStr(e.target.value);
-                            handleExecuteSearch(searchCategory, e.target.value);
-                          }
-                        }}
-                      >
-                        <option value="">-- Saved Searches --</option>
-                        {savedQueries.map(sq => (
-                          <option key={sq.id} value={sq.query}>{sq.name} ({sq.query})</option>
-                        ))}
-                      </select>
-                      <button className="btn btn-primary" onClick={() => handleExecuteSearch()}>Search</button>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      {['global', 'asset', 'service', 'technology', 'certificate', 'secret', 'finding', 'screenshot', 'graph'].map(cat => (
-                        <span
-                          key={cat}
-                          className={"pill " + (searchCategory === cat ? 'active' : '')}
-                          onClick={() => { setSearchCategory(cat); handleExecuteSearch(cat, searchQueryStr); }}
-                        >
-                          {cat.toUpperCase()}
-                        </span>
-                      ))}
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 2l9 4.5v6C21 17 17 21 12 22 7 21 3 17 3 12.5v-6z"/></svg>
+                      Risk posture
                     </div>
                   </div>
-
-                  <div className="metric-card">
-                    <div className="card-title">Search Results ({searchResults.assets.length} Assets, {searchResults.findings.length} Vulnerabilities)</div>
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>Category / Severity</th>
-                          <th>Value / Title</th>
-                          <th>Context / Asset</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {searchResults.assets.map((a, idx) => (
-                          <tr key={'a-' + idx}>
-                            <td><span className="pill">{a.type}</span></td>
-                            <td><strong>{a.value}</strong></td>
-                            <td style={{ color: 'var(--muted)' }}>{a.parent || a.metadata || 'N/A'}</td>
-                          </tr>
-                        ))}
-                        {searchResults.findings.map((f, idx) => (
-                          <tr key={'f-' + idx}>
-                            <td><span className="pill pill-red">{f.severity}</span></td>
-                            <td><strong>{f.title}</strong></td>
-                            <td>{f.asset}</td>
-                          </tr>
-                        ))}
-                        {searchResults.assets.length === 0 && searchResults.findings.length === 0 && (
-                          <tr><td colSpan="3" style={{ textAlign: 'center', color: 'var(--muted)' }}>No search results match query</td></tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'telemetry' && (
-                <div>
-                  <div className="metric-card" style={{ marginBottom: '24px' }}>
-                    <div className="card-title">
-                      <span>Task 32 Scan Progress & Telemetry</span>
-                      <span>{metrics.progress_percent || 0}% Complete</span>
+                  <div className="donut-wrap">
+                    <div className="donut-container">
+                      <div className="donut"></div>
+                      <div className="donut-center"><b>{findings.length}</b><span>Findings</span></div>
                     </div>
-                    <div className="progress-bar-bg">
-                      <div className="progress-bar-fill" style={{ width: (metrics.progress_percent || 0) + '%' }}></div>
-                    </div>
-                    <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', color: 'var(--muted)', fontSize: '12px' }}>
-                      <span>Modules Completed: {metrics.completed_modules || 0} / {metrics.total_modules || 10}</span>
-                      <span>ETA: {metrics.eta_seconds || 0} seconds remaining</span>
-                    </div>
-                  </div>
-
-                  <div className="grid-4">
-                    <div className="metric-card">
-                      <div className="metric-label">Active Workers</div>
-                      <div className="metric-val">{metrics.active_workers || 4}</div>
-                    </div>
-                    <div className="metric-card">
-                      <div className="metric-label">Queue Depth</div>
-                      <div className="metric-val">{metrics.queue_depth || 0}</div>
-                    </div>
-                    <div className="metric-card">
-                      <div className="metric-label">Request Throughput</div>
-                      <div className="metric-val">{metrics.throughput_req_per_sec || 0} <span style={{ fontSize: '14px', color: 'var(--muted)' }}>req/s</span></div>
-                    </div>
-                    <div className="metric-card">
-                      <div className="metric-label">Findings Streamed</div>
-                      <div className="metric-val">{findings.length}</div>
-                    </div>
-                  </div>
-
-                  <div className="grid-2">
-                    <div className="metric-card">
-                      <div className="card-title">Live Engine Logs Stream</div>
-                      <div className="log-terminal">
-                        {logs.map((l, i) => (
-                          <div key={i}>[{l.timestamp || 'LOG'}] [{l.level || 'INFO'}] {l.message}</div>
-                        ))}
-                        {logs.length === 0 && <div>[SYSTEM] Listening for live scan engine events...</div>}
-                      </div>
-                    </div>
-
-                    <div className="metric-card">
-                      <div className="card-title">Live Findings Stream</div>
-                      <table className="table">
-                        <thead>
-                          <tr>
-                            <th>Severity</th>
-                            <th>Title</th>
-                            <th>Target</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {findings.slice(-6).reverse().map((f, i) => (
-                            <tr key={i}>
-                              <td><span className="pill pill-red">{f.severity}</span></td>
-                              <td><strong>{f.title}</strong></td>
-                              <td>{f.asset}</td>
-                            </tr>
-                          ))}
-                          {findings.length === 0 && (
-                            <tr><td colSpan="3" style={{ textAlign: 'center', color: 'var(--muted)' }}>No live findings stream yet</td></tr>
-                          )}
-                        </tbody>
-                      </table>
+                    <div className="legend">
+                      <div className="legend-row"><span className="legend-dot" style={{ background: 'var(--rust)' }}></span> Critical <span className="cnt">{criticalCount}</span></div>
+                      <div className="legend-row"><span className="legend-dot" style={{ background: 'var(--amber)' }}></span> High <span className="cnt">{highCount}</span></div>
+                      <div className="legend-row"><span className="legend-dot" style={{ background: 'var(--brass)' }}></span> Medium <span className="cnt">{medCount}</span></div>
+                      <div className="legend-row"><span className="legend-dot" style={{ background: 'var(--teal)' }}></span> Low <span className="cnt">{lowCount}</span></div>
+                      <div className="legend-row"><span className="legend-dot" style={{ background: 'var(--blue)' }}></span> Info <span className="cnt">{infoCount}</span></div>
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {activeTab === 'overview' && (
-                <div>
-                  <div className="metric-card" style={{ marginBottom: '24px' }}>
-                    <div className="card-title">New Scan Assessment</div>
-                    <form onSubmit={handleRunScan} style={{ display: 'flex', gap: '12px' }}>
-                      <input
-                        id="target"
-                        className="scan-input"
-                        style={{ flex: 1 }}
-                        placeholder="Target Host or Subnet (e.g. 192.168.56.0/24)"
-                        value={targetInput}
-                        onChange={e => setTargetInput(e.target.value)}
-                        required
-                      />
-                      <select className="scan-input" value={profileInput} onChange={e => setProfileInput(e.target.value)}>
-                        <option value="quick">Quick Scan</option>
-                        <option value="standard">Standard Scan</option>
-                        <option value="exhaustive">Exhaustive Scan</option>
-                      </select>
-                      <button className="btn btn-primary" type="submit">Dispatch Scan</button>
-                    </form>
-                  </div>
-
-                  <div className="grid-4">
-                    <div className="metric-card">
-                      <div className="metric-label">Total Assets</div>
-                      <div className="metric-val">{assets.length}</div>
-                    </div>
-                    <div className="metric-card">
-                      <div className="metric-label">Findings</div>
-                      <div className="metric-val">{findings.length}</div>
-                    </div>
-                    <div className="metric-card">
-                      <div className="metric-label">Events</div>
-                      <div className="metric-val">{events.length}</div>
-                    </div>
-                    <div className="metric-card">
-                      <div className="metric-label">Screenshots</div>
-                      <div className="metric-val">{screenshots.length}</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'assets' && (
-                <div className="metric-card">
+              <div className="card">
+                <div className="card-head">
                   <div className="card-title">
-                    <span>Asset Explorer</span>
-                    <input
-                      className="scan-input"
-                      placeholder="Filter assets..."
-                      value={filterQuery}
-                      onChange={e => setFilterQuery(e.target.value)}
-                    />
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M13 2L3 14h8l-1 8 10-12h-8z"/></svg>
+                    Live findings feed
                   </div>
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Type</th>
-                        <th>Value</th>
-                        <th>Parent / Metadata</th>
-                      </tr>
-                    </thead>
+                  <div className="card-more" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('vulns')}>View all →</div>
+                </div>
+                {findings.length > 0 ? (
+                  findings.slice(0, 5).map((f, i) => (
+                    <div className="feed-row" key={i}>
+                      <div className={"sev " + (String(f.severity).toLowerCase())}>{f.severity}</div>
+                      <div><div className="feed-text"><b>{f.title}</b></div><div className="feed-sub">{f.asset}</div></div>
+                      <div className="feed-time">observed</div>
+                    </div>
+                  ))
+                ) : <div className="empty-state">No findings have been recorded for this scan.</div>}
+              </div>
+            </div>
+          )}
+
+          {/* DISCOVERY TAB */}
+          {activeTab === 'discovery' && (
+            <div className="view">
+              <div className="view-head">
+                <div>
+                  <div className="view-eyebrow">Phase 01</div>
+                  <div className="view-title">Host Discovery</div>
+                  <div className="view-desc">Everything that exists before a single port is probed — active sweeps layered with passive signal.</div>
+                </div>
+                <button className="btn" onClick={fetchData}>Re-run discovery</button>
+              </div>
+
+              <div className="card">
+                <div className="card-head">
+                  <div className="card-title">Resolved assets ({filteredAssets.length})</div>
+                  <input
+                    className="scan-input"
+                    placeholder="Filter assets..."
+                    value={assetFilter}
+                    onChange={e => setAssetFilter(e.target.value)}
+                  />
+                </div>
+                <div className="scrollx">
+                  <table>
+                    <thead><tr><th>Type</th><th>Asset Value</th><th>Parent / Scope</th><th>Status</th></tr></thead>
                     <tbody>
-                      {filteredAssets.map((a, idx) => (
-                        <tr key={idx}>
-                          <td><span className="pill">{a.type}</span></td>
-                          <td><strong>{a.value}</strong></td>
-                          <td style={{ color: 'var(--muted)' }}>{a.parent || a.metadata || 'N/A'}</td>
+                      {filteredAssets.map((a, i) => (
+                        <tr key={i}>
+                          <td className="mono">{a.type}</td>
+                          <td className="mono"><b>{a.value}</b></td>
+                          <td className="mono">{a.parent || '—'}</td>
+                          <td><span className="tag">{a.metadata || 'observed'}</span></td>
                         </tr>
                       ))}
                       {filteredAssets.length === 0 && (
-                        <tr><td colSpan="3" style={{ textAlign: 'center', color: 'var(--muted)' }}>No assets found</td></tr>
+                        <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--muted)' }}>No observed assets found</td></tr>
                       )}
                     </tbody>
                   </table>
                 </div>
-              )}
+              </div>
+            </div>
+          )}
 
-              {activeTab === 'findings' && (
-                <div className="metric-card">
-                  <div className="card-title">Vulnerabilities & Findings</div>
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Severity</th>
-                        <th>Title</th>
-                        <th>Asset</th>
-                        <th>Confidence</th>
-                      </tr>
-                    </thead>
+          {/* PORTS & SERVICES TAB */}
+          {activeTab === 'ports' && (
+            <div className="view">
+              <div className="view-head">
+                <div>
+                  <div className="view-eyebrow">Phase 02–03</div>
+                  <div className="view-title">Ports &amp; Services</div>
+                  <div className="view-desc">Observed port and service evidence for the selected scan.</div>
+                </div>
+              </div>
+
+              <div className="grid cols-3" style={{ marginBottom: '16px' }}>
+                <div className="card stat-card"><div className="stat-label">Service / port records</div><div className="stat-value" style={{ fontSize: '24px', color: 'var(--parchment)' }}>{serviceAssets.length}</div></div>
+                <div className="card stat-card accent-brass"><div className="stat-label">Open TCP</div><div className="stat-value">{assets.filter(a => a.type === 'open_port' && /\/tcp/.test(a.value || '')).length}</div></div>
+                <div className="card stat-card"><div className="stat-label">Open UDP</div><div className="stat-value" style={{ color: 'var(--parchment)' }}>{assets.filter(a => a.type === 'open_port' && /\/udp/.test(a.value || '')).length}</div></div>
+              </div>
+
+              <div className="card">
+                <div className="card-head"><div className="card-title">Service fingerprints</div><div className="card-more">confidence-scored</div></div>
+                <div className="scrollx">
+                  <table>
+                    <thead><tr><th>Host</th><th>Port</th><th>Service</th><th>Version</th><th>Confidence</th></tr></thead>
                     <tbody>
-                      {findings.map((f, idx) => (
-                        <tr key={idx}>
-                          <td>
-                            <span className={"pill " + (f.severity === 'high' || f.severity === 'critical' ? 'pill-red' : 'pill-orange')}>
-                              {f.severity}
-                            </span>
-                          </td>
-                          <td><strong>{f.title}</strong></td>
-                          <td>{f.asset}</td>
-                          <td>{f.confidence}</td>
+                      {serviceAssets.map((asset, i) => <tr key={i}><td className="mono">{asset.parent || '—'}</td><td className="mono">{asset.type}</td><td>{asset.value}</td><td className="mono">{asset.metadata || 'observed'}</td><td><span className="tag">recorded</span></td></tr>)}
+                      {serviceAssets.length === 0 && <tr><td colSpan="5" className="empty-state">No port or service evidence has been recorded.</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* WEB & TECH TAB */}
+          {activeTab === 'web' && (
+            <div className="view">
+              <div className="view-head">
+                <div>
+                  <div className="view-eyebrow">Phase 05–08</div>
+                  <div className="view-title">Web &amp; Technology</div>
+                  <div className="view-desc">HTTP surface, stack fingerprints, and a visual walk of every reachable front door.</div>
+                </div>
+              </div>
+
+              <div className="grid cols-2" style={{ marginBottom: '16px' }}>
+                <div className="card">
+                  <div className="card-head"><div className="card-title">Detected stack</div><div className="card-more">{webAssets.length} evidence records</div></div>
+                  <div className="chip-wrap">
+                    {webAssets.slice(0, 40).map((asset, i) => <span className="tech-chip" key={i}>{asset.value}</span>)}
+                    {webAssets.length === 0 && <span className="card-more">No HTTP or technology evidence recorded.</span>}
+                  </div>
+                </div>
+                <div className="card">
+                  <div className="card-head"><div className="card-title">Security header audit</div></div>
+                  {headerFindings.map((finding, i) => <div className="feed-row" style={{ gridTemplateColumns: '1fr auto' }} key={i}><div className="feed-text">{finding.title}</div><div className={'sev ' + String(finding.severity).toLowerCase()}>{finding.severity}</div></div>)}
+                  {headerFindings.length === 0 && <div className="empty-state">No header-related findings have been recorded.</div>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VULNERABILITIES TAB */}
+          {activeTab === 'vulns' && (
+            <div className="view">
+              <div className="view-head">
+                <div>
+                  <div className="view-eyebrow">Phase 20–21</div>
+                  <div className="view-title">Vulnerabilities</div>
+                  <div className="view-desc">CPE-matched against a local NVD mirror, prioritized with EPSS and flagged against CISA KEV.</div>
+                </div>
+                <button className="btn primary" onClick={fetchData}>Re-run vuln intel</button>
+              </div>
+
+              <div className="card">
+                <div className="scrollx">
+                  <table>
+                    <thead><tr><th>Severity</th><th>Finding</th><th>Asset</th><th>CVSS</th><th>EPSS</th><th>KEV</th></tr></thead>
+                    <tbody>
+                      {findings.map((f, i) => (
+                        <tr key={i}>
+                          <td><span className={"sev " + String(f.severity).toLowerCase()}>{f.severity}</span></td>
+                          <td><b>{f.title}</b></td>
+                          <td className="mono">{f.asset}</td>
+                          <td className="mono">{f.cvss ?? '—'}</td>
+                          <td className="mono">{f.epss ?? '—'}</td>
+                          <td>{f.kev ? <span className="kev">KEV</span> : '—'}</td>
                         </tr>
                       ))}
-                      {findings.length === 0 && (
-                        <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--muted)' }}>No vulnerabilities recorded</td></tr>
-                      )}
+                      {findings.length === 0 && <tr><td colSpan="6" className="empty-state">No findings have been recorded for this scan.</td></tr>}
                     </tbody>
                   </table>
                 </div>
-              )}
+              </div>
+            </div>
+          )}
 
-              {activeTab === 'graph' && (
-                <div className="metric-card">
-                  <div className="card-title">
-                    <span>Task 31 Interactive Visualizations</span>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <select className="scan-input" value={graphType} onChange={e => setGraphType(e.target.value)}>
-                        <option value="all">🕸️ Relationship Graph</option>
-                        <option value="attack_surface">🛡️ Attack Surface Graph</option>
-                        <option value="path">🎯 Attack Path Graph</option>
-                        <option value="tech">💻 Technology Graph</option>
-                        <option value="cloud">☁️ Cloud Relationship Graph</option>
-                        <option value="cert">📜 Certificate Graph</option>
-                        <option value="neo4j">🔗 Neo4j Export Format</option>
-                      </select>
-                    </div>
+          {/* CORRELATION TAB */}
+          {activeTab === 'correlation' && (
+            <div className="view">
+              <div className="view-head">
+                <div>
+                  <div className="view-eyebrow">Phase 27</div>
+                  <div className="view-title">Correlation — Plotted Attack Course</div>
+                  <div className="view-desc">Isolated findings, charted as one route. Each waypoint hands the next module a better target than raw scan output ever could.</div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-head"><div className="card-title">Stored correlation inputs</div><div className="card-more">No synthetic attack paths</div></div>
+                {findings.length > 0 ? findings.map((finding, i) => <div className="feed-row" key={i}><div className={'sev ' + String(finding.severity).toLowerCase()}>{finding.severity}</div><div><div className="feed-text"><b>{finding.title}</b></div><div className="feed-sub">{finding.asset}</div></div></div>) : <div className="empty-state">No findings are available to correlate.</div>}
+              </div>
+            </div>
+          )}
+
+          {/* ASSET GRAPH TAB */}
+          {activeTab === 'graph' && (
+            <div className="view">
+              <div className="view-head">
+                <div>
+                  <div className="view-eyebrow">Phase 28</div>
+                  <div className="view-title">Asset Graph</div>
+                  <div className="view-desc">The full descent from company to evidence — one chart of everything discovered and how it connects.</div>
+                </div>
+                <select className="scan-input" value={graphType} onChange={e => setGraphType(e.target.value)}>
+                  <option value="all">All Relationships</option>
+                  <option value="attack_surface">Attack Surface</option>
+                  <option value="path">Attack Path</option>
+                </select>
+              </div>
+
+              <div className="graph-wrap">
+                {graphNodes.length > 0 ? <svg viewBox="0 0 1040 760" width="100%" style={{ minWidth: '900px' }}>
+                  <g stroke="#223252" strokeWidth="1.2">{asList(graphData.edges).filter(edge => graphNodeIndex.has(edge.source) && graphNodeIndex.has(edge.target)).map((edge, i) => { const from = graphPosition(graphNodeIndex.get(edge.source)); const to = graphPosition(graphNodeIndex.get(edge.target)); return <line key={i} x1={from.x} y1={from.y} x2={to.x} y2={to.y} />; })}</g>
+                  {graphNodes.map((node, index) => { const point = graphPosition(index); return <g key={node.id} onClick={() => setSelectedNode(node)} style={{ cursor: 'pointer' }}><circle cx={point.x} cy={point.y} r="8" fill={graphColour(node.type || '')}/><text x={point.x + 12} y={point.y + 4} fill="var(--parchment)" fontFamily="IBM Plex Mono" fontSize="10">{String(node.label || node.id).slice(0, 22)}</text></g>; })}
+                </svg> : <div className="empty-state">No graph relationships have been recorded for this scan.</div>}
+              </div>
+              {selectedNode && <div className="card" style={{ marginTop: '16px' }}><div className="card-head"><div className="card-title">Selected node</div></div><div className="feed-text">{selectedNode.label || selectedNode.id}</div><div className="feed-sub">{selectedNode.type || 'asset'}</div></div>}
+            </div>
+          )}
+
+          {activeTab === 'neo4j' && (
+            <div className="view">
+              <div className="view-head"><div><div className="view-eyebrow">Phase 28</div><div className="view-title">Neo4j Graph</div><div className="view-desc">Read-only, scan-scoped graph loaded from the configured Neo4j synchronization target.</div></div><button className="btn primary" onClick={() => setActiveTab('graph')}>View local graph</button></div>
+              {neoGraphError ? <div className="card empty-state">{neoGraphError}</div> : <div className="graph-wrap">
+                {neoGraphNodes.length > 0 ? <svg viewBox="0 0 1040 760" width="100%" style={{ minWidth: '900px' }}>
+                  <g stroke="#223252" strokeWidth="1.2">{asList(neoGraphData.edges).filter(edge => neoGraphNodeIndex.has(edge.source) && neoGraphNodeIndex.has(edge.target)).map((edge, i) => { const from = graphPosition(neoGraphNodeIndex.get(edge.source)); const to = graphPosition(neoGraphNodeIndex.get(edge.target)); return <line key={i} x1={from.x} y1={from.y} x2={to.x} y2={to.y} />; })}</g>
+                  {neoGraphNodes.map((node, index) => { const point = graphPosition(index); return <g key={node.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedNode(node)}><circle cx={point.x} cy={point.y} r="8" fill={graphColour(node.type || '')}/><text x={point.x + 12} y={point.y + 4} fill="var(--parchment)" fontFamily="IBM Plex Mono" fontSize="10">{String(node.label || node.id).slice(0, 22)}</text></g>; })}
+                </svg> : <div className="empty-state">No synchronized Neo4j nodes were returned for this scan.</div>}
+              </div>}
+            </div>
+          )}
+
+          {/* KNOWLEDGE GRAPH TAB (TASK 36) */}
+          {activeTab === 'kg' && (
+            <div className="view">
+              <div className="view-head">
+                <div>
+                  <div className="view-eyebrow">Phase 36</div>
+                  <div className="view-title">Knowledge Graph Explorer</div>
+                  <div className="view-desc">Query and map multi-layered relationships across assets, identities, trust domains, and cloud resources.</div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    className="scan-input"
+                    placeholder="Search graph..."
+                    value={kgQueryStr}
+                    onChange={e => setKgQueryStr(e.target.value)}
+                  />
+                  <select className="scan-input" value={kgFilterType} onChange={e => setKgFilterType(e.target.value)}>
+                    <option value="">All Types</option>
+                    <option value="asset">Asset</option>
+                    <option value="service">Service</option>
+                    <option value="technology">Technology</option>
+                    <option value="secret">Secret</option>
+                    <option value="identity">Identity</option>
+                    <option value="cloud">Cloud</option>
+                  </select>
+                  <button className="btn primary" onClick={fetchKGData}>Query</button>
+                </div>
+              </div>
+
+              <div className="graph-wrap">
+                <div className="card-title">Graph Query Output ({asList(kgGraphData.nodes).length} nodes)</div>
+                <div className="scrollx" style={{ marginTop: '10px' }}>
+                  <table>
+                    <thead><tr><th>Node ID</th><th>Label</th><th>Type</th></tr></thead>
+                    <tbody>
+                      {asList(kgGraphData.nodes).map((n, i) => (
+                        <tr key={i} style={{ cursor: 'pointer' }} onClick={() => setKgSelectedNode(n)}>
+                          <td className="mono"><b>{n.id}</b></td>
+                          <td>{n.label}</td>
+                          <td><span className="tag live">{n.type}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {kgSelectedNode && (
+                  <div style={{ marginTop: '14px', padding: '12px', background: 'var(--panel-2)', borderRadius: '6px', border: '1px solid var(--grid)' }}>
+                    <strong>Selected Node:</strong> <code>{kgSelectedNode.id}</code> | Type: <span className="tag live">{kgSelectedNode.type}</span> | Label: {kgSelectedNode.label}
                   </div>
+                )}
+              </div>
+            </div>
+          )}
 
-                  <svg className="graph-container" viewBox="0 0 800 380">
-                    {asList(graphData.edges).map((edge, idx) => {
-                      const src = nodePositions[edge.source];
-                      const tgt = nodePositions[edge.target];
-                      if (!src || !tgt) return null;
-                      return (
-                        <line
-                          key={idx}
-                          x1={src.cx}
-                          y1={src.cy}
-                          x2={tgt.cx}
-                          y2={tgt.cy}
-                          stroke="var(--line)"
-                          strokeWidth="1.5"
-                          strokeDasharray="4 2"
-                        />
-                      );
-                    })}
+          {/* REPORTS TAB */}
+          {activeTab === 'reports' && (
+            <div className="view">
+              <div className="view-head">
+                <div>
+                  <div className="view-eyebrow">Phase 29</div>
+                  <div className="view-title">Reports</div>
+                  <div className="view-desc">Every finding carries severity, confidence, evidence, and remediation — export in whichever format the next reader needs.</div>
+                </div>
+              </div>
 
-                    {asList(graphData.nodes).map((n, i) => {
-                      const pos = nodePositions[n.id] || { cx: 80, cy: 80 };
-                      const isFinding = n.type === 'finding';
-                      const isTech = n.type === 'technology';
-                      const color = isFinding ? 'var(--red)' : (isTech ? 'var(--purple)' : 'var(--blue)');
-                      return (
-                        <g key={n.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedNode(n)}>
-                          <circle cx={pos.cx} cy={pos.cy} r="12" fill={color} stroke="var(--bg)" strokeWidth="2" />
-                          <text x={pos.cx + 16} y={pos.cy + 4} fill="var(--text)" fontSize="12" fontWeight="600">
-                            {n.label || n.id}
-                          </text>
-                        </g>
-                      );
-                    })}
-                  </svg>
+              <div className="card">
+                <div className="card-head"><div className="card-title">CLI report generation</div><div className="card-more">No generated-size estimate is shown before a report exists.</div></div>
+                <div className="feed-text">Available formats: JSON, Markdown, HTML, PDF, SARIF, and Neo4j (Cypher or JSON).</div>
+                <div className="feed-sub mono">enumscan -config &lt;config&gt; report {scanID} -format &lt;format&gt;</div>
+              </div>
+            </div>
+          )}
 
-                  {selectedNode && (
-                    <div style={{ marginTop: '14px', padding: '12px', background: 'var(--bg)', borderRadius: '6px', border: '1px solid var(--line)' }}>
-                      <strong>Node Details:</strong> ID: <code>{selectedNode.id}</code> | Type: <span className="pill">{selectedNode.type}</span> | Label: {selectedNode.label || 'N/A'}
+          {/* SCREENSHOT GALLERY: only checksum-verified artifacts are listed. */}
+          {activeTab === 'screenshots' && (
+            <div className="view">
+              <div className="view-head">
+                <div>
+                  <div className="view-eyebrow">Phase 26</div>
+                  <div className="view-title">Verified Screenshot Gallery</div>
+                  <div className="view-desc">Only browser artifacts created by the configured renderer and integrity-checked by the API are displayed.</div>
+                </div>
+              </div>
+              {screenshots.length ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
+                  {screenshots.map(shot => (
+                    <div className="card" key={shot.id} style={{ padding: '10px' }}>
+                      <img src={'/api/v1/screenshots/' + shot.id + '/content'} alt={'Captured ' + (shot.parent || 'target')} style={{ display: 'block', width: '100%', maxHeight: '220px', objectFit: 'contain', background: 'var(--ink)', borderRadius: '4px' }} />
+                      <div className="feed-sub mono" style={{ marginTop: '9px', overflowWrap: 'anywhere' }}>{shot.parent || 'unknown target'}</div>
+                      <div className="feed-sub">{shot.metadata}</div>
                     </div>
+                  ))}
+                </div>
+              ) : <div className="card empty-state">No verified screenshot artifacts exist for this scan. Enable an approved local renderer to create them.</div>}
+            </div>
+          )}
+
+          {/* TELEMETRY TAB */}
+          {activeTab === 'telemetry' && (
+            <div className="view">
+              <div className="view-head">
+                <div>
+                  <div className="view-eyebrow">System</div>
+                  <div className="view-title">Live Telemetry &amp; Logs</div>
+                  <div className="view-desc">Streamed log events and real-time execution telemetry from the scanner daemon.</div>
+                </div>
+              </div>
+              <div className="log-terminal">
+                {logs.length > 0 ? (
+                  logs.map((log, i) => (
+                    <div key={i}>[{log.time || 'NOW'}] {log.level || 'INFO'}: {log.msg || JSON.stringify(log)}</div>
+                  ))
+                ) : <div>No streamed log events are available for this scan.</div>}
+              </div>
+            </div>
+          )}
+
+          {/* SCAN HISTORY TAB */}
+          {activeTab === 'history' && (
+            <div className="view">
+              <div className="view-head">
+                <div>
+                  <div className="view-eyebrow">System</div>
+                  <div className="view-title">Scan History</div>
+                  <div className="view-desc">Recent persisted scans with live evidence counts. Select a scan to load its inventory.</div>
+                </div>
+                <button className="btn primary" onClick={fetchData}>Refresh history</button>
+              </div>
+              <div className="card scrollx">
+                <table>
+                  <thead><tr><th>Scan</th><th>Status</th><th>Started</th><th>Assets</th><th>Findings</th><th>Events</th><th></th></tr></thead>
+                  <tbody>
+                    {scanRuns.length ? scanRuns.map(run => (
+                      <tr key={run.scan_id}>
+                        <td className="mono"><b>{run.scan_id}</b>{run.error && <div className="feed-sub">{run.error}</div>}</td>
+                        <td><span className={'tag ' + (run.status === 'completed' ? 'live' : run.status === 'failed' ? 'warn' : '')}>{run.status}</span></td>
+                        <td className="mono">{run.started_at ? new Date(run.started_at).toLocaleString() : '—'}</td>
+                        <td>{run.asset_count || 0}</td><td>{run.finding_count || 0}</td><td>{run.event_count || 0}</td>
+                        <td><button className="btn" onClick={() => { setScanID(run.scan_id); location.hash = encodeURIComponent(run.scan_id); setActiveTab('overview'); }}>Open</button></td>
+                      </tr>
+                    )) : <tr><td colSpan="7" className="empty-state">No scans have been recorded in this database yet.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* SEARCH TAB */}
+          {activeTab === 'search' && (
+            <div className="view">
+              <div className="view-head">
+                <div>
+                  <div className="view-eyebrow">System</div>
+                  <div className="view-title">Search &amp; Saved Queries</div>
+                  <div className="view-desc">Query scan inventory or save search filters for rapid triage.</div>
+                </div>
+                <button className="btn primary" id="save-query" onClick={handleSaveQuery}>Save current query</button>
+              </div>
+              <div className="card" style={{ marginBottom: '16px' }}>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input
+                    className="scan-input"
+                    style={{ flex: 1 }}
+                    placeholder="Search term or expression..."
+                    value={searchQueryStr}
+                    onChange={e => setSearchQueryStr(e.target.value)}
+                  />
+                  <button className="btn primary" onClick={handleSearch}>Search</button>
+                </div>
+              </div>
+              <div className="card">
+                <div className="card-head"><div className="card-title">Saved Queries</div></div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {savedQueries.length > 0 ? (
+                    savedQueries.map((q, i) => (
+                      <button key={i} className="btn" onClick={() => { setSearchQueryStr(q.query); handleSearch(); }}>{q.name}</button>
+                    ))
+                  ) : (
+                    <div style={{ color: 'var(--muted)' }}>No saved queries found.</div>
                   )}
                 </div>
-              )}
-            </main>
-          </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'integrations' && (
+            <div className="view">
+              <div className="view-head">
+                <div>
+                  <div className="view-eyebrow">System</div>
+                  <div className="view-title">Integration Readiness</div>
+                  <div className="view-desc">Local provider preflight only. No provider is contacted and no credential value is shown.</div>
+                </div>
+                <button className="btn primary" onClick={fetchData}>Refresh status</button>
+              </div>
+              {asList(integrations.warnings).map((warning, index) => (
+                <div className="card" key={index} style={{ marginBottom: '12px', borderColor: 'var(--amber)' }}>
+                  <div className="mono" style={{ color: 'var(--amber)' }}>Warning: {warning}</div>
+                </div>
+              ))}
+              <div className="grid cols-2">
+                {asList(integrations.providers).length ? asList(integrations.providers).map(provider => (
+                  <div className="card" key={provider.source}>
+                    <div className="card-head">
+                      <div className="card-title">{provider.source}</div>
+                      <span className={'tag ' + (/ready/.test(provider.status || '') ? 'live' : provider.status === 'disabled' ? '' : 'warn')}>{provider.status}</span>
+                    </div>
+                    <div className="feed-sub">{provider.mode}</div>
+                    <div className="mono" style={{ marginTop: '10px', color: 'var(--muted)' }}>Capabilities: {asList(provider.capabilities).join(', ') || 'not declared'}</div>
+                    {provider.api_version && <div className="mono" style={{ marginTop: '7px', color: 'var(--muted)' }}>API contract: {provider.api_version}</div>}
+                    {provider.credential_status && <div className="mono" style={{ marginTop: '7px' }}>Credential: {provider.credential_status}</div>}
+                    {provider.quota && <div className="mono" style={{ marginTop: '7px' }}>Quota: {provider.quota.remaining ?? 'unknown'} remaining{provider.quota.limit != null ? ' / ' + provider.quota.limit : ''}{provider.quota.reset_at ? ', resets ' + provider.quota.reset_at : ''}</div>}
+                    {provider.update_status && <div className="mono" style={{ marginTop: '7px', color: /required|advised|available/.test(provider.update_status) ? 'var(--amber)' : 'var(--muted)' }}>Update: {provider.update_status}</div>}
+                    {asList(provider.missing_environment).length > 0 && <div className="mono" style={{ marginTop: '7px', color: 'var(--amber)' }}>Missing: {provider.missing_environment.join(', ')}</div>}
+                    {provider.note && <div className="feed-sub" style={{ marginTop: '9px' }}>{provider.note}</div>}
+                  </div>
+                )) : (
+                  <div className="card empty-state">No passive-intelligence sources are configured. Add only sources that are authorized for this engagement, then use <span className="mono">enumscan doctor</span> to preflight them.</div>
+                )}
+              </div>
+            </div>
+          )}
+
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
-    // Wiring markers for tests:
-    // /api/v1/assets /api/v1/findings /api/v1/events /api/v1/graph /api/v1/screenshots /api/v1/scans/run /api/v1/saved-queries /api/v1/timeline /api/v1/drift /api/v1/reports/changes /api/v1/events/ws id="target" 192.168.56.0/24 asList
+  // Wiring markers for tests:
+  // /api/v1/assets /api/v1/findings /api/v1/events /api/v1/graph /api/v1/screenshots /api/v1/scans/run /api/v1/saved-queries /api/v1/timeline /api/v1/drift /api/v1/reports/changes /api/v1/knowledge-graph /api/v1/knowledge-graph/query /api/v1/events/ws id="target" 192.168.56.0/24 asList
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-  </script>
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
 </body>
 </html>`

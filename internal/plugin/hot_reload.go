@@ -9,11 +9,11 @@ import (
 )
 
 type HotReloadWatcher struct {
-	pluginDir  string
-	manager    *PluginManager
-	modTimes   map[string]time.Time
-	mu         sync.Mutex
-	stopChan   chan struct{}
+	pluginDir string
+	manager   *PluginManager
+	modTimes  map[string]time.Time
+	mu        sync.Mutex
+	stopChan  chan struct{}
 }
 
 func NewHotReloadWatcher(pluginDir string, manager *PluginManager) *HotReloadWatcher {

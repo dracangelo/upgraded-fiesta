@@ -4,6 +4,12 @@
 # remain off until an authorized operator changes their individual opt-in values.
 database:
   path: "data/enumscan-production.sqlite"
+  encryption_key_env: "ENUMSCAN_DATASTORE_KEY"
+
+neo4j:
+  uri: ""
+  username: ""
+  password_env: "ENUMSCAN_NEO4J_PASSWORD"
 
 scope:
   allowed_targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
@@ -11,6 +17,8 @@ scope:
 
 scheduler:
   concurrency: 1
+  enable_adaptive_workers: false
+  min_concurrency: 1
   global_rate_limit_ms: 1000
   per_target_rate_limit_ms: 1500
   module_timeout_ms: 10000
@@ -58,6 +66,10 @@ http:
   enable_redirect_tracking: false
   enable_method_enumeration: false
   enable_source_map_analysis: false
+  enable_cookie_jar: false
+  enable_authenticated_crawling: false
+  auth_cookie_env: ""
+  enable_http3: false
   max_directory_paths: 0
   directory_wordlist: []
   api_paths: []
@@ -76,6 +88,12 @@ specialized:
 passive_intel:
   enabled: false
   sources: []
+  provider_controls: []
+  provider_versions: []
+  enable_quota_discovery: true
+  enable_update_checks: true
+  provider_min_interval_ms: 1000
+  max_retry_after_ms: 30000
 
 scan:
   profile: "authorized-conservative"
@@ -84,3 +102,19 @@ scan:
 
 reporting:
   output_dir: "reports"
+  local_llm_url: ""
+  local_llm_model: ""
+  local_llm_timeout_ms: 30000
+
+notifications:
+  enable_scan_completed_webhook: false
+  webhook_url: ""
+
+api:
+  require_auth: false
+  tokens_env: "ENUMSCAN_API_TOKENS"
+
+monitoring:
+  enabled: false
+  interval_minutes: 60
+  max_runs: 1

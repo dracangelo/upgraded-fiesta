@@ -1,0 +1,27 @@
+# PostgreSQL operational preflight template. Set ENUMSCAN_POSTGRES_DSN in the
+# process environment, replace the authorization and target placeholders, then
+# run `make postgres-migrate CONFIG=configs/postgres.template.yaml`.
+# Scan execution remains on SQLite until the full store-interface migration.
+database:
+  driver: "postgres"
+  path: "data/enumscan.sqlite"
+  postgres_dsn_env: "ENUMSCAN_POSTGRES_DSN"
+  postgres_max_open_conns: 16
+  postgres_max_idle_conns: 4
+
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+
+scheduler:
+  concurrency: 1
+  enable_adaptive_workers: false
+  min_concurrency: 1
+  global_rate_limit_ms: 1000
+  per_target_rate_limit_ms: 1500
+  module_timeout_ms: 10000
+
+scan:
+  profile: "quick"
+  targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+  ports: []

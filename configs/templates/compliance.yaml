@@ -1,0 +1,27 @@
+# Evidence-oriented web and service hardening review.
+database:
+  path: "data/REPLACE_compliance.sqlite"
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+scheduler:
+  concurrency: 2
+  min_concurrency: 1
+  global_rate_limit_ms: 500
+  per_target_rate_limit_ms: 1000
+  module_timeout_ms: 30000
+http:
+  max_depth: 1
+  max_pages_per_host: 25
+  enable_tls: true
+  enable_crawler: true
+  enable_api_discovery: true
+  enable_web_manifest: true
+  enable_redirect_tracking: true
+  enable_method_enumeration: true
+specialized:
+  enable_protocol_enumeration: true
+scan:
+  profile: "compliance"
+  targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+

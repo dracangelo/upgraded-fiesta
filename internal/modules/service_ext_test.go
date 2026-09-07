@@ -67,6 +67,34 @@ func TestPassiveOSFingerprintRequiresPacketTraits(t *testing.T) {
 	}
 }
 
+func TestPassiveOSFingerprintUsesImportedTraitsOnly(t *testing.T) {
+	db, err := store.OpenSQLiteCLI(filepath.Join(t.TempDir(), "traits.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := db.Migrate(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	mod := NewOSStackFingerprint(db, scope.New([]string{"10.20.30.0/24"}))
+	if _, err := mod.Handle(context.Background(), models.Event{
+		ScanID: "traits", Type: EventPassiveTCPTraits, Target: "10.20.30.4:443",
+		Data: map[string]string{"ttl": "64", "tcp_window": "64240", "tcp_options": "mss 1460"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	assets, err := db.Assets(context.Background(), "traits")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, asset := range assets {
+		if asset.Type == "operating_system" && asset.Value == "Unix-like network stack" && strings.Contains(asset.Metadata, "verification=heuristic") {
+			return
+		}
+	}
+	t.Fatalf("expected heuristic OS asset from imported passive traits, got %#v", assets)
+}
+
 func TestCPENormalizer(t *testing.T) {
 	norm := inventory.NewCPENormalizer()
 	cpe1 := norm.ParseBannerToCPE("Apache/2.4.41 (Ubuntu)")

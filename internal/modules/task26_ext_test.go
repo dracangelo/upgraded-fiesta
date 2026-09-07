@@ -2,6 +2,7 @@ package modules
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -46,5 +47,29 @@ func TestTask26AdvancedIntelligenceAndModernWeb(t *testing.T) {
 	})
 	if err != nil || !strings.Contains(string(bhJSON), "dc=example,dc=com") {
 		t.Fatalf("BloodHound export error")
+	}
+}
+
+func TestWappalyzerJSONRulesExtendBuiltinRules(t *testing.T) {
+	db, err := store.OpenSQLiteCLI(filepath.Join(t.TempDir(), "rules.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := db.Migrate(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	ruleFile := filepath.Join(t.TempDir(), "technologies.json")
+	rules := `{"categories":{"1":{"name":"Programming languages"}},"technologies":{"ExamplePHP":{"cats":[1],"headers":{"X-Powered-By":"PHP(?:/\\d+)?\\;confidence:100"}}}}`
+	if err := os.WriteFile(ruleFile, []byte(rules), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	detector, err := NewWappalyzerDetectorWithRuleFiles(db, []string{ruleFile})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assets := detector.Detect(context.Background(), "scan-json-rules", "https://example.test", "X-Powered-By: PHP/8", "")
+	if len(assets) != 1 || assets[0].Value != "ExamplePHP" || !strings.Contains(assets[0].Metadata, "Programming languages") {
+		t.Fatalf("JSON rule did not produce expected technology evidence: %#v", assets)
 	}
 }

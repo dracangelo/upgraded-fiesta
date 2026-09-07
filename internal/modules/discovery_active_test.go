@@ -31,7 +31,7 @@ func TestDNSProbePayloadIsValidQuestion(t *testing.T) {
 
 func TestPassiveCaptureImportIsScoped(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "capture.txt")
-	if err := os.WriteFile(path, []byte("IP 10.20.30.4.443 > 10.20.30.1.51522\nIP 192.0.2.5.443 > 10.20.30.1.51522\n"), 0600); err != nil {
+	if err := os.WriteFile(path, []byte("IP (tos 0x0, ttl 64, id 1) 10.20.30.4.443 > 10.20.30.1.51522: Flags [S.], win 64240, options [mss 1460,sackOK]\nIP 192.0.2.5.443 > 10.20.30.1.51522\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	db, err := store.OpenSQLiteCLI(filepath.Join(t.TempDir(), "scan.sqlite"))
@@ -56,6 +56,15 @@ func TestPassiveCaptureImportIsScoped(t *testing.T) {
 	if !found {
 		t.Fatalf("expected scoped capture host event, got %#v", events)
 	}
+	var traits models.Event
+	for _, event := range events {
+		if event.Type == EventPassiveTCPTraits {
+			traits = event
+		}
+	}
+	if traits.Target != "10.20.30.4:443" || traits.Data["ttl"] != "64" || traits.Data["tcp_window"] != "64240" {
+		t.Fatalf("expected bounded passive TCP traits, got %#v", traits)
+	}
 }
 
 func TestSNMPGetRequestPayload(t *testing.T) {
@@ -74,14 +83,15 @@ func TestBuildTCPHeader(t *testing.T) {
 
 func TestTCPSYNACKProbesAndLiveCaptureGracefulFallback(t *testing.T) {
 	ctx := context.Background()
-	// Unreachable IP address should return false cleanly without panicking
-	if tcpSYNHostResponsive(ctx, "192.0.2.1", 65432) {
-		t.Fatal("expected unreachable IP to fail SYN probe")
+	// Invalid targets must return false cleanly without relying on external
+	// routing. Documentation networks can be routable in CI or lab networks.
+	if tcpSYNHostResponsive(ctx, "not-an-ip", 65432) {
+		t.Fatal("expected invalid target to fail SYN probe")
 	}
-	if tcpACKHostResponsive(ctx, "192.0.2.1", 65432) {
-		t.Fatal("expected unreachable IP to fail ACK probe")
+	if tcpACKHostResponsive(ctx, "not-an-ip", 65432) {
+		t.Fatal("expected invalid target to fail ACK probe")
 	}
-	if snmpHostResponsive(ctx, "192.0.2.1", 65432, "public") {
-		t.Fatal("expected unreachable IP to fail SNMP probe")
+	if snmpHostResponsive(ctx, "not-an-ip", 65432, "public") {
+		t.Fatal("expected invalid target to fail SNMP probe")
 	}
 }

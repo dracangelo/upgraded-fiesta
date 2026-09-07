@@ -8,27 +8,55 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
+
 	"enumscan/internal/models"
 )
 
 type PostgresStore struct {
 	connString string
 	db         *sql.DB
+	maxOpen    int
+	maxIdle    int
 }
 
 func NewPostgresStore(connString string) *PostgresStore {
-	return &PostgresStore{connString: connString}
+	return &PostgresStore{connString: connString, maxOpen: 16, maxIdle: 4}
+}
+
+func (p *PostgresStore) ConfigurePool(maxOpen, maxIdle int) error {
+	if maxOpen < 1 || maxOpen > 128 || maxIdle < 0 || maxIdle > maxOpen {
+		return fmt.Errorf("invalid PostgreSQL pool limits")
+	}
+	p.maxOpen, p.maxIdle = maxOpen, maxIdle
+	return nil
 }
 
 func (p *PostgresStore) Open() error {
 	if p.db != nil {
 		return nil
 	}
-	db, err := sql.Open("postgres", p.connString)
+	db, err := sql.Open("pgx", p.connString)
 	if err != nil {
 		return fmt.Errorf("open postgres database: %w", err)
 	}
+	db.SetMaxOpenConns(p.maxOpen)
+	db.SetMaxIdleConns(p.maxIdle)
 	p.db = db
+	return nil
+}
+
+// OpenContext establishes and verifies a PostgreSQL connection. It is used by
+// explicit operational commands; scans remain on SQLite until their full store
+// interface migration is completed.
+func (p *PostgresStore) OpenContext(ctx context.Context) error {
+	if err := p.Open(); err != nil {
+		return err
+	}
+	if err := p.db.PingContext(ctx); err != nil {
+		_ = p.Close()
+		return fmt.Errorf("ping PostgreSQL database: %w", err)
+	}
 	return nil
 }
 
@@ -101,7 +129,7 @@ CREATE TABLE IF NOT EXISTS checkpoints (
 );
 `
 	if p.db == nil {
-		return nil
+		return p.notOpenError()
 	}
 	_, err := p.db.ExecContext(ctx, schema)
 	return err
@@ -109,7 +137,7 @@ CREATE TABLE IF NOT EXISTS checkpoints (
 
 func (p *PostgresStore) StartScan(ctx context.Context, scanID string) error {
 	if p.db == nil {
-		return nil
+		return p.notOpenError()
 	}
 	query := `INSERT INTO scan_runs(scan_id, status) VALUES($1, 'running')
 ON CONFLICT (scan_id) DO UPDATE SET status='running', error='', finished_at=NULL`
@@ -119,7 +147,7 @@ ON CONFLICT (scan_id) DO UPDATE SET status='running', error='', finished_at=NULL
 
 func (p *PostgresStore) FinishScan(ctx context.Context, scanID, status, errMessage string) error {
 	if p.db == nil {
-		return nil
+		return p.notOpenError()
 	}
 	query := `UPDATE scan_runs SET status=$1, error=$2, finished_at=CURRENT_TIMESTAMP WHERE scan_id=$3`
 	_, err := p.db.ExecContext(ctx, query, status, errMessage, scanID)
@@ -128,7 +156,7 @@ func (p *PostgresStore) FinishScan(ctx context.Context, scanID, status, errMessa
 
 func (p *PostgresStore) AddAsset(ctx context.Context, asset models.Asset) error {
 	if p.db == nil {
-		return nil
+		return p.notOpenError()
 	}
 	query := `INSERT INTO assets(scan_id, type, value, parent, metadata) VALUES($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING`
 	_, err := p.db.ExecContext(ctx, query, asset.ScanID, asset.Type, asset.Value, asset.Parent, asset.Metadata)
@@ -137,7 +165,7 @@ func (p *PostgresStore) AddAsset(ctx context.Context, asset models.Asset) error 
 
 func (p *PostgresStore) Assets(ctx context.Context, scanID string) ([]models.Asset, error) {
 	if p.db == nil {
-		return []models.Asset{}, nil
+		return nil, p.notOpenError()
 	}
 	rows, err := p.db.QueryContext(ctx, `SELECT id, scan_id, type, value, parent, metadata, created_at FROM assets WHERE scan_id=$1 ORDER BY type, value`, scanID)
 	if err != nil {
@@ -160,7 +188,7 @@ func (p *PostgresStore) Assets(ctx context.Context, scanID string) ([]models.Ass
 
 func (p *PostgresStore) AddFinding(ctx context.Context, finding models.Finding) error {
 	if p.db == nil {
-		return nil
+		return p.notOpenError()
 	}
 	refs, err := json.Marshal(finding.References)
 	if err != nil {
@@ -173,7 +201,7 @@ func (p *PostgresStore) AddFinding(ctx context.Context, finding models.Finding) 
 
 func (p *PostgresStore) Findings(ctx context.Context, scanID string) ([]models.Finding, error) {
 	if p.db == nil {
-		return []models.Finding{}, nil
+		return nil, p.notOpenError()
 	}
 	rows, err := p.db.QueryContext(ctx, `SELECT id, scan_id, severity, confidence, asset, title, evidence, remediation, cwe, cve, cvss, epss, kev, references_json, created_at FROM findings WHERE scan_id=$1 ORDER BY cvss DESC`, scanID)
 	if err != nil {
@@ -198,7 +226,7 @@ func (p *PostgresStore) Findings(ctx context.Context, scanID string) ([]models.F
 
 func (p *PostgresStore) AddEvent(ctx context.Context, event models.Event) error {
 	if p.db == nil {
-		return nil
+		return p.notOpenError()
 	}
 	query := `INSERT INTO events(scan_id, type, target, data) VALUES($1, $2, $3, $4)`
 	_, err := p.db.ExecContext(ctx, query, event.ScanID, event.Type, event.Target, flatten(event.Data))
@@ -207,7 +235,7 @@ func (p *PostgresStore) AddEvent(ctx context.Context, event models.Event) error 
 
 func (p *PostgresStore) Events(ctx context.Context, scanID string) ([]models.Event, error) {
 	if p.db == nil {
-		return []models.Event{}, nil
+		return nil, p.notOpenError()
 	}
 	rows, err := p.db.QueryContext(ctx, `SELECT id, scan_id, type, target, data FROM events WHERE scan_id=$1 ORDER BY id`, scanID)
 	if err != nil {
@@ -230,7 +258,7 @@ func (p *PostgresStore) Events(ctx context.Context, scanID string) ([]models.Eve
 
 func (p *PostgresStore) UpsertCheckpoint(ctx context.Context, checkpoint models.Checkpoint) error {
 	if p.db == nil {
-		return nil
+		return p.notOpenError()
 	}
 	query := `INSERT INTO checkpoints(scan_id, module, event_type, target, status, error, updated_at) VALUES($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
 ON CONFLICT (scan_id, module, event_type, target) DO UPDATE SET status=EXCLUDED.status, error=EXCLUDED.error, updated_at=CURRENT_TIMESTAMP`
@@ -240,4 +268,8 @@ ON CONFLICT (scan_id, module, event_type, target) DO UPDATE SET status=EXCLUDED.
 
 func pgQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+}
+
+func (p *PostgresStore) notOpenError() error {
+	return fmt.Errorf("postgres store is not open; configure a PostgreSQL driver and call Open before use")
 }

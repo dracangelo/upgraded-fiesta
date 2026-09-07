@@ -130,17 +130,30 @@ func (s *SQLiteCLI) SearchCategorized(ctx context.Context, scanID, query, catego
 }
 
 func (s *SQLiteCLI) ScreenshotAssets(ctx context.Context, scanID string) ([]models.Asset, error) {
-	assets, err := s.Assets(ctx, scanID)
+	query := `SELECT id,scan_id,type,value,parent,metadata,created_at FROM assets WHERE type='screenshot' ORDER BY id DESC`
+	args := []any(nil)
+	if scanID != "" {
+		query = `SELECT id,scan_id,type,value,parent,metadata,created_at FROM assets WHERE type='screenshot' AND scan_id=? ORDER BY id DESC`
+		args = append(args, scanID)
+	}
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
+
 	out := make([]models.Asset, 0)
-	for _, asset := range assets {
-		// Only an actual renderer should create this type. Queued screenshot
-		// targets are intentionally excluded from the gallery.
-		if asset.Type == "screenshot" {
-			out = append(out, asset)
+	for rows.Next() {
+		var asset models.Asset
+		var created string
+		if err := rows.Scan(&asset.ID, &asset.ScanID, &asset.Type, &asset.Value, &asset.Parent, &asset.Metadata, &created); err != nil {
+			return nil, err
 		}
+		asset.CreatedAt = parseSQLiteTime(created)
+		if err := s.revealAsset(&asset); err != nil {
+			return nil, err
+		}
+		out = append(out, asset)
 	}
-	return out, nil
+	return out, rows.Err()
 }

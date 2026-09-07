@@ -22,11 +22,9 @@ type APIProtocolScanner struct {
 
 func NewAPIProtocolScanner(db *store.SQLiteCLI, guard scope.Guard) *APIProtocolScanner {
 	return &APIProtocolScanner{
-		db:    db,
-		guard: guard,
-		client: &http.Client{
-			Timeout: 3 * time.Second,
-		},
+		db:     db,
+		guard:  guard,
+		client: scopedHTTPClient(guard, 3*time.Second, nil),
 	}
 }
 
@@ -43,10 +41,7 @@ func (m *APIProtocolScanner) Handle(ctx context.Context, evt models.Event) ([]mo
 		return nil, nil
 	}
 
-	targetIP := evt.Target
-	if idx := strings.Index(targetIP, ":"); idx != -1 {
-		targetIP = targetIP[:idx]
-	}
+	targetIP := eventHost(evt.Target)
 
 	if !m.guard.Allowed(targetIP) {
 		return nil, nil
@@ -117,14 +112,15 @@ func (m *APIProtocolScanner) Handle(ctx context.Context, evt models.Event) ([]mo
 		}
 	}
 
-	// 4. gRPC Reflection Check
+	// 4. gRPC endpoint candidate. Reflection itself requires real HTTP/2 protobuf
+	// framing and cannot be established from the open port alone.
 	if strings.HasSuffix(evt.Target, ":50051") {
 		_ = m.db.AddAsset(ctx, models.Asset{
 			ScanID:   evt.ScanID,
-			Type:     "api_endpoint",
+			Type:     "grpc_endpoint_candidate",
 			Value:    evt.Target,
 			Parent:   evt.Target,
-			Metadata: "grpc_server_reflection_v1alpha",
+			Metadata: "verification=heuristic;requires=grpc_reflection_client",
 		})
 	}
 

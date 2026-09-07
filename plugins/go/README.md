@@ -1,12 +1,11 @@
 # Go Plugin Direction
 
-The current scaffold uses in-process Go modules behind the scheduler `Module` interface.
+Enumscan provides an embedded, restricted Lua runtime and a protobuf-backed
+gRPC client runtime. Installed marketplace packages are never activated merely
+because they exist on disk; callers must verify and explicitly load them.
 
-Future external plugin options:
-
-- Go shared-object plugins for same-host trusted modules.
-- gRPC plugins for language-neutral and sandboxable extensions.
-- Lua plugins for lightweight service fingerprints and HTTP checks.
+Go shared-object plugins remain unsupported because they do not provide the
+process boundary used by the gRPC runtime.
 
 Recommended contract:
 
@@ -16,4 +15,3 @@ Plugin receives scan id, target, and event metadata
 Plugin returns new assets, findings, and events
 Core enforces scope before dispatch and before accepting new targets
 ```
-

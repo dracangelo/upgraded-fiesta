@@ -30,10 +30,13 @@ func TestFrontendFrameworkDetector(t *testing.T) {
 
 	guard := scope.New([]string{"127.0.0.1", "localhost"})
 	detector := NewFrontendFrameworkDetector(db, guard)
+	if subscriptions := detector.Subscriptions(); len(subscriptions) != 1 || subscriptions[0] != EventHTTPURL {
+		t.Fatalf("frontend detector must subscribe to %q, got %#v", EventHTTPURL, subscriptions)
+	}
 
 	_, err = detector.Handle(context.Background(), models.Event{
 		ScanID: "test_fw",
-		Type:   "url.crawled",
+		Type:   EventHTTPURL,
 		Target: ts.URL,
 	})
 	if err != nil {

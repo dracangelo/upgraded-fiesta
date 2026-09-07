@@ -1,0 +1,12 @@
+.git
+.github
+.agents
+.codex
+data
+dist
+reports
+*.sqlite
+*.sqlite-*
+configs/my-scan.yaml
+ENTERPRISE_RELEASE_AUDIT.md
+FEATURE_ADHERENCE.md

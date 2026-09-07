@@ -1,0 +1,31 @@
+# Cloud-facing service inventory; provider APIs and IMDS checks stay disabled.
+database:
+  path: "data/REPLACE_cloud.sqlite"
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+scheduler:
+  concurrency: 3
+  min_concurrency: 1
+  global_rate_limit_ms: 500
+  per_target_rate_limit_ms: 1000
+  module_timeout_ms: 30000
+discovery:
+  cidr_max_hosts: 256
+  enable_dns_discovery: true
+  enable_dns_records: true
+  enable_reverse_dns: true
+  enable_rdap: false
+http:
+  enable_tls: true
+  enable_crawler: true
+  enable_api_discovery: true
+specialized:
+  enable_cloud: false
+passive_intel:
+  enabled: false
+  sources: []
+scan:
+  profile: "cloud_infrastructure"
+  targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+

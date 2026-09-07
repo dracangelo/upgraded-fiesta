@@ -10,21 +10,18 @@ func TestTask28SecretsManagement(t *testing.T) {
 
 	// 1. Env & Local Backend Test
 	secMgr := NewMultiBackendSecretsManager(ProviderEnv)
-	if err := secMgr.SetSecret(ctx, "db_pass", "secret123"); err != nil {
-		t.Fatalf("SetSecret failed: %v", err)
-	}
+	t.Setenv("ENUMSCAN_SECRET_DB_PASS", "secret123")
 	val, err := secMgr.GetSecret(ctx, "db_pass")
 	if err != nil || val != "secret123" {
 		t.Fatalf("GetSecret failed")
 	}
 
-	// 2. Secret Rotation Test
-	if err := secMgr.RotateSecret(ctx, "db_pass", "new_secret456"); err != nil {
-		t.Fatalf("RotateSecret failed: %v", err)
+	// 2. Secret writes and rotation must not fabricate process-local state.
+	if err := secMgr.SetSecret(ctx, "db_pass", "new_secret456"); err == nil {
+		t.Fatal("environment secrets must reject in-process writes")
 	}
-	newVal, err := secMgr.GetSecret(ctx, "db_pass")
-	if err != nil || newVal != "new_secret456" {
-		t.Fatalf("rotated secret mismatch")
+	if err := secMgr.RotateSecret(ctx, "db_pass", "new_secret456"); err == nil {
+		t.Fatal("environment secrets must reject in-process rotation")
 	}
 
 	// 3. Multi-Backend Providers Test
@@ -39,9 +36,8 @@ func TestTask28SecretsManagement(t *testing.T) {
 
 	for _, backend := range backends {
 		bm := NewMultiBackendSecretsManager(backend)
-		sec, err := bm.GetSecret(ctx, "api_key")
-		if err != nil || sec == "" {
-			t.Fatalf("failed to retrieve secret for backend %s", backend)
+		if _, err := bm.GetSecret(ctx, "api_key"); err == nil {
+			t.Fatalf("backend %s must not fabricate a secret", backend)
 		}
 	}
 }

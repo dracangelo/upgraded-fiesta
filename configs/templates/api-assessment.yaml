@@ -1,0 +1,30 @@
+# REST, GraphQL, OpenAPI, SOAP, and optional gRPC service discovery.
+database:
+  path: "data/REPLACE_api.sqlite"
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+scheduler:
+  concurrency: 3
+  min_concurrency: 1
+  global_rate_limit_ms: 250
+  per_target_rate_limit_ms: 500
+  module_timeout_ms: 30000
+http:
+  max_depth: 2
+  max_pages_per_host: 100
+  enable_tls: true
+  enable_crawler: true
+  enable_js_analysis: true
+  enable_api_discovery: true
+  enable_directory_api: true
+  max_directory_paths: 50
+  enable_redirect_tracking: true
+  enable_method_enumeration: true
+  enable_cookie_jar: true
+  enable_grpc_reflection: false
+  grpc_reflection_ports: []
+scan:
+  profile: "api_assessment"
+  targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+

@@ -14,6 +14,15 @@ func (s *SQLiteCLI) AddPortObservation(ctx context.Context, observation models.P
 	if s == nil || s.db == nil {
 		return fmt.Errorf("database connection is nil")
 	}
-	_, err := s.db.ExecContext(ctx, `INSERT INTO port_observations(scan_id,host,port,protocol,state,latency_ms,evidence) VALUES(?,?,?,?,?,?,?)`, observation.ScanID, observation.Host, observation.Port, observation.Protocol, observation.State, observation.LatencyMS, observation.Evidence)
+	var err error
+	observation.Host, err = s.seal("port_observations.host", observation.Host)
+	if err != nil {
+		return err
+	}
+	observation.Evidence, err = s.seal("port_observations.evidence", observation.Evidence)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO port_observations(scan_id,host,port,protocol,state,latency_ms,evidence) VALUES(?,?,?,?,?,?,?)`, observation.ScanID, observation.Host, observation.Port, observation.Protocol, observation.State, observation.LatencyMS, observation.Evidence)
 	return err
 }

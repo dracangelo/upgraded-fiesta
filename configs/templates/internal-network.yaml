@@ -1,0 +1,27 @@
+# Internal host and read-only service capability inventory.
+database:
+  path: "data/REPLACE_internal.sqlite"
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+scheduler:
+  concurrency: 4
+  min_concurrency: 1
+  global_rate_limit_ms: 200
+  per_target_rate_limit_ms: 500
+  module_timeout_ms: 30000
+discovery:
+  cidr_max_hosts: 1024
+  enable_reverse_dns: true
+  enable_icmp_sweep: false
+  enable_tcp_host_probes: true
+  tcp_probe_ports: [22, 88, 389, 445]
+specialized:
+  enable_protocol_enumeration: true
+  enable_smb: true
+  enable_ldap: true
+  enable_snmp: false
+scan:
+  profile: "internal_network"
+  targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+

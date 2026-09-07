@@ -2,6 +2,8 @@ package plugin
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -46,12 +48,27 @@ func TestHotReloadAndMarketplace(t *testing.T) {
 	time.Sleep(20 * time.Millisecond)
 	watcher.Stop()
 
-	mp := NewMarketplaceManager("")
+	registry := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`[{"id":"example.plugin","name":"Example","version":"1.0.0"}]`))
+	}))
+	defer registry.Close()
+	mp := NewMarketplaceManager(registry.URL)
 	plugins, err := mp.SearchPlugins(context.Background(), "nmap")
 	if err != nil {
 		t.Fatalf("SearchPlugins error: %v", err)
 	}
 	if len(plugins) == 0 {
 		t.Errorf("expected marketplace plugins result, got empty")
+	}
+}
+
+func TestMarketplaceRequiresExplicitTrustedRegistry(t *testing.T) {
+	mp := NewMarketplaceManager("")
+	if _, err := mp.SearchPlugins(context.Background(), "example"); err == nil {
+		t.Fatal("expected marketplace search without an explicit registry to fail")
+	}
+	mp = NewMarketplaceManager("http://example.com/plugins")
+	if _, err := mp.SearchPlugins(context.Background(), "example"); err == nil {
+		t.Fatal("expected non-loopback HTTP marketplace registry to be rejected")
 	}
 }

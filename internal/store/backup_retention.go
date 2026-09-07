@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -15,15 +16,18 @@ func (s *SQLiteCLI) Backup(ctx context.Context, targetPath string) error {
 		return fmt.Errorf("invalid store path")
 	}
 
-	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0700); err != nil {
 		return fmt.Errorf("create backup dir: %w", err)
+	}
+	if err := os.Chmod(filepath.Dir(targetPath), 0700); err != nil {
+		return fmt.Errorf("restrict backup directory permissions: %w", err)
 	}
 
 	// Lock writes during backup file copy using VACUUM INTO or file copy
 	if s.db != nil {
-		query := fmt.Sprintf("VACUUM INTO '%s'", targetPath)
+		query := fmt.Sprintf("VACUUM INTO '%s'", strings.ReplaceAll(targetPath, "'", "''"))
 		if _, err := s.db.ExecContext(ctx, query); err == nil {
-			return nil
+			return os.Chmod(targetPath, 0600)
 		}
 	}
 
@@ -34,7 +38,7 @@ func (s *SQLiteCLI) Backup(ctx context.Context, targetPath string) error {
 	}
 	defer srcFile.Close()
 
-	destFile, err := os.Create(targetPath)
+	destFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 	if err != nil {
 		return fmt.Errorf("create backup target: %w", err)
 	}
@@ -44,7 +48,7 @@ func (s *SQLiteCLI) Backup(ctx context.Context, targetPath string) error {
 		return fmt.Errorf("copy backup data: %w", err)
 	}
 
-	return nil
+	return destFile.Chmod(0600)
 }
 
 // Restore overwrites the store database file from a backup snapshot at backupPath.
@@ -64,7 +68,7 @@ func (s *SQLiteCLI) Restore(ctx context.Context, backupPath string) error {
 		_ = s.db.Close()
 	}
 
-	destFile, err := os.Create(s.path)
+	destFile, err := os.OpenFile(s.path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 	if err != nil {
 		return fmt.Errorf("create dest db file: %w", err)
 	}
@@ -72,6 +76,9 @@ func (s *SQLiteCLI) Restore(ctx context.Context, backupPath string) error {
 
 	if _, err := io.Copy(destFile, backupFile); err != nil {
 		return fmt.Errorf("restore backup data: %w", err)
+	}
+	if err := destFile.Chmod(0600); err != nil {
+		return fmt.Errorf("secure restored database permissions: %w", err)
 	}
 
 	// Re-open DB
