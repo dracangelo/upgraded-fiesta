@@ -1,0 +1,58 @@
+=== RUN   TestFieldValidationConcurrentScans
+{"time":"2026-09-14T08:40:07.651957802+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-02","event_id":3,"event_type":"target.discovered","target":"127.0.0.1","module":"discovery"}
+{"time":"2026-09-14T08:40:07.653896347+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-00","event_id":1,"event_type":"target.discovered","target":"127.0.0.1","module":"discovery"}
+{"time":"2026-09-14T08:40:07.654673991+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-03","event_id":2,"event_type":"target.discovered","target":"127.0.0.1","module":"discovery"}
+{"time":"2026-09-14T08:40:07.654990788+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-01","event_id":4,"event_type":"target.discovered","target":"127.0.0.1","module":"discovery"}
+{"time":"2026-09-14T08:40:07.657458251+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-03","event_id":2,"event_type":"target.discovered","target":"127.0.0.1","module":"discovery","new_events":1}
+{"time":"2026-09-14T08:40:07.657756243+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-02","event_id":3,"event_type":"target.discovered","target":"127.0.0.1","module":"discovery","new_events":1}
+{"time":"2026-09-14T08:40:07.658852935+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-01","event_id":4,"event_type":"target.discovered","target":"127.0.0.1","module":"discovery","new_events":1}
+{"time":"2026-09-14T08:40:07.659370967+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-00","event_id":1,"event_type":"target.discovered","target":"127.0.0.1","module":"discovery","new_events":1}
+{"time":"2026-09-14T08:40:08.652982211+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-02","event_id":8,"event_type":"host.discovered","target":"127.0.0.1","module":"portscan"}
+{"time":"2026-09-14T08:40:08.65556536+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-02","event_id":8,"event_type":"host.discovered","target":"127.0.0.1","module":"portscan","new_events":0}
+{"time":"2026-09-14T08:40:08.655737081+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-01","event_id":7,"event_type":"host.discovered","target":"127.0.0.1","module":"portscan"}
+{"time":"2026-09-14T08:40:08.655765498+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-00","event_id":6,"event_type":"host.discovered","target":"127.0.0.1","module":"portscan"}
+{"time":"2026-09-14T08:40:08.655783021+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-03","event_id":5,"event_type":"host.discovered","target":"127.0.0.1","module":"portscan"}
+{"time":"2026-09-14T08:40:08.661437783+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-00","event_id":6,"event_type":"host.discovered","target":"127.0.0.1","module":"portscan","new_events":0}
+{"time":"2026-09-14T08:40:08.661862657+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-01","event_id":7,"event_type":"host.discovered","target":"127.0.0.1","module":"portscan","new_events":0}
+{"time":"2026-09-14T08:40:08.662600449+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-03","event_id":5,"event_type":"host.discovered","target":"127.0.0.1","module":"portscan","new_events":0}
+{"time":"2026-09-14T08:40:09.652892331+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-02","event_id":3,"event_type":"target.discovered","target":"127.0.0.1","module":"ipv6_discovery"}
+{"time":"2026-09-14T08:40:09.653897241+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-00","event_id":1,"event_type":"target.discovered","target":"127.0.0.1","module":"ipv6_discovery"}
+{"time":"2026-09-14T08:40:09.654879603+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-03","event_id":2,"event_type":"target.discovered","target":"127.0.0.1","module":"ipv6_discovery"}
+{"time":"2026-09-14T08:40:09.655048439+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-01","event_id":4,"event_type":"target.discovered","target":"127.0.0.1","module":"ipv6_discovery"}
+{"time":"2026-09-14T08:40:09.656460212+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-02","event_id":3,"event_type":"target.discovered","target":"127.0.0.1","module":"ipv6_discovery","new_events":0}
+{"time":"2026-09-14T08:40:09.658306632+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-00","event_id":1,"event_type":"target.discovered","target":"127.0.0.1","module":"ipv6_discovery","new_events":0}
+{"time":"2026-09-14T08:40:09.659925395+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-01","event_id":4,"event_type":"target.discovered","target":"127.0.0.1","module":"ipv6_discovery","new_events":0}
+{"time":"2026-09-14T08:40:09.660828167+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-03","event_id":2,"event_type":"target.discovered","target":"127.0.0.1","module":"ipv6_discovery","new_events":0}
+{"time":"2026-09-14T08:40:10.652303827+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-02","event_id":8,"event_type":"host.discovered","target":"127.0.0.1","module":"specialized"}
+{"time":"2026-09-14T08:40:10.653061326+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-02","event_id":8,"event_type":"host.discovered","target":"127.0.0.1","module":"specialized","new_events":0}
+{"time":"2026-09-14T08:40:10.654406083+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-00","event_id":6,"event_type":"host.discovered","target":"127.0.0.1","module":"specialized"}
+{"time":"2026-09-14T08:40:10.654956795+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-00","event_id":6,"event_type":"host.discovered","target":"127.0.0.1","module":"specialized","new_events":0}
+{"time":"2026-09-14T08:40:10.654984974+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-03","event_id":5,"event_type":"host.discovered","target":"127.0.0.1","module":"specialized"}
+{"time":"2026-09-14T08:40:10.655424651+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-03","event_id":5,"event_type":"host.discovered","target":"127.0.0.1","module":"specialized","new_events":0}
+{"time":"2026-09-14T08:40:10.655442577+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-01","event_id":7,"event_type":"host.discovered","target":"127.0.0.1","module":"specialized"}
+{"time":"2026-09-14T08:40:10.655873762+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-01","event_id":7,"event_type":"host.discovered","target":"127.0.0.1","module":"specialized","new_events":0}
+{"time":"2026-09-14T08:40:11.654294838+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-02","event_id":3,"event_type":"target.discovered","target":"127.0.0.1","module":"arp_discovery"}
+{"time":"2026-09-14T08:40:11.655883083+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-00","event_id":1,"event_type":"target.discovered","target":"127.0.0.1","module":"arp_discovery"}
+{"time":"2026-09-14T08:40:11.656056836+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-01","event_id":4,"event_type":"target.discovered","target":"127.0.0.1","module":"arp_discovery"}
+{"time":"2026-09-14T08:40:11.656159842+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-03","event_id":2,"event_type":"target.discovered","target":"127.0.0.1","module":"arp_discovery"}
+{"time":"2026-09-14T08:40:11.660713328+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-02","event_id":3,"event_type":"target.discovered","target":"127.0.0.1","module":"arp_discovery","new_events":0}
+{"time":"2026-09-14T08:40:11.662530244+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-00","event_id":1,"event_type":"target.discovered","target":"127.0.0.1","module":"arp_discovery","new_events":0}
+{"time":"2026-09-14T08:40:11.662962148+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-01","event_id":4,"event_type":"target.discovered","target":"127.0.0.1","module":"arp_discovery","new_events":0}
+{"time":"2026-09-14T08:40:11.663945484+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-03","event_id":2,"event_type":"target.discovered","target":"127.0.0.1","module":"arp_discovery","new_events":0}
+{"time":"2026-09-14T08:40:12.652867488+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-02","event_id":3,"event_type":"target.discovered","target":"127.0.0.1","module":"specialized"}
+{"time":"2026-09-14T08:40:12.654060171+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-00","event_id":1,"event_type":"target.discovered","target":"127.0.0.1","module":"specialized"}
+{"time":"2026-09-14T08:40:12.654905225+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-03","event_id":2,"event_type":"target.discovered","target":"127.0.0.1","module":"specialized"}
+{"time":"2026-09-14T08:40:12.65502732+03:00","level":"INFO","msg":"module started","scan_id":"concurrent-val-01","event_id":4,"event_type":"target.discovered","target":"127.0.0.1","module":"specialized"}
+{"time":"2026-09-14T08:40:12.658649234+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-02","event_id":3,"event_type":"target.discovered","target":"127.0.0.1","module":"specialized","new_events":0}
+{"time":"2026-09-14T08:40:12.660665211+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-00","event_id":1,"event_type":"target.discovered","target":"127.0.0.1","module":"specialized","new_events":0}
+{"time":"2026-09-14T08:40:12.661126921+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-03","event_id":2,"event_type":"target.discovered","target":"127.0.0.1","module":"specialized","new_events":0}
+{"time":"2026-09-14T08:40:12.662083691+03:00","level":"INFO","msg":"module completed","scan_id":"concurrent-val-01","event_id":4,"event_type":"target.discovered","target":"127.0.0.1","module":"specialized","new_events":0}
+--- PASS: TestFieldValidationConcurrentScans (5.54s)
+=== RUN   TestFieldValidationRestartAndResume
+--- PASS: TestFieldValidationRestartAndResume (0.01s)
+=== RUN   TestFieldValidationRetentionAndPurge
+--- PASS: TestFieldValidationRetentionAndPurge (0.01s)
+=== RUN   TestFieldValidationCredentialRotation
+--- PASS: TestFieldValidationCredentialRotation (0.00s)
+PASS
+ok  	enumscan/internal/engine	5.583s

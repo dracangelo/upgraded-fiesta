@@ -11,11 +11,11 @@ import (
 )
 
 type ARPDiscovery struct {
-	db    *store.SQLiteCLI
+	db    store.RuntimeStore
 	guard scope.Guard
 }
 
-func NewARPDiscovery(db *store.SQLiteCLI, guard scope.Guard) *ARPDiscovery {
+func NewARPDiscovery(db store.RuntimeStore, guard scope.Guard) *ARPDiscovery {
 	return &ARPDiscovery{db: db, guard: guard}
 }
 

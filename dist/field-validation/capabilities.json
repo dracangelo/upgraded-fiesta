@@ -1,0 +1,482 @@
+{
+  "schema_version": "1.0",
+  "product": "enumscan",
+  "capabilities": [
+    {
+      "id": "bounded-scheduler",
+      "name": "Bounded event scheduler",
+      "category": "engine",
+      "status": "implemented",
+      "summary": "Runs event-driven modules with global/per-target pacing, timeouts, deduplication, and optional adaptive workers.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "config_keys": [
+        "scheduler.concurrency",
+        "scheduler.global_rate_limit_ms",
+        "scheduler.per_target_rate_limit_ms",
+        "scheduler.module_timeout_ms"
+      ],
+      "network_effects": [
+        "bounded target connections"
+      ]
+    },
+    {
+      "id": "dashboard-api",
+      "name": "Dashboard, REST, GraphQL, and streams",
+      "category": "interface",
+      "status": "implemented",
+      "summary": "Provides operator views, scan controls, evidence APIs, event streams, token roles, and mutation audit.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "credentials": [
+        "optional API token environment variable"
+      ],
+      "config_keys": [
+        "api.*"
+      ],
+      "network_effects": [
+        "loopback HTTP by default",
+        "TLS required for non-loopback"
+      ]
+    },
+    {
+      "id": "discovery",
+      "name": "Host and DNS discovery",
+      "category": "scanning",
+      "status": "implemented",
+      "summary": "Performs bounded DNS, CIDR, liveness, IPv6, ARP, virtual-host, and offline evidence discovery.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "config_keys": [
+        "discovery.*"
+      ],
+      "network_effects": [
+        "DNS queries",
+        "optional ICMP/TCP/UDP probes"
+      ]
+    },
+    {
+      "id": "distributed",
+      "name": "Authenticated distributed scanning",
+      "category": "operations",
+      "status": "implemented",
+      "summary": "Provides digest-bound jobs, enrolled Ed25519 agents, replay protection, bounded leases, evidence upload, and centralized reporting.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "credentials": [
+        "agent Ed25519 private key"
+      ],
+      "network_effects": [
+        "HTTPS coordinator traffic"
+      ],
+      "required_conditions": [
+        "agent enrollment",
+        "matching authorization and configuration digest"
+      ]
+    },
+    {
+      "id": "ha-coordinator",
+      "name": "HA coordinator failover",
+      "category": "operations",
+      "status": "implemented",
+      "summary": "Provides active/passive coordinator leadership, fenced mutations, standby rejection, and monotonic epoch takeover.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ]
+    },
+    {
+      "id": "http-enumeration",
+      "name": "HTTP, TLS, and API enumeration",
+      "category": "scanning",
+      "status": "implemented",
+      "summary": "Provides bounded crawling, technology, directory/API, source-map, screenshot, HTTP/3, and gRPC-reflection enumeration.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "credentials": [
+        "optional session cookie environment variable"
+      ],
+      "config_keys": [
+        "http.*"
+      ],
+      "network_effects": [
+        "scoped HTTP requests"
+      ]
+    },
+    {
+      "id": "idle-decoy",
+      "name": "Idle and decoy scanning",
+      "category": "active-testing",
+      "status": "planned",
+      "summary": "Third-party and spoofed-traffic runners are not connected to production scans.",
+      "platforms": [
+        "linux",
+        "macos"
+      ],
+      "privileges": [
+        "raw socket capability or administrator/root"
+      ],
+      "config_keys": [
+        "active_testing.allowed_techniques",
+        "portscan.decoy_ips",
+        "portscan.zombie_host"
+      ],
+      "network_effects": [
+        "spoofed traffic",
+        "third-party host interaction"
+      ],
+      "required_conditions": [
+        "active-testing gate",
+        "separate authorization for every participating host"
+      ]
+    },
+    {
+      "id": "inventory-analysis",
+      "name": "Inventory, drift, graphs, and risk",
+      "category": "analysis",
+      "status": "implemented",
+      "summary": "Persists history and builds deterministic changes, relationships, prioritization, risk, and exposure-chain evidence.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ]
+    },
+    {
+      "id": "monitoring",
+      "name": "Bounded continuous monitoring",
+      "category": "operations",
+      "status": "implemented",
+      "summary": "Runs finite recurring scope-locked scans only through an explicit monitor command.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "config_keys": [
+        "monitoring.*"
+      ]
+    },
+    {
+      "id": "passive-intelligence",
+      "name": "Passive intelligence providers",
+      "category": "integrations",
+      "status": "implemented",
+      "summary": "Normalizes supported third-party intelligence providers with pacing, quota, version, and credential diagnostics.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "credentials": [
+        "provider-specific environment variables"
+      ],
+      "config_keys": [
+        "passive_intel.*"
+      ],
+      "network_effects": [
+        "configured third-party HTTPS API requests"
+      ],
+      "required_conditions": [
+        "provider opt-in",
+        "engagement authorization"
+      ]
+    },
+    {
+      "id": "plugin-marketplace",
+      "name": "Signed plugin marketplace",
+      "category": "plugins",
+      "status": "implemented",
+      "summary": "Provides explicit HTTPS discovery, ratings, versions, Ed25519 verification, atomic installation, and updates.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "credentials": [
+        "pinned marketplace public key"
+      ],
+      "network_effects": [
+        "configured registry HTTPS requests"
+      ]
+    },
+    {
+      "id": "plugin-os-sandbox",
+      "name": "OS-level plugin sandbox",
+      "category": "plugins",
+      "status": "implemented",
+      "summary": "Provides OS-level process isolation, separate process groups, resource ceilings, and stripped environments for untrusted plugins.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ]
+    },
+    {
+      "id": "plugin-runtimes",
+      "name": "Lua and gRPC plugin runtimes",
+      "category": "plugins",
+      "status": "gated",
+      "summary": "Provides capability-limited Lua and TLS-required remote gRPC execution; scans do not auto-load plugins.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "config_keys": [
+        "plugin manifest permissions"
+      ],
+      "network_effects": [
+        "manifest-authorized target or gRPC requests"
+      ],
+      "required_conditions": [
+        "explicit activation",
+        "verified package"
+      ]
+    },
+    {
+      "id": "port-service",
+      "name": "Port and service enumeration",
+      "category": "scanning",
+      "status": "implemented",
+      "summary": "Collects bounded TCP/UDP state, banners, protocol responses, services, and CPE candidates.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "config_keys": [
+        "portscan.*"
+      ],
+      "network_effects": [
+        "TCP connections",
+        "optional UDP probes"
+      ]
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL operational datastore",
+      "category": "storage",
+      "status": "experimental",
+      "summary": "Core schema and operations exist, but full SQLite behavioral and migration parity is not release-complete.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "credentials": [
+        "PostgreSQL DSN environment variable"
+      ],
+      "config_keys": [
+        "database.driver",
+        "database.postgres_dsn_env",
+        "database.postgres_max_open_conns",
+        "database.postgres_max_idle_conns"
+      ]
+    },
+    {
+      "id": "raw-tcp",
+      "name": "Raw TCP techniques",
+      "category": "scanning",
+      "status": "gated",
+      "summary": "Supports explicitly selected raw SYN, ACK, FIN, NULL, XMAS, window, Maimon, and fragmented probes.",
+      "platforms": [
+        "linux",
+        "macos"
+      ],
+      "privileges": [
+        "raw socket capability or administrator/root"
+      ],
+      "config_keys": [
+        "portscan.enable_raw_scanning",
+        "portscan.raw_techniques"
+      ],
+      "network_effects": [
+        "crafted TCP packets"
+      ],
+      "required_conditions": [
+        "explicit configuration",
+        "platform raw-socket support"
+      ]
+    },
+    {
+      "id": "reporting",
+      "name": "Reports and notifications",
+      "category": "output",
+      "status": "implemented",
+      "summary": "Generates JSON, Markdown, HTML, PDF, SARIF, CSV, executive, technical, triage, and graph outputs with explicit notifications.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "config_keys": [
+        "reporting.*",
+        "notifications.*"
+      ],
+      "network_effects": [
+        "optional configured webhook, Slack, SMTP, Neo4j, or loopback Ollama requests"
+      ]
+    },
+    {
+      "id": "scope-enforcement",
+      "name": "Target scope enforcement",
+      "category": "safety",
+      "status": "implemented",
+      "summary": "Checks configured and discovered targets against explicit address, CIDR, and domain scope.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "config_keys": [
+        "scope.allowed_targets",
+        "scope.authorization"
+      ]
+    },
+    {
+      "id": "secret-managers",
+      "name": "Production secret managers",
+      "category": "storage",
+      "status": "implemented",
+      "summary": "Supports native OS keychains plus configured Vault, Kubernetes, AWS, Azure, and GCP adapters without plaintext fallback.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "credentials": [
+        "workload identity or backend token"
+      ],
+      "config_keys": [
+        "secrets.*"
+      ],
+      "network_effects": [
+        "configured secret-backend requests"
+      ]
+    },
+    {
+      "id": "specialized-protocols",
+      "name": "Specialized protocol enumeration",
+      "category": "scanning",
+      "status": "implemented",
+      "summary": "Provides opt-in SMB, LDAP, SNMP, cloud, container, database, SSH, FTP, and SMTP capability checks.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "config_keys": [
+        "specialized.*"
+      ],
+      "network_effects": [
+        "protocol-specific read-only requests"
+      ]
+    },
+    {
+      "id": "sqlite",
+      "name": "SQLite operational datastore",
+      "category": "storage",
+      "status": "implemented",
+      "summary": "Provides native migrations, evidence persistence, encrypted sensitive fields, retention, and encrypted backup/restore.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "credentials": [
+        "optional encryption key reference"
+      ],
+      "config_keys": [
+        "database.path",
+        "database.encryption_key_env",
+        "database.encryption_key_secret"
+      ]
+    },
+    {
+      "id": "tier4-credentialed",
+      "name": "Credentialed host and directory assessment",
+      "category": "active-testing",
+      "status": "planned",
+      "summary": "SSH, WinRM, authenticated AD, Kerberos, LAPS, permission, secret, IMDS, and active DNS runners remain planned.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "credentials": [
+        "future secret-manager references"
+      ],
+      "config_keys": [
+        "active_testing.*"
+      ],
+      "network_effects": [
+        "authenticated and active protocol requests"
+      ],
+      "required_conditions": [
+        "active-testing gate",
+        "least-privilege credentials"
+      ]
+    },
+    {
+      "id": "tier4-tls",
+      "name": "Active TLS vulnerability verification",
+      "category": "active-testing",
+      "status": "planned",
+      "summary": "Heartbleed, ROBOT, CRIME, and BREACH runners are not connected to scans.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "config_keys": [
+        "active_testing.*"
+      ],
+      "network_effects": [
+        "crafted TLS/application requests"
+      ],
+      "required_conditions": [
+        "active-testing gate",
+        "per-technique authorization"
+      ]
+    },
+    {
+      "id": "tier4-web",
+      "name": "Active web payload verification",
+      "category": "active-testing",
+      "status": "planned",
+      "summary": "SQLi, XSS, SSRF, file inclusion, XXE, SSTI, host-header, request-smuggling, and prototype-pollution runners are not connected.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "config_keys": [
+        "active_testing.*"
+      ],
+      "network_effects": [
+        "application payload requests"
+      ],
+      "required_conditions": [
+        "active-testing gate",
+        "per-technique authorization"
+      ]
+    }
+  ]
+}

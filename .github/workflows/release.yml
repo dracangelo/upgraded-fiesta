@@ -72,8 +72,17 @@ jobs:
         with:
           go-version: "1.26.6"
           check-latest: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: _frontend/package-lock.json
+      - name: Verify deterministic offline dashboard bundle
+        run: npm --prefix _frontend ci --ignore-scripts && npm --prefix _frontend run check
+      - name: Install native package builders
+        run: sudo apt-get update && sudo apt-get install --yes rpm
       - name: Rebuild deterministic release artifacts
-        run: make reproducible build-cross checksums
+        run: make reproducible build-cross release-archives system-packages verify-system-packages VERSION="${GITHUB_REF_NAME}" checksums
       - name: Generate CycloneDX SBOM
         uses: anchore/sbom-action@v0
         with:
@@ -88,12 +97,18 @@ jobs:
             dist/enumscan-linux-amd64
             dist/enumscan-darwin-arm64
             dist/enumscan-windows-amd64.exe
+            dist/enumscan-*.tar.gz
+            dist/enumscan-*.zip
+            dist/enumscan_*.deb
+            dist/enumscan-*.rpm
+            dist/enumscan-*-homebrew.rb
+            dist/enumscan-*-scoop.json
             dist/enumscan-sha256sums.txt
             dist/enumscan-sbom.cdx.json
       - uses: sigstore/cosign-installer@v3
       - name: Keyless-sign release artifacts
         run: |
-          for artifact in dist/enumscan dist/enumscan-linux-amd64 dist/enumscan-darwin-arm64 dist/enumscan-windows-amd64.exe dist/enumscan-sha256sums.txt dist/enumscan-sbom.cdx.json; do
+          for artifact in dist/enumscan dist/enumscan-linux-amd64 dist/enumscan-darwin-arm64 dist/enumscan-windows-amd64.exe dist/enumscan-*.tar.gz dist/enumscan-*.zip dist/enumscan_*.deb dist/enumscan-*.rpm dist/enumscan-*-homebrew.rb dist/enumscan-*-scoop.json dist/enumscan-sha256sums.txt dist/enumscan-sbom.cdx.json; do
             cosign sign-blob --yes --bundle "$artifact.bundle" "$artifact"
           done
       - uses: docker/setup-qemu-action@v3
@@ -141,6 +156,18 @@ jobs:
             dist/enumscan-darwin-arm64.bundle
             dist/enumscan-windows-amd64.exe
             dist/enumscan-windows-amd64.exe.bundle
+            dist/enumscan-*.tar.gz
+            dist/enumscan-*.tar.gz.bundle
+            dist/enumscan-*.zip
+            dist/enumscan-*.zip.bundle
+            dist/enumscan_*.deb
+            dist/enumscan_*.deb.bundle
+            dist/enumscan-*.rpm
+            dist/enumscan-*.rpm.bundle
+            dist/enumscan-*-homebrew.rb
+            dist/enumscan-*-homebrew.rb.bundle
+            dist/enumscan-*-scoop.json
+            dist/enumscan-*-scoop.json.bundle
             dist/enumscan-sha256sums.txt
             dist/enumscan-sha256sums.txt.bundle
             dist/enumscan-sbom.cdx.json

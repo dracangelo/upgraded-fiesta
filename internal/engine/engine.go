@@ -20,11 +20,11 @@ import (
 
 type Engine struct {
 	cfg   models.Config
-	db    *store.SQLiteCLI
+	db    store.RuntimeStore
 	guard scope.Guard
 }
 
-func New(cfg models.Config, db *store.SQLiteCLI) Engine {
+func New(cfg models.Config, db store.RuntimeStore) Engine {
 	return Engine{cfg: cfg, db: db, guard: scope.New(cfg.Scope.AllowedTargets)}
 }
 
@@ -179,7 +179,7 @@ func (e Engine) Run(ctx context.Context, scanID string) error {
 	return nil
 }
 
-func deliverCompletionSubscription(db *store.SQLiteCLI, scanID string, cfg models.Config) {
+func deliverCompletionSubscription(db store.RuntimeStore, scanID string, cfg models.Config) {
 	if !cfg.Notifications.EnableScanCompletedWebhook {
 		return
 	}

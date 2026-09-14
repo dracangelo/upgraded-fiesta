@@ -14,12 +14,12 @@ import (
 )
 
 type AuthPoliciesDetector struct {
-	db     *store.SQLiteCLI
+	db     store.RuntimeStore
 	guard  scope.Guard
 	client *http.Client
 }
 
-func NewAuthPoliciesDetector(db *store.SQLiteCLI, guard scope.Guard) *AuthPoliciesDetector {
+func NewAuthPoliciesDetector(db store.RuntimeStore, guard scope.Guard) *AuthPoliciesDetector {
 	return &AuthPoliciesDetector{
 		db:     db,
 		guard:  guard,

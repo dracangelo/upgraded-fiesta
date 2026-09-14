@@ -16,11 +16,11 @@ import (
 )
 
 type TLSFingerprinter struct {
-	db    *store.SQLiteCLI
+	db    store.RuntimeStore
 	guard scope.Guard
 }
 
-func NewTLSFingerprinter(db *store.SQLiteCLI, guard scope.Guard) *TLSFingerprinter {
+func NewTLSFingerprinter(db store.RuntimeStore, guard scope.Guard) *TLSFingerprinter {
 	return &TLSFingerprinter{db: db, guard: guard}
 }
 

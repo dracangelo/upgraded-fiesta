@@ -25,7 +25,7 @@ import (
 // runs unless explicitly enabled and keeps credentials in environment
 // variables, avoiding accidental storage in YAML, reports, or checkpoints.
 type PassiveIntel struct {
-	db      *store.SQLiteCLI
+	db      store.RuntimeStore
 	guard   scope.Guard
 	cfg     models.PassiveIntelConfig
 	client  *http.Client
@@ -36,7 +36,7 @@ type PassiveIntel struct {
 	seen    map[string]struct{}
 }
 
-func NewPassiveIntel(db *store.SQLiteCLI, guard scope.Guard, cfg models.PassiveIntelConfig) *PassiveIntel {
+func NewPassiveIntel(db store.RuntimeStore, guard scope.Guard, cfg models.PassiveIntelConfig) *PassiveIntel {
 	return &PassiveIntel{db: db, guard: guard, cfg: cfg, client: &http.Client{Timeout: 8 * time.Second}, baseURL: map[string]string{}, nextAt: make(map[string]time.Time), seen: make(map[string]struct{})}
 }
 

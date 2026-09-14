@@ -15,12 +15,12 @@ import (
 )
 
 type SessionJWTScanner struct {
-	db     *store.SQLiteCLI
+	db     store.RuntimeStore
 	guard  scope.Guard
 	client *http.Client
 }
 
-func NewSessionJWTScanner(db *store.SQLiteCLI, guard scope.Guard) *SessionJWTScanner {
+func NewSessionJWTScanner(db store.RuntimeStore, guard scope.Guard) *SessionJWTScanner {
 	return &SessionJWTScanner{
 		db:     db,
 		guard:  guard,

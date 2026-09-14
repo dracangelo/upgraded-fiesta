@@ -322,6 +322,16 @@ type DistributedEvidence struct {
 	Events   []Event   `json:"events,omitempty"`
 }
 
+// CoordinatorLease is a database-fenced leadership record. Epoch increases on
+// every takeover and must accompany coordinator-owned work to reject stale
+// leaders after a failover.
+type CoordinatorLease struct {
+	ClusterID  string    `json:"cluster_id"`
+	LeaderID   string    `json:"leader_id"`
+	Epoch      int64     `json:"epoch"`
+	LeaseUntil time.Time `json:"lease_until"`
+}
+
 type APIAuditEntry struct {
 	ID        int64     `json:"id"`
 	Actor     string    `json:"actor"`

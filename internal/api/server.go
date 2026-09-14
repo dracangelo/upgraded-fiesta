@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"enumscan/internal/capability"
 	"enumscan/internal/config"
 	"enumscan/internal/engine"
 	"enumscan/internal/inventory"
@@ -30,7 +31,7 @@ import (
 )
 
 type Server struct {
-	db             *store.SQLiteCLI
+	db             store.RuntimeStore
 	cfg            models.Config
 	port           int
 	listenAddress  string
@@ -43,6 +44,7 @@ type Server struct {
 	wsClients      map[chan models.Event]bool
 	httpSrv        *http.Server
 	rateMap        map[string]time.Time
+	identityMgr    *IdentityManager
 }
 
 type apiPrincipal struct {
@@ -51,7 +53,7 @@ type apiPrincipal struct {
 }
 type apiPrincipalContextKey struct{}
 
-func NewServer(db *store.SQLiteCLI, port int) *Server {
+func NewServer(db store.RuntimeStore, port int) *Server {
 	if port <= 0 {
 		port = 8080
 	}
@@ -62,6 +64,7 @@ func NewServer(db *store.SQLiteCLI, port int) *Server {
 		wsClients:     make(map[chan models.Event]bool),
 		rateMap:       make(map[string]time.Time),
 		apiTokens:     make(map[string]string),
+		identityMgr:   NewIdentityManager(),
 	}
 }
 
@@ -113,6 +116,10 @@ func (s *Server) SetTLS(certFile, keyFile string) {
 	s.keyFile = keyFile
 }
 
+func (s *Server) IdentityManager() *IdentityManager {
+	return s.identityMgr
+}
+
 func (s *Server) ListenAndServe(ctx context.Context) error {
 	if s.listenAddress == "" {
 		s.listenAddress = "127.0.0.1"
@@ -124,7 +131,9 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 
 	// REST Endpoints
 	mux.HandleFunc("/api/v1/health", s.handleHealth)
+	mux.HandleFunc("/api/v1/openapi.json", s.handleOpenAPISpec)
 	mux.HandleFunc("/api/v1/integrations", s.handleIntegrations)
+	mux.HandleFunc("/api/v1/capabilities", s.handleCapabilities)
 	mux.HandleFunc("/api/v1/auth/token", s.handleAuthToken)
 	mux.HandleFunc("/api/v1/auth/reload", s.handleReloadAPITokens)
 	mux.HandleFunc("/api/v1/audit", s.handleAPIAudit)
@@ -134,6 +143,8 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	mux.HandleFunc("/api/v1/distributed/agent/evidence", s.handleDistributedAgentEvidence)
 	mux.HandleFunc("/api/v1/distributed/agent/complete", s.handleDistributedAgentComplete)
 	mux.HandleFunc("/api/v1/dashboard/snapshot", s.handleDashboardSnapshot)
+	mux.HandleFunc("/api/v1/engagement/plan", s.handleEngagementPlan)
+	mux.HandleFunc("/api/v1/engagements", s.handleEngagements)
 	mux.HandleFunc("/api/v1/scans", s.handleScans)
 	mux.HandleFunc("/api/v1/scans/run", s.handleRunScan)
 	mux.HandleFunc("/api/v1/scans/pause", s.handlePauseScan)
@@ -143,6 +154,9 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	mux.HandleFunc("/api/v1/assets", s.handleAssets)
 	mux.HandleFunc("/api/v1/findings", s.handleFindings)
 	mux.HandleFunc("/api/v1/findings/stream", s.handleFindingStream)
+	mux.HandleFunc("/api/v1/findings/review", s.handleFindingReview)
+	mux.HandleFunc("/api/v1/findings/assign", s.handleFindingAssign)
+	mux.HandleFunc("/api/v1/findings/audit", s.handleFindingAudit)
 	mux.HandleFunc("/api/v1/events", s.handleEvents)
 	mux.HandleFunc("/api/v1/graph", s.handleGraph)
 	mux.HandleFunc("/api/v1/neo4j/graph", s.handleNeo4jGraph)
@@ -162,6 +176,11 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 
 	// GraphQL API
 	mux.HandleFunc("/query", s.handleGraphQL)
+
+	// Identity & Tenancy
+	if s.identityMgr != nil {
+		s.identityMgr.RegisterRoutes(mux)
+	}
 
 	// Security & Audit Middleware Chain
 	// Keep audit after authentication so it can use the server-assigned principal,
@@ -481,12 +500,21 @@ func (s *Server) handleIntegrations(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(modules.DiagnosePassiveIntel(s.cfg.PassiveIntel, os.LookupEnv))
 }
 
+func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(capability.Current())
+}
+
 func (s *Server) securityHeadersMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
-		w.Header().Set("Content-Security-Policy", "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
 		next.ServeHTTP(w, r)
 	})
 }
@@ -563,6 +591,58 @@ type runScanRequest struct {
 	ScanID  string `json:"scan_id"`
 	Target  string `json:"target"`
 	Profile string `json:"profile"`
+}
+
+// engagementPlanRequest deliberately contains only the information needed to
+// create a new safe plan. It cannot enable active testing, attach credentials,
+// or alter the running server's own scope.
+type engagementPlanRequest struct {
+	Target        string `json:"target"`
+	Profile       string `json:"profile"`
+	Authorization string `json:"authorization"`
+}
+
+// handleEngagementPlan renders a downloadable YAML plan. It does not write a
+// file on the coordinator, so browser users retain review and storage control.
+func (s *Server) handleEngagementPlan(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	s.mu.RLock()
+	requireAuth := s.cfg.API.RequireAuth
+	s.mu.RUnlock()
+	if requireAuth {
+		principal, _ := r.Context().Value(apiPrincipalContextKey{}).(apiPrincipal)
+		if principal.role != "admin" {
+			http.Error(w, `{"error":"forbidden: admin role is required to create engagement configurations"}`, http.StatusForbidden)
+			return
+		}
+	}
+	var request engagementPlanRequest
+	decoder := json.NewDecoder(io.LimitReader(r.Body, 16<<10))
+	if err := decoder.Decode(&request); err != nil {
+		http.Error(w, `{"error":"target, profile, and written authorization are required"}`, http.StatusBadRequest)
+		return
+	}
+	input := config.EngagementInput{
+		Target: request.Target, Profile: request.Profile, Authorization: request.Authorization,
+	}
+	content, err := config.RenderEngagementConfig(input)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
+		return
+	}
+	preview, _ := config.PreviewEngagementPlan(input, "data/enumscan.sqlite")
+	previewJSON, _ := json.Marshal(preview)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"filename": "enumscan-engagement.yaml",
+		"config":   string(content),
+		"notice":   "Review the downloaded config before use. It is locked to one authorized scope and safe enumeration settings.",
+		"preview":  string(previewJSON),
+	})
 }
 
 func (s *Server) handleRunScan(w http.ResponseWriter, r *http.Request) {

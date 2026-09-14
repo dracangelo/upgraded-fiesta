@@ -31,7 +31,7 @@ type ollamaResponse struct {
 // WriteLocalLLMAdvisory asks an explicitly configured local Ollama endpoint to
 // summarize already-redacted, persisted evidence. The result is advisory text,
 // not a finding, scanner decision, or assertion of compromise.
-func WriteLocalLLMAdvisory(ctx context.Context, db *store.SQLiteCLI, scanID string, cfg models.ReportingConfig) (string, error) {
+func WriteLocalLLMAdvisory(ctx context.Context, db store.RuntimeStore, scanID string, cfg models.ReportingConfig) (string, error) {
 	endpoint, err := validateLocalLLMEndpoint(cfg.LocalLLMURL)
 	if err != nil {
 		return "", err

@@ -4,11 +4,18 @@
 
 SQLite is the default local datastore. PostgreSQL is selectable through
 `database.driver: postgres`, an environment-held DSN, and bounded pool limits.
-Run `postgres-migrate` before production use.
+Run `postgres-migrate` before production use. Normal `run`, `server`, and
+`monitor` commands then use PostgreSQL directly; they never fall back to
+SQLite or write scan evidence elsewhere.
 
 Application-level authenticated encryption protects configured sensitive
-fields. Keys come from an environment variable, OS keyring, or configured
-secret manager. Encrypted backup and confirmed restore are separate commands.
+fields when a database encryption key is configured. Keys come from an
+environment variable, OS keyring, or configured secret manager. Encrypted
+file backup and confirmed restore are SQLite-only; use PostgreSQL-native,
+server-managed backup and restore procedures for PostgreSQL.
+Use [the PostgreSQL recovery runbook](postgres_recovery.md) to exercise a
+separate recovery database; the drill requires an explicit restore
+confirmation and never prints connection strings.
 
 ## Secret managers
 
@@ -51,8 +58,10 @@ webhook subscription sends only after a healthy completed scan.
 ## Containers and releases
 
 `make image` builds the local non-root image. Mount a private configuration and
-writable `/data` volume. `make build-cross`, `make reproducible`, and
-`make checksums` create the release artifacts.
+writable `/data` volume. `make reproducible build-cross release-archives
+system-packages verify-system-packages VERSION=v1.2.3 checksums` creates the
+release artifacts, including versioned archives, Debian/RPM packages,
+Homebrew/Scoop definitions, and a portable relative-path checksum manifest.
 
 Release automation performs hosted platform tests, security scans, SBOM and
 provenance generation, signed checksums, and approved multi-architecture GHCR
@@ -69,4 +78,3 @@ environment and `APPROVED_CONTAINER_PUBLISH=true`.
 - Encrypt live sensitive data and backups with separately managed keys.
 - Verify release attestations and image signatures.
 - Back up, restore-test, monitor disk usage, and retain audit records.
-

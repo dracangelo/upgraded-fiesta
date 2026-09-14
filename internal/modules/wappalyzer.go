@@ -29,11 +29,11 @@ const (
 )
 
 type WappalyzerDetector struct {
-	db    *store.SQLiteCLI
+	db    store.RuntimeStore
 	rules []WappalyzerRule
 }
 
-func NewWappalyzerDetector(db *store.SQLiteCLI) *WappalyzerDetector {
+func NewWappalyzerDetector(db store.RuntimeStore) *WappalyzerDetector {
 	return &WappalyzerDetector{db: db, rules: builtinWappalyzerRules()}
 }
 
@@ -68,7 +68,7 @@ func builtinWappalyzerRules() []WappalyzerRule {
 // Wappalyzer community JSON format. Rule files are local, operator-supplied
 // inputs; malformed or over-large files fail configuration rather than being
 // silently ignored.
-func NewWappalyzerDetectorWithRuleFiles(db *store.SQLiteCLI, paths []string) (*WappalyzerDetector, error) {
+func NewWappalyzerDetectorWithRuleFiles(db store.RuntimeStore, paths []string) (*WappalyzerDetector, error) {
 	if len(paths) > maxWappalyzerRuleFiles {
 		return nil, fmt.Errorf("at most %d Wappalyzer rule files are allowed", maxWappalyzerRuleFiles)
 	}

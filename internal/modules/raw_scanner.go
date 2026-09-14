@@ -1,3 +1,5 @@
+//go:build !windows
+
 package modules
 
 import (
@@ -34,13 +36,13 @@ const (
 )
 
 type RawTCPScanner struct {
-	db        *store.SQLiteCLI
+	db        store.RuntimeStore
 	guard     scope.Guard
 	config    models.PortScanConfig
 	technique ScanTechnique
 }
 
-func NewRawTCPScanner(db *store.SQLiteCLI, guard scope.Guard, tech ScanTechnique) *RawTCPScanner {
+func NewRawTCPScanner(db store.RuntimeStore, guard scope.Guard, tech ScanTechnique) *RawTCPScanner {
 	if tech == "" {
 		tech = ScanSYN
 	}
@@ -51,7 +53,7 @@ func NewRawTCPScanner(db *store.SQLiteCLI, guard scope.Guard, tech ScanTechnique
 	}
 }
 
-func NewRawTCPScannerWithConfig(db *store.SQLiteCLI, guard scope.Guard, config models.PortScanConfig, tech ScanTechnique) *RawTCPScanner {
+func NewRawTCPScannerWithConfig(db store.RuntimeStore, guard scope.Guard, config models.PortScanConfig, tech ScanTechnique) *RawTCPScanner {
 	if tech == "" {
 		tech = ScanSYN
 	}

@@ -1,0 +1,37 @@
+name: Field validation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * 6"
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-scale:
+    name: ${{ matrix.os }} / ${{ matrix.targets }} targets
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        targets: [100, 1000, 10000]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.6"
+          check-latest: true
+          cache-dependency-path: go.sum
+      - name: Run network-free pipeline validation
+        shell: bash
+        env:
+          ENUMSCAN_BENCH_TARGETS: ${{ matrix.targets }}
+        run: sh scripts/run_field_validation.sh dist/field-validation
+      - uses: actions/upload-artifact@v4
+        with:
+          name: field-validation-${{ matrix.os }}-${{ matrix.targets }}
+          path: dist/field-validation/
+          retention-days: 30
+

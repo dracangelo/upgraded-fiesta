@@ -1,0 +1,193 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Enumscan API",
+    "version": "v1",
+    "description": "Authorized reconnaissance, attack surface enumeration, and security assessment pipeline API.",
+    "contact": {
+      "name": "Enumscan Security Engineering"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8080",
+      "description": "Local Operator Console API"
+    }
+  ],
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "summary": "System health and datastore connectivity status",
+        "operationId": "getHealth",
+        "responses": {
+          "200": { "description": "System is healthy" },
+          "503": { "description": "Datastore or pipeline failure" }
+        }
+      }
+    },
+    "/api/v1/capabilities": {
+      "get": {
+        "summary": "Product capability manifest and feature statuses",
+        "operationId": "getCapabilities",
+        "responses": {
+          "200": { "description": "Authoritative capability list" }
+        }
+      }
+    },
+    "/api/v1/engagement/plan": {
+      "post": {
+        "summary": "Generate and preview a scope-locked safe engagement configuration",
+        "operationId": "generateEngagementPlan",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["target", "authorization"],
+                "properties": {
+                  "target": { "type": "string" },
+                  "profile": { "type": "string" },
+                  "authorization": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Scope-locked configuration preview and estimates" },
+          "400": { "description": "Invalid target or missing authorization" }
+        }
+      }
+    },
+    "/api/v1/scans": {
+      "get": {
+        "summary": "List recent persisted scan executions",
+        "operationId": "listScans",
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Array of scan run summaries" }
+        }
+      }
+    },
+    "/api/v1/scans/run": {
+      "post": {
+        "summary": "Trigger an authorized enumeration scan run",
+        "operationId": "runScan",
+        "responses": {
+          "200": { "description": "Scan started" },
+          "403": { "description": "Forbidden or out-of-scope" }
+        }
+      }
+    },
+    "/api/v1/assets": {
+      "get": {
+        "summary": "List discovered assets for a scan",
+        "operationId": "listAssets",
+        "parameters": [
+          { "name": "scan_id", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Array of discovered assets" }
+        }
+      }
+    },
+    "/api/v1/findings": {
+      "get": {
+        "summary": "List security findings and exposures",
+        "operationId": "listFindings",
+        "parameters": [
+          { "name": "scan_id", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Array of security findings" }
+        }
+      }
+    },
+    "/api/v1/metrics": {
+      "get": {
+        "summary": "Prometheus-compatible system and scan metrics",
+        "operationId": "getMetrics",
+        "responses": {
+          "200": { "description": "OpenMetrics text exposition format" }
+        }
+      }
+    },
+    "/api/v1/identity/organizations": {
+      "get": {
+        "summary": "List enterprise tenant organizations",
+        "operationId": "listOrganizations",
+        "responses": {
+          "200": { "description": "Array of tenant organizations" }
+        }
+      },
+      "post": {
+        "summary": "Register a new enterprise tenant organization",
+        "operationId": "createOrganization",
+        "responses": {
+          "201": { "description": "Organization created" }
+        }
+      }
+    },
+    "/api/v1/openapi.json": {
+      "get": {
+        "summary": "Authoritative OpenAPI 3.0 specification",
+        "operationId": "getOpenAPISpec",
+        "responses": {
+          "200": { "description": "OpenAPI specification JSON" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ScanRun": {
+        "type": "object",
+        "properties": {
+          "scan_id": { "type": "string" },
+          "status": { "type": "string" },
+          "started_at": { "type": "string", "format": "date-time" },
+          "finished_at": { "type": "string", "format": "date-time" },
+          "asset_count": { "type": "integer" },
+          "finding_count": { "type": "integer" },
+          "event_count": { "type": "integer" }
+        }
+      },
+      "Asset": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "scan_id": { "type": "string" },
+          "type": { "type": "string" },
+          "value": { "type": "string" },
+          "parent": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Finding": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "scan_id": { "type": "string" },
+          "severity": { "type": "string" },
+          "confidence": { "type": "string" },
+          "asset": { "type": "string" },
+          "title": { "type": "string" },
+          "evidence": { "type": "string" },
+          "remediation": { "type": "string" }
+        }
+      },
+      "Organization": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "domain": { "type": "string" },
+          "allowed_scopes": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

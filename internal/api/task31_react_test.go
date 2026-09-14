@@ -31,7 +31,10 @@ func TestReactDashboardEndpoint(t *testing.T) {
 		t.Fatalf("expected HTTP 200, got %d", w.Code)
 	}
 	body := w.Body.String()
-	if !strings.Contains(body, "ReactDOM.createRoot") || !strings.Contains(body, "App") {
-		t.Fatalf("dashboard response does not contain React bundle: %s", body)
+	if !strings.Contains(body, "document.getElementById(\"root\")") || !strings.Contains(body, "Recon OS — Enumeration Console") {
+		t.Fatal("dashboard response does not contain the compiled application bundle")
+	}
+	if strings.Contains(body, "ReactDOM.createRoot") || strings.Contains(body, "type=\"text/babel\"") {
+		t.Fatal("dashboard response contains uncompiled JSX runtime markers")
 	}
 }

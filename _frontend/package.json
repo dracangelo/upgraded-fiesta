@@ -1,0 +1,23 @@
+{
+  "name": "enumscan-dashboard",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "scripts": {
+    "build": "node build_dashboard.mjs",
+    "test": "node --test dashboard_helpers.test.js",
+    "typecheck": "tsc --allowJs --checkJs --noEmit --target es2020 --module nodenext --moduleResolution nodenext dashboard_helpers.js",
+    "lint": "eslint build_dashboard.mjs dashboard.jsx dashboard_components.jsx dashboard_helpers.js dashboard_helpers.test.js",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build && git diff --exit-code -- ../internal/api/dashboard_dist.html"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.10.0",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
+  }
+}

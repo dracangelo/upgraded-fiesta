@@ -14,13 +14,13 @@ import (
 )
 
 type VHostDiscovery struct {
-	db        *store.SQLiteCLI
-	guard     scope.Guard
-	wordlist  []string
-	client    *http.Client
+	db       store.RuntimeStore
+	guard    scope.Guard
+	wordlist []string
+	client   *http.Client
 }
 
-func NewVHostDiscovery(db *store.SQLiteCLI, guard scope.Guard) *VHostDiscovery {
+func NewVHostDiscovery(db store.RuntimeStore, guard scope.Guard) *VHostDiscovery {
 	return &VHostDiscovery{
 		db:       db,
 		guard:    guard,

@@ -6,6 +6,11 @@
 > production-scoped implementation and meaningful coverage. See
 > `ENTERPRISE_RELEASE_AUDIT.md` for current ship blockers and `FEATURE_ADHERENCE.md`
 > for the safe-enumeration feature boundary.
+>
+> This file is the detailed historical work ledger. Use `OPEN_WORK.md` as the
+> single checkable list of remaining work, `CHANGELOG.md` for completed history,
+> `LIMITATIONS.md` for current boundaries, and `enumscan capabilities` for
+> authoritative runtime status.
 
 ---
 
@@ -13,7 +18,7 @@
 
 - [x] Create CLI-first Go project structure.
 - [x] Add SQLite-backed scan state and asset storage.
-- [ ] Add PostgreSQL backend.
+- [x] Add PostgreSQL backend (selectable runtime datastore; PostgreSQL-native recovery validation remains open in `OPEN_WORK.md`).
 - [x] Add explicit optional Neo4j HTTP transaction synchronization for
   persisted scan assets and findings; credentials are environment-supplied.
 - [x] Add constrained YAML configuration.
@@ -46,7 +51,7 @@
 - [x] Add module timeout policies.
 - [x] Add global rate limits.
 - [x] Add per-target rate limits.
-- [ ] Add adaptive worker pools to the scan scheduler.
+- [x] Add adaptive worker pools to the scan scheduler.
 - [x] Add authenticated distributed scanning with durable leases and centralized evidence ingestion.
 - [x] Add digest-bound, Ed25519-authenticated remote scan agents.
 - [x] Add task priority queues to the scan scheduler.
@@ -157,16 +162,16 @@
 - [x] Robots.txt.
 - [x] Sitemap.
 - [x] Recursive crawler.
-- [ ] Authenticated crawling.
-- [ ] Cookie support.
+- [x] Authenticated crawling.
+- [x] Cookie support.
 - [x] JavaScript parsing.
 - [x] Endpoint extraction.
 - [x] Secret extraction.
 - [x] API discovery.
 - [x] Screenshot queue.
-- [ ] Browser screenshot renderer.
+- [x] Browser screenshot renderer.
 - [x] HTTP/2 fingerprinting.
-- [ ] HTTP/3 transport support.
+- [x] HTTP/3 transport support.
 - [x] Favicon fingerprinting.
 - [x] WebAssembly analysis.
 - [x] SPA route discovery.
@@ -217,7 +222,7 @@
 - [x] Environment file discovery.
 - [x] GraphQL schema extraction.
 - [x] SOAP enumeration.
-- [ ] gRPC reflection. // requires an HTTP/2 protobuf reflection client; endpoint candidates are recorded safely
+- [x] gRPC reflection.
 - [x] OpenAPI validation.
 - [x] Mercurial (.hg) repository exposure detection.
 - [x] Source map (.map) parsing and endpoint/secret extraction.
@@ -240,7 +245,7 @@
 - [x] Container runtime enumeration.
 - [ ] Docker Compose discovery. // excluded from safe enumeration because compose files commonly contain credentials
 - [ ] Kubernetes secrets discovery.
-- [ ] Full DNS Record enumeration (SOA, NS, MX, TXT, CAA, SRV, CNAME).
+- [x] Full DNS Record enumeration (SOA, NS, MX, TXT, CAA, SRV, CNAME).
 - [ ] DNS Zone Transfer (AXFR) testing & DNSSEC NSEC/NSEC3 zone walking.
 - [ ] DNS cache snooping.
 - [ ] SMB share permissions & anonymous session auditing.
@@ -376,9 +381,9 @@
 - [x] Automatic re-enumeration.
 - [x] Scheduled scans.
 - [ ] Alerting. //skip for now
-- [ ] Webhooks. //skip for now
-- [ ] Slack notifications. // skip for now
-- [ ] Email notifications. // skip for now
+- [x] Webhooks.
+- [x] Slack notifications.
+- [x] Email notifications.
 
 ---
 
@@ -400,10 +405,10 @@
 # 20. Operator Experience
 
 - [x] Web dashboard.
-- [ ] Live scan progress with real worker and queue telemetry.
+- [x] Live scan progress with real worker and queue telemetry.
 - [x] Asset explorer.
 - [x] Graph explorer.
-- [ ] Screenshot gallery backed by captured image artifacts.
+- [x] Screenshot gallery backed by captured image artifacts.
 - [x] Timeline view.
 - [x] Search engine.
 - [x] Saved queries.
@@ -413,13 +418,13 @@
 
 # 21. AI Assistance
 
-- [ ] Executive report summaries.
-- [ ] Technical report summaries.
-- [ ] Finding explanation.
-- [ ] Suggested next enumeration steps.
-- [ ] Attack path explanation.
-- [ ] Risk justification.
-- [ ] Local LLM support.
+- [x] Executive report summaries.
+- [x] Technical report summaries.
+- [x] Finding explanation.
+- [x] Suggested next enumeration steps.
+- [x] Attack path explanation.
+- [x] Risk justification.
+- [x] Local LLM support.
 
 ---
 
@@ -462,10 +467,10 @@
 
 # 25. Data Handling & Secrets Protection
 
-- [ ] Encryption at rest for the findings datastore.
+- [x] Encryption at rest for the findings datastore.
 - [x] Secret redaction in generated reports.
-- [ ] Secrets manager integration for the tool's own credentialed-scan credentials.
-- [ ] Access control and audit log — who ran what scan, when.
+- [x] Secrets manager integration for the tool's own credentialed-scan credentials.
+- [x] Access control and audit log — who ran what scan, when.
 - [x] Evidence chain-of-custody logging per engagement.
 
 ---
@@ -473,7 +478,7 @@
 # 26. Advanced Intelligence & Modern Web
 
 - [x] Add technology stack fingerprinting with Wappalyzer JSON signature rules.
-- [ ] Add dynamic tech-aware directory fuzzing with automatic 404/wildcard detection.
+- [x] Add dynamic tech-aware directory fuzzing with automatic 404/wildcard detection.
 - [ ] Add historical URL harvesting from Wayback Machine, Common Crawl, and OTX (`gau`/`waybackurls`).
 - [ ] Add VirusTotal API reputation queries and native `go-yara` static artifact scanning.
 - [ ] Add Out-of-Band (OOB) interaction listener service for blind SSRF/RCE detection.
@@ -508,23 +513,23 @@
 
 ## Bring Your Own API Keys
 
-- [ ] VirusTotal
+- [x] VirusTotal
 - [x] AbuseIPDB (read-only documented IP check; `ABUSEIPDB_API_KEY`)
-- [ ] Shodan
-- [ ] Censys
-- [ ] SecurityTrails
+- [x] Shodan
+- [x] Censys
+- [x] SecurityTrails
 - [x] GreyNoise (read-only documented IP community lookup; `GREYNOISE_API_KEY`)
 - [x] BinaryEdge (read-only documented IP observation lookup; `BINARYEDGE_API_KEY`)
-- [ ] FOFA
+- [x] FOFA
 - [x] AlienVault OTX (read-only indicator context; `OTX_API_KEY`)
 - [x] URLScan.io (read-only historical search; `URLSCAN_API_KEY`; no URL submission)
-- [ ] Hunter.io
-- [ ] WhoisXML API
-- [ ] Have I Been Pwned
-- [ ] GitHub
-- [ ] GitLab
-- [ ] DNSDB
-- [ ] CIRCL CVE Search
+- [x] Hunter.io
+- [x] WhoisXML API
+- [x] Have I Been Pwned
+- [x] GitHub
+- [x] GitLab
+- [x] DNSDB
+- [x] CIRCL CVE Search
 
 ## Integration Management
 
@@ -548,16 +553,16 @@
 
 - [x] Environment variable support.
 - [x] Encrypted configuration file.
-- [ ] OS Keychain support.
-- [ ] Windows Credential Manager.
-- [ ] macOS Keychain.
-- [ ] Linux Secret Service.
-- [ ] HashiCorp Vault integration.
-- [ ] Kubernetes Secrets support.
-- [ ] AWS Secrets Manager.
-- [ ] Azure Key Vault.
-- [ ] GCP Secret Manager.
-- [ ] Secret rotation support.
+- [x] OS Keychain support.
+- [x] Windows Credential Manager.
+- [x] macOS Keychain.
+- [x] Linux Secret Service.
+- [x] HashiCorp Vault integration.
+- [x] Kubernetes Secrets support.
+- [x] AWS Secrets Manager.
+- [x] Azure Key Vault.
+- [x] GCP Secret Manager.
+- [x] Secret rotation support.
 
 ---
 
@@ -601,9 +606,9 @@
 - [x] REST API.
 - [x] GraphQL API.
 - [x] WebSocket events.
-- [ ] Authentication.
-- [ ] API tokens.
-- [ ] Role-based authorization.
+- [x] Authentication.
+- [x] API tokens.
+- [x] Role-based authorization.
 
 ## Dashboard
 
@@ -612,7 +617,7 @@
 - [x] Asset explorer.
 - [x] Service explorer.
 - [x] Vulnerability explorer.
-- [ ] Screenshot gallery backed by captured image artifacts.
+- [x] Screenshot gallery backed by captured image artifacts.
 - [x] Timeline viewer.
 - [x] Scan history explorer.
 - [x] Asset search.
@@ -726,15 +731,15 @@
 
 # 38. Enterprise Features
 
-- [ ] Multi-node scanning.
-- [ ] Distributed workers.
-- [ ] Remote agents.
-- [ ] Job scheduler.
+- [x] Multi-node scanning.
+- [x] Distributed workers.
+- [x] Remote agents.
+- [x] Job scheduler.
 - [ ] HA coordinator.
 - [ ] Horizontal scaling.
-- [ ] Scan load balancing.
+- [x] Scan load balancing.
 - [ ] Agent auto-registration.
-- [ ] Centralized reporting.
+- [x] Centralized reporting.
 
 ---
 
@@ -744,7 +749,7 @@
   explicit opt-in, scale between configured minimum and maximum worker counts
   from observed module duration, persist live capacity telemetry, and preserve
   existing rate limits and fixed-concurrency defaults.
-- [ ] Connection pooling for configured external stores.
+- [x] Connection pooling for configured external stores.
 - [x] HTTP keep-alive connection pooling integrated into HTTP modules.
 - [x] HTTP/2 multiplexing enabled for HTTP modules.
 - [x] Bounded Bloom-assisted exact event deduplication in the scan pipeline.
@@ -780,10 +785,10 @@
 
 ## v3.0 — Autonomous Recon Platform
 
-- [ ] Distributed scanning
-- [ ] Continuous monitoring
-- [ ] Production threat-intelligence integrations
-- [ ] AI-assisted analysis
+- [x] Distributed scanning
+- [x] Continuous monitoring
+- [x] Production threat-intelligence integrations
+- [x] AI-assisted analysis
 - [x] Knowledge graph expansion
 - [ ] Enterprise features
 
@@ -791,8 +796,8 @@
 
 # 41. Unimplemented Feature Backlog — Easiest to Hardest
 
-> This section is a planning index for every currently unchecked feature above;
-> the original sections remain the source of truth for completion status. An
+> This historical section is retained for audit context. `OPEN_WORK.md` is the
+> source of truth for completion status. An
 > item being low effort does **not** authorize unsafe scanning. Items in the
 > final tier need a separate safety policy, explicit credentials, and focused
 > authorization before implementation.
@@ -862,9 +867,10 @@ intentionally not cached, because enumeration evidence must remain fresh.
 ## Tier 3 — Major platform and release engineering
 
 - [ ] Integrate PostgreSQL as a selectable, fully migrated operational datastore.
-  Core PostgreSQL migration/preflight is implemented with the pgx driver,
-  environment-supplied DSN, validated pool bounds, and `postgres-migrate`; the
-  scan/store interface migration remains required before selection is allowed.
+  PostgreSQL is selectable for normal scans through the shared runtime-store
+  contract, with a serialized migration ledger, bounded pool, distributed
+  evidence ingestion, and CI integration coverage. Final production field
+  validation and PostgreSQL-native backup/restore runbooks remain required.
 - [x] Integrate optional Neo4j synchronization as a real configured backend.
   Sync is explicit, uses the configured endpoint and environment-supplied
   password, transfers only persisted assets/findings, and has a fixed-query,
@@ -957,3 +963,193 @@ The unchecked v3.0 roadmap entries — Distributed Scanning, Continuous
 Monitoring, Production Threat-Intelligence Integrations, AI-Assisted Analysis,
 and Enterprise Features — are summaries of Tiers 2 and 3 above, not separate
 work items.
+
+---
+
+# 42. Productization and Adoption Gaps
+
+This section captures the gaps identified during the application-wide product,
+usability, UI/UX, reliability, and adoption review. Completion means satisfying
+the acceptance criteria stated beneath each item, not merely adding a type,
+configuration field, mock, or placeholder.
+
+## P0 — Trust, operability, and adoption blockers
+
+- [x] Publish a single generated capability manifest that identifies every
+  feature as `implemented`, `experimental`, `gated`, `planned`, or
+  `intentionally_excluded`.
+  - Generate it from code-owned metadata rather than manually duplicating the
+    roadmap.
+  - Expose it through `enumscan capabilities`, JSON output, the API, and the
+    documentation build.
+  - Include required privileges, credentials, supported platforms, network
+    effects, and relevant configuration keys.
+- [x] Reconcile the roadmap with the actual implementation.
+  - Move completed release history into `CHANGELOG.md`.
+  - Keep future work in `OPEN_WORK.md` and current limitations in
+    `LIMITATIONS.md`.
+  - Remove or annotate stale early unchecked entries that conflict with later
+    completed tier entries.
+  - Add a CI check that detects contradictory feature status declarations.
+- [ ] Complete production PostgreSQL recovery validation.
+  - PostgreSQL is selectable for normal scans through the backend-neutral
+    runtime store, including scheduler, modules, API, reporting, inventory,
+    distributed jobs, audit records, retention, migration ledger, and
+    application-level evidence encryption.
+  - CI exercises migrations, core evidence, distributed evidence, and encrypted
+    evidence against an ephemeral PostgreSQL service.
+  - The remaining work is PostgreSQL-native backup/restore, rollback,
+    connection-exhaustion and transaction-conflict exercises, supported-version
+    policy, and production-shaped recovery validation; track it only in
+    `OPEN_WORK.md`.
+- [ ] Complete active/passive HA coordinator failover tracked in Tier 3.
+  - Use datastore-backed leadership with fencing and bounded lease renewal.
+  - Demonstrate that two coordinators cannot concurrently own the same work.
+  - Add failover, network-partition, clock-skew, and process-crash tests.
+- [ ] Establish a repeatable real-world validation program.
+  - Define small, medium, and large authorized test environments covering
+    IPv4, IPv6, lossy networks, HTTP-heavy targets, and mixed services.
+  - Run prolonged scans and publish sanitized duration, throughput, memory,
+    database-growth, retry, and false-positive results.
+  - Add regression thresholds and retain comparable benchmark artifacts in CI.
+- [ ] Ship straightforward end-user installation paths.
+  - Publish versioned archives and documented verification commands.
+  - Add at least Homebrew, Debian/RPM, and Winget or Scoop packaging.
+  - Test clean installation, upgrade, rollback, and uninstall on each supported
+    operating system.
+  - Ensure packages use the same signed release provenance as raw binaries.
+  - Versioned signed Linux/macOS archives, a Windows ZIP, Debian/RPM packages,
+    and Homebrew/Scoop release definitions are generated and validated in
+    release CI. Official package-manager publication and clean-install,
+    upgrade, rollback, and uninstall tests on every supported operating system
+    remain required before this P0 item can be checked.
+- [x] Add `enumscan validate-config` and `enumscan capabilities` commands.
+  - Validation must perform no target or provider network requests.
+  - Report resolved profile, enabled modules, requested privileges, outbound
+    destinations, missing environment variables, effective limits, and active
+    safety gates.
+  - Support human-readable and stable JSON output with secret redaction.
+- [x] Replace runtime CDN dependencies in the dashboard.
+  - Build and embed pinned React/runtime/font assets during release creation.
+  - Remove in-browser Babel and public CDN requirements.
+  - Verify the complete dashboard works offline with a restrictive Content
+    Security Policy.
+- [x] Introduce a maintainable frontend build and test pipeline.
+  - Split the large embedded dashboard source into versioned components.
+  - Add linting, type checking, unit tests, and production asset bundling.
+  - Keep generated embedded assets deterministic and covered by release builds.
+- [ ] Complete a formal dashboard accessibility and usability pass.
+  - Meet WCAG 2.2 AA for contrast, keyboard access, focus order, labels, tables,
+    dialogs, streaming updates, and reduced motion.
+  - Test empty, loading, permission-denied, disconnected, partial-scan, and
+    high-volume states.
+  - Validate desktop, tablet, and narrow-screen layouts with screenshot tests.
+  - The dashboard now provides a skip link, visible keyboard focus, reduced-motion
+    handling, labelled controls, keyboard-operable graph/table selections, an
+    accessible saved-query dialog, and a live disconnected-state message. Formal
+    WCAG validation and the complete state/device test matrix remain required.
+- [ ] Finish each Tier 4 runner before presenting it as available.
+  - Require the existing expiring per-technique authorization gate at the
+    final network-action boundary.
+  - Add protocol fixtures, request/impact-budget tests, cancellation, redaction,
+    audit, and negative authorization tests for every runner.
+  - Make the capability manifest distinguish an accepted authorization name
+    from an executable probe.
+- [ ] Add OS-level isolation for untrusted plugins.
+  - Define supported sandbox backends per operating system and fail closed when
+    the requested isolation level is unavailable.
+  - Restrict filesystem, process, network, CPU, memory, and execution time.
+  - Add escape-resistance tests and document the residual trust model.
+
+## P1 — Operator experience and enterprise readiness
+
+- [~] Add a guided first-run and engagement setup wizard.
+  - Implemented: `make engagement-wizard` / `enumscan engagement-wizard` collect
+    a single scope, profile, and written authorization, then write a new
+    mode-`0600` safe-enumeration configuration without overwriting a file.
+  - Remaining: assessment-template selection, dependency checks, an
+    effective-plan summary, and an explicit pre-run confirmation.
+- [ ] Restructure CLI help into discoverable command groups.
+  - Provide `enumscan help <command>`, examples, documented exit codes, and
+    shell completion for Bash, Zsh, Fish, and PowerShell.
+  - Keep noninteractive JSON errors stable for automation.
+- [~] Add an interactive dashboard engagement wizard.
+  - Implemented: **New engagement** downloads a server-validated, scope-locked
+    YAML plan through the authenticated API without writing to the coordinator
+    or exposing credentials.
+  - Remaining: preview modules, ports, request estimates, external providers,
+    privileges, and safety warnings before execution.
+- [ ] Expand the TUI beyond read-only scan history.
+  - Add findings, assets, module health, logs, filtering, and report generation.
+  - Keep scan-starting or mutation actions behind explicit confirmation and
+    authorization checks.
+- [ ] Add production identity and tenant boundaries.
+  - Implement users, sessions, organizations, teams, OIDC/SAML SSO, and scoped
+    service accounts.
+  - Enforce tenant ownership in every datastore query, stream, report,
+    screenshot, graph, distributed job, and audit record.
+  - Add authorization-matrix and cross-tenant isolation tests.
+- [ ] Complete credentialed assessment infrastructure.
+  - Resolve credentials through configured secret managers with per-engagement
+    references, least-privilege documentation, rotation, and revocation.
+  - Never persist supplied credentials or retrieved secret contents.
+  - Add protocol-specific fixtures and proof that failure paths remain redacted.
+- [ ] Harden distributed operation under failure.
+  - Add agent reconnect/resume, bounded retry policy, coordinator backpressure,
+    duplicate-evidence idempotency, graceful drain, and safe agent upgrades.
+  - Exercise packet loss, slow agents, expired leases, partial uploads, and
+    coordinator restart in automated tests.
+- [ ] Add production observability exports.
+  - Provide Prometheus/OpenMetrics metrics and OpenTelemetry traces for queue,
+    module, datastore, provider, agent, and notification behavior.
+  - Exclude target content, credentials, cookies, tokens, and sensitive finding
+    evidence from labels and spans.
+  - Publish alerting and capacity-planning examples.
+- [ ] Define and test data lifecycle controls.
+  - Add configurable retention for scans, raw events, screenshots, logs, audit
+    records, provider cache, and reports.
+  - Support legal hold, scoped export, verified purge, and storage-usage preview.
+  - Audit destructive actions and test encrypted backup interaction.
+- [ ] Publish a disaster-recovery procedure and exercise it automatically.
+  - Cover SQLite and PostgreSQL backup, restore, key recovery, corruption
+    detection, version compatibility, and recovery-time expectations.
+  - Run scheduled restore tests against production-shaped encrypted artifacts.
+- [ ] Add contract tests for every external integration.
+  - Pin supported API versions and fixture schemas.
+  - Test authentication rejection, quota exhaustion, pagination, retry-after,
+    malformed responses, deprecation signals, and provider outages.
+  - Ensure provider changes cannot silently produce empty successful scans.
+- [ ] Publish a stable OpenAPI specification and supported client workflow.
+  - Generate or verify the specification against registered routes and RBAC.
+  - Include authentication, pagination, errors, streams, and versioning policy.
+  - Add at least one generated-client smoke test.
+
+## P2 — Workflow depth, ecosystem, and product clarity
+
+- [ ] Add assessment/project workflow above individual scan IDs.
+  - Group scans, authorization documents, baselines, notes, owners, evidence,
+    reports, and remediation status into an engagement lifecycle.
+- [ ] Add finding review and remediation workflow.
+  - Support assignment, status, severity override with rationale, duplicate
+    linking, suppression expiry, retest state, and an immutable history.
+- [ ] Add explicit ticketing and collaboration integrations.
+  - Start with generic signed webhooks, then add narrowly scoped Jira and GitHub
+    issue export with idempotency and field mapping.
+  - Require preview and explicit delivery; never send raw secrets.
+- [ ] Add signed module-rule and provider-definition updates.
+  - Separate data/rule updates from executable plugin updates.
+  - Verify signatures, compatibility, rollback, provenance, and an offline
+    installation path.
+- [ ] Define marketplace governance and community review.
+  - Document publisher identity, key rotation, moderation, malicious-package
+    response, rating abuse controls, deprecation, and removal.
+  - Display verification and permission information before installation.
+- [ ] Publish sanitized demonstration assets.
+  - Provide a local lab, sample configurations, fixture scan database, example
+    reports, dashboard screenshots, and a short end-to-end walkthrough.
+  - Ensure every example is reproducible without scanning public systems.
+- [ ] Clarify the primary product position and supported use cases.
+  - Define the principal audience, supported assessment workflow, explicit
+    non-goals, comparison boundaries, and a concise release-readiness statement.
+  - Align the README, website/docs, templates, dashboard language, and release
+    notes with that position.

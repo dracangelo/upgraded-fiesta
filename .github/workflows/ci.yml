@@ -24,8 +24,17 @@ jobs:
           go-version: "1.26.6"
           check-latest: true
           cache-dependency-path: go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: _frontend/package-lock.json
+      - name: Verify deterministic offline dashboard bundle
+        run: npm --prefix _frontend ci --ignore-scripts && npm --prefix _frontend run check
       - name: Format, vet, and run the complete suite
         run: make fmt-check vet test
+      - name: Verify feature status declarations
+        run: make feature-status-check
       - name: Verify deterministic native build
         run: make reproducible
       - uses: anchore/sbom-action@v0
@@ -60,6 +69,34 @@ jobs:
       - name: Execute native CLI
         shell: bash
         run: ./enumscan${{ runner.os == 'Windows' && '.exe' || '' }} -config configs/example.yaml help
+
+  postgres-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: enumscan_test
+          POSTGRES_USER: enumscan
+          POSTGRES_PASSWORD: enumscan-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U enumscan -d enumscan_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.6"
+          check-latest: true
+          cache-dependency-path: go.sum
+      - name: Exercise PostgreSQL core migration and evidence lifecycle
+        env:
+          ENUMSCAN_POSTGRES_TEST_DSN: postgres://enumscan:enumscan-ci-only@localhost:5432/enumscan_test?sslmode=disable
+        run: go test ./internal/store -run '^TestPostgresCoreLifecycleIntegration$' -count=1
 
   cross-build:
     runs-on: ubuntu-latest

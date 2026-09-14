@@ -18,13 +18,13 @@ func (w *WordlistEngine) GenerateAdaptivePaths(techStack []string) []string {
 	}
 
 	techMap := map[string][]string{
-		"wordpress":  {"/wp-admin", "/wp-content", "/wp-includes", "/wp-json/wp/v2/users"},
-		"spring":     {"/actuator", "/actuator/env", "/actuator/heapdump", "/actuator/logfile"},
-		"aspnet":     {"/elmah.axd", "/trace.axd", "/web.config"},
-		"php":        {"/phpinfo.php", "/info.php", "/composer.json", "/composer.lock"},
-		"node":       {"/package.json", "/package-lock.json", "/node_modules/"},
-		"laravel":    {"/.env", "/storage/logs/laravel.log"},
-		"django":     {"/admin/login/", "/static/admin/"},
+		"wordpress": {"/wp-admin", "/wp-content", "/wp-includes", "/wp-json/wp/v2/users"},
+		"spring":    {"/actuator", "/actuator/env", "/actuator/heapdump", "/actuator/logfile"},
+		"aspnet":    {"/elmah.axd", "/trace.axd", "/web.config"},
+		"php":       {"/phpinfo.php", "/info.php", "/composer.json", "/composer.lock"},
+		"node":      {"/package.json", "/package-lock.json", "/node_modules/"},
+		"laravel":   {"/.env", "/storage/logs/laravel.log"},
+		"django":    {"/admin/login/", "/static/admin/"},
 	}
 
 	result := append([]string{}, basePaths...)

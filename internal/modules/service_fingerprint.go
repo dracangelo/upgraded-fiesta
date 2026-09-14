@@ -19,7 +19,7 @@ import (
 )
 
 type ServiceFingerprint struct {
-	db    *store.SQLiteCLI
+	db    store.RuntimeStore
 	guard scope.Guard
 }
 
@@ -33,7 +33,7 @@ type serviceID struct {
 	Verification string
 }
 
-func NewServiceFingerprint(db *store.SQLiteCLI, guard scope.Guard) ServiceFingerprint {
+func NewServiceFingerprint(db store.RuntimeStore, guard scope.Guard) ServiceFingerprint {
 	return ServiceFingerprint{db: db, guard: guard}
 }
 

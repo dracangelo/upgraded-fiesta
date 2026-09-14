@@ -6,16 +6,33 @@ General form:
 enumscan -config <configuration.yaml> <command> [arguments]
 ```
 
-## Scan and inspect
+## Workflow Groups & Commands
+
+### 1. First-Run & Engagement Setup
 
 | Command | Purpose |
 | --- | --- |
+| `engagement-wizard [-target target] [-template template] [-authorization ref] [-output path] [-yes]` | Interactive first-run wizard: validates scope and prerequisites, checks database writability, displays effective-plan preview with duration/probe estimates, and creates private mode-`0600` scope-locked configuration upon explicit operator confirmation. |
 | `init-db` | Initialize or migrate the configured datastore |
+| `validate-config [-format text\|json]` | Offline validation and effective execution-plan preflight |
+| `capabilities [-format text\|json\|markdown]` | Report authoritative feature status without loading a scan configuration |
+| `doctor [-remote] [-format text\|json]` | Validate provider configuration; `-remote` performs explicit bounded provider calls |
+
+Supported assessment templates for `engagement-wizard`:
+- `standard`: General Infrastructure Enumeration (host, port, service, banner, and web discovery)
+- `web`: Web Application & Surface Discovery (crawling, JS analysis, API endpoints, TLS)
+- `network`: Internal Network & Infrastructure (service, banner, protocol capabilities)
+- `api`: API & Microservice Assessment (REST, GraphQL, OpenAPI metadata)
+- `external`: External Perimeter Reconnaissance (DNS record harvest, external perimeter)
+- `cloud`: Cloud Exposure & Asset Mapping (cloud endpoints, certificates, exposure mapping)
+
+### 2. Scan Execution & Monitoring
+
+| Command | Purpose |
+| --- | --- |
 | `run <scan-id>` | Run one scope-validated scan |
 | `monitor [-prefix name]` | Run the configured bounded monitoring schedule |
-| `server` / `dashboard` | Start the local API and web dashboard |
-| `tui` | Open the read-only terminal interface |
-| `doctor [-remote] [-format text\|json]` | Validate provider configuration; `-remote` performs explicit bounded provider calls |
+| `server [-port 8080]` | Start the local API, dashboard, and SSE/WS stream server |
 
 ## Analyze and report
 
@@ -72,3 +89,23 @@ Plugin subcommands include `plugin-search`, `plugin-install`, `plugin-update`,
 `plugin-rate`, and `plugin-registry`. Run the binary without a command for the
 complete built-in usage output.
 
+## Common Operator Workflow Examples
+
+```bash
+# 1. Guided first-run engagement setup:
+enumscan engagement-wizard -target 192.168.1.0/24 -template network -authorization AUTH-2026-001 -output configs/corp.yaml -yes
+
+# 2. Offline validation and effective-plan dry-run:
+enumscan -config configs/corp.yaml validate-config
+
+# 3. Execute scan and view findings:
+enumscan -config configs/corp.yaml run scan-corp-01
+enumscan -config configs/corp.yaml report scan-corp-01 -format executive
+enumscan -config configs/corp.yaml report scan-corp-01 -format sarif
+
+# 4. Interactive Terminal Console:
+enumscan -config configs/corp.yaml tui
+
+# 5. Backup database with key encryption:
+enumscan -config configs/corp.yaml backup-encrypted backups/corp-01.enc -key-env BACKUP_KEY
+```

@@ -16,7 +16,7 @@ import (
 // DeliverEmail sends a compact evidence summary only when explicitly requested
 // by the operator. Non-local SMTP servers must advertise STARTTLS; a password
 // is supplied through the caller rather than configuration or command history.
-func DeliverEmail(ctx context.Context, db *store.SQLiteCLI, scanID, server, from, to, username, password string) error {
+func DeliverEmail(ctx context.Context, db store.RuntimeStore, scanID, server, from, to, username, password string) error {
 	host, err := validateSMTPInputs(server, from, to, username, password)
 	if err != nil {
 		return err

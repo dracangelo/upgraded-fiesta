@@ -16,12 +16,12 @@ import (
 // approved sources. It never contacts a third party; only scoped HTTP(S) URLs
 // are retained or emitted to the regular HTTP module.
 type HistoricalURLImporter struct {
-	db    *store.SQLiteCLI
+	db    store.RuntimeStore
 	guard scope.Guard
 	files []string
 }
 
-func NewHistoricalURLImporter(db *store.SQLiteCLI, guard scope.Guard, files []string) *HistoricalURLImporter {
+func NewHistoricalURLImporter(db store.RuntimeStore, guard scope.Guard, files []string) *HistoricalURLImporter {
 	return &HistoricalURLImporter{db: db, guard: guard, files: files}
 }
 func (m *HistoricalURLImporter) Name() string            { return "historical_url_importer" }

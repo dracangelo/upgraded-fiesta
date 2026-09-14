@@ -17,12 +17,12 @@ import (
 // GRPCReflectionEnumerator performs the read-only ListServices reflection
 // request on explicitly configured ports. It never invokes an advertised RPC.
 type GRPCReflectionEnumerator struct {
-	db    *store.SQLiteCLI
+	db    store.RuntimeStore
 	guard scope.Guard
 	ports map[int]bool
 }
 
-func NewGRPCReflectionEnumerator(db *store.SQLiteCLI, guard scope.Guard, cfg models.HTTPConfig) *GRPCReflectionEnumerator {
+func NewGRPCReflectionEnumerator(db store.RuntimeStore, guard scope.Guard, cfg models.HTTPConfig) *GRPCReflectionEnumerator {
 	ports := make(map[int]bool, len(cfg.GRPCReflectionPorts))
 	for _, port := range cfg.GRPCReflectionPorts {
 		if port >= 1 && port <= 65535 {

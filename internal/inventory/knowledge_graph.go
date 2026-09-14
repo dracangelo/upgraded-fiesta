@@ -14,10 +14,10 @@ type KnowledgeGraphOptions struct {
 }
 
 type KnowledgeGraphEngine struct {
-	db *store.SQLiteCLI
+	db store.RuntimeStore
 }
 
-func NewKnowledgeGraphEngine(db *store.SQLiteCLI) *KnowledgeGraphEngine {
+func NewKnowledgeGraphEngine(db store.RuntimeStore) *KnowledgeGraphEngine {
 	return &KnowledgeGraphEngine{db: db}
 }
 

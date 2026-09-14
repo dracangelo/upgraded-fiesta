@@ -25,7 +25,7 @@ import (
 )
 
 type HTTP struct {
-	db            *store.SQLiteCLI
+	db            store.RuntimeStore
 	guard         scope.Guard
 	config        models.HTTPConfig
 	client        *http.Client
@@ -36,7 +36,7 @@ type HTTP struct {
 	pages         map[string]int
 }
 
-func NewHTTP(db *store.SQLiteCLI, guard scope.Guard, config models.HTTPConfig) *HTTP {
+func NewHTTP(db store.RuntimeStore, guard scope.Guard, config models.HTTPConfig) *HTTP {
 	if config.MaxDepth < 0 {
 		config.MaxDepth = 0
 	}

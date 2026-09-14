@@ -1,7 +1,8 @@
 # PostgreSQL operational preflight template. Set ENUMSCAN_POSTGRES_DSN in the
 # process environment, replace the authorization and target placeholders, then
-# run `make postgres-migrate CONFIG=configs/postgres.template.yaml`.
-# Scan execution remains on SQLite until the full store-interface migration.
+# run `make postgres-migrate CONFIG=configs/postgres.template.yaml` before
+# using `make scan`, `make server`, or `make monitor`. This configuration never
+# falls back to SQLite.
 database:
   driver: "postgres"
   path: "data/enumscan.sqlite"

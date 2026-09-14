@@ -9,6 +9,16 @@ make test
 make verify
 ```
 
+The dashboard is bundled from the JSX source with pinned npm dependencies:
+
+```sh
+npm --prefix _frontend ci --ignore-scripts
+make dashboard-check
+```
+
+The generated embedded dashboard must be committed so Go builds require no
+Node.js toolchain and the application needs no runtime CDN access.
+
 `make test-compile` is available in restricted environments that cannot bind
 loopback fixture sockets. It is not a substitute for the complete test suite.
 
@@ -41,6 +51,13 @@ fixtures for protocols and injected HTTP transports for provider APIs. Run
 Release-sensitive dependency changes should also run `make vulncheck` and
 reproducibility checks. See [module_developer_guide.html](module_developer_guide.html)
 for the detailed module interface.
+
+Run `make field-validation` for a network-free pipeline artifact containing
+environment metadata, the capability manifest, benchmark/allocation results,
+and checksums. Set `ENUMSCAN_BENCH_TARGETS` from 1 to 100000 to choose the
+synthetic engagement size. CI exercises 100, 1,000, and 10,000 targets on
+Linux, macOS, and Windows. Authorized live-environment results must be recorded
+separately and must not contain customer target data.
 
 ## Building the HTML manual
 

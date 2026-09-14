@@ -15,12 +15,12 @@ import (
 )
 
 type APIProtocolScanner struct {
-	db     *store.SQLiteCLI
+	db     store.RuntimeStore
 	guard  scope.Guard
 	client *http.Client
 }
 
-func NewAPIProtocolScanner(db *store.SQLiteCLI, guard scope.Guard) *APIProtocolScanner {
+func NewAPIProtocolScanner(db store.RuntimeStore, guard scope.Guard) *APIProtocolScanner {
 	return &APIProtocolScanner{
 		db:     db,
 		guard:  guard,

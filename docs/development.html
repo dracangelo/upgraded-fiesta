@@ -15,6 +15,7 @@
         <a href="getting-started.html">Start</a>
         <a href="configuration.html">Configure</a>
         <a href="cli.html">CLI</a>
+        <a href="capabilities.html">Capabilities</a>
         <a href="scanning.html">Scanning</a>
         <a href="reporting-api.html">API &amp; reports</a>
         <a href="operations.html">Operations</a>
@@ -32,6 +33,13 @@
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> vet</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> test</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> verify</span></code></pre></div>
+<p>The dashboard is bundled from the JSX source with pinned npm
+dependencies:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> <span class="at">--prefix</span> _frontend ci <span class="at">--ignore-scripts</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> dashboard-check</span></code></pre></div>
+<p>The generated embedded dashboard must be committed so Go builds
+require no Node.js toolchain and the application needs no runtime CDN
+access.</p>
 <p><code>make test-compile</code> is available in restricted
 environments that cannot bind loopback fixture sockets. It is not a
 substitute for the complete test suite.</p>
@@ -67,10 +75,17 @@ before handing off changes.</p>
 <code>make vulncheck</code> and reproducibility checks. See <a
 href="module_developer_guide.html">module_developer_guide.html</a> for
 the detailed module interface.</p>
+<p>Run <code>make field-validation</code> for a network-free pipeline
+artifact containing environment metadata, the capability manifest,
+benchmark/allocation results, and checksums. Set
+<code>ENUMSCAN_BENCH_TARGETS</code> from 1 to 100000 to choose the
+synthetic engagement size. CI exercises 100, 1,000, and 10,000 targets
+on Linux, macOS, and Windows. Authorized live-environment results must
+be recorded separately and must not contain customer target data.</p>
 <h2 id="building-the-html-manual">Building the HTML manual</h2>
 <p>Markdown under <code>docs/</code> is canonical. Install Pandoc, then
 run:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> docs</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> docs</span></code></pre></div>
 <p>This regenerates the styled HTML manual, including the stable legacy
 HTML filenames. Do not hand-edit generated HTML; update its Markdown
 source, shared template, or stylesheet instead.</p>

@@ -35,7 +35,7 @@ type SlackPayload struct {
 // DeliverWebhook posts an evidence-only scan summary to an explicitly supplied
 // endpoint. HTTPS is required for non-loopback targets; redirects are refused
 // so a configured destination cannot silently forward scan information.
-func DeliverWebhook(ctx context.Context, db *store.SQLiteCLI, scanID, endpoint string) error {
+func DeliverWebhook(ctx context.Context, db store.RuntimeStore, scanID, endpoint string) error {
 	if err := validateWebhookEndpoint(endpoint); err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ func DeliverWebhook(ctx context.Context, db *store.SQLiteCLI, scanID, endpoint s
 // DeliverSlackWebhook delivers a compact scan summary to an explicit Slack
 // incoming-webhook endpoint. It shares the same transport safeguards as the
 // generic webhook and is never invoked automatically by a scan.
-func DeliverSlackWebhook(ctx context.Context, db *store.SQLiteCLI, scanID, endpoint string) error {
+func DeliverSlackWebhook(ctx context.Context, db store.RuntimeStore, scanID, endpoint string) error {
 	if err := validateWebhookEndpoint(endpoint); err != nil {
 		return err
 	}

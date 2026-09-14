@@ -15,6 +15,7 @@
         <a href="getting-started.html">Start</a>
         <a href="configuration.html">Configure</a>
         <a href="cli.html">CLI</a>
+        <a href="capabilities.html">Capabilities</a>
         <a href="scanning.html">Scanning</a>
         <a href="reporting-api.html">API &amp; reports</a>
         <a href="operations.html">Operations</a>
@@ -29,7 +30,9 @@
 <h1 id="cli-reference">CLI reference</h1>
 <p>General form:</p>
 <pre class="text"><code>enumscan -config &lt;configuration.yaml&gt; &lt;command&gt; [arguments]</code></pre>
-<h2 id="scan-and-inspect">Scan and inspect</h2>
+<h2 id="workflow-groups--commands">Workflow Groups &amp; Commands</h2>
+<h3 id="1-first-run--engagement-setup">1. First-Run &amp; Engagement
+Setup</h3>
 <table>
 <thead>
 <tr>
@@ -39,9 +42,58 @@
 </thead>
 <tbody>
 <tr>
+<td><code>engagement-wizard [-target target] [-template template] [-authorization ref] [-output path] [-yes]</code></td>
+<td>Interactive first-run wizard: validates scope and prerequisites,
+checks database writability, displays effective-plan preview with
+duration/probe estimates, and creates private mode-<code>0600</code>
+scope-locked configuration upon explicit operator confirmation.</td>
+</tr>
+<tr>
 <td><code>init-db</code></td>
 <td>Initialize or migrate the configured datastore</td>
 </tr>
+<tr>
+<td><code>validate-config [-format text|json]</code></td>
+<td>Offline validation and effective execution-plan preflight</td>
+</tr>
+<tr>
+<td><code>capabilities [-format text|json|markdown]</code></td>
+<td>Report authoritative feature status without loading a scan
+configuration</td>
+</tr>
+<tr>
+<td><code>doctor [-remote] [-format text|json]</code></td>
+<td>Validate provider configuration; <code>-remote</code> performs
+explicit bounded provider calls</td>
+</tr>
+</tbody>
+</table>
+<p>Supported assessment templates for
+<code>engagement-wizard</code>:</p>
+<ul>
+<li><code>standard</code>: General Infrastructure Enumeration (host,
+port, service, banner, and web discovery)</li>
+<li><code>web</code>: Web Application &amp; Surface Discovery (crawling,
+JS analysis, API endpoints, TLS)</li>
+<li><code>network</code>: Internal Network &amp; Infrastructure
+(service, banner, protocol capabilities)</li>
+<li><code>api</code>: API &amp; Microservice Assessment (REST, GraphQL,
+OpenAPI metadata)</li>
+<li><code>external</code>: External Perimeter Reconnaissance (DNS record
+harvest, external perimeter)</li>
+<li><code>cloud</code>: Cloud Exposure &amp; Asset Mapping (cloud
+endpoints, certificates, exposure mapping)</li>
+</ul>
+<h3 id="2-scan-execution--monitoring">2. Scan Execution &amp;
+Monitoring</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
 <tr>
 <td><code>run &lt;scan-id&gt;</code></td>
 <td>Run one scope-validated scan</td>
@@ -51,17 +103,8 @@
 <td>Run the configured bounded monitoring schedule</td>
 </tr>
 <tr>
-<td><code>server</code> / <code>dashboard</code></td>
-<td>Start the local API and web dashboard</td>
-</tr>
-<tr>
-<td><code>tui</code></td>
-<td>Open the read-only terminal interface</td>
-</tr>
-<tr>
-<td><code>doctor [-remote] [-format text|json]</code></td>
-<td>Validate provider configuration; <code>-remote</code> performs
-explicit bounded provider calls</td>
+<td><code>server [-port 8080]</code></td>
+<td>Start the local API, dashboard, and SSE/WS stream server</td>
 </tr>
 </tbody>
 </table>
@@ -141,6 +184,25 @@ enabled.</p>
 <code>plugin-install</code>, <code>plugin-update</code>,
 <code>plugin-rate</code>, and <code>plugin-registry</code>. Run the
 binary without a command for the complete built-in usage output.</p>
+<h2 id="common-operator-workflow-examples">Common Operator Workflow
+Examples</h2>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Guided first-run engagement setup:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">enumscan</span> engagement-wizard <span class="at">-target</span> 192.168.1.0/24 <span class="at">-template</span> network <span class="at">-authorization</span> AUTH-2026-001 <span class="at">-output</span> configs/corp.yaml <span class="at">-yes</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Offline validation and effective-plan dry-run:</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ex">enumscan</span> <span class="at">-config</span> configs/corp.yaml validate-config</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Execute scan and view findings:</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="ex">enumscan</span> <span class="at">-config</span> configs/corp.yaml run scan-corp-01</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="ex">enumscan</span> <span class="at">-config</span> configs/corp.yaml report scan-corp-01 <span class="at">-format</span> executive</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="ex">enumscan</span> <span class="at">-config</span> configs/corp.yaml report scan-corp-01 <span class="at">-format</span> sarif</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Interactive Terminal Console:</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="ex">enumscan</span> <span class="at">-config</span> configs/corp.yaml tui</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="co"># 5. Backup database with key encryption:</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="ex">enumscan</span> <span class="at">-config</span> configs/corp.yaml backup-encrypted backups/corp-01.enc <span class="at">-key-env</span> BACKUP_KEY</span></code></pre></div>
   </main>
   <footer>
     Enumscan is for explicitly authorized security assessments. Generated from the canonical Markdown documentation.

@@ -19,27 +19,27 @@ type TimelineEntry struct {
 }
 
 type DriftReport struct {
-	BaselineScanID string                   `json:"baseline_scan_id"`
-	CurrentScanID  string                   `json:"current_scan_id"`
-	DriftDetected  bool                     `json:"drift_detected"`
+	BaselineScanID string                 `json:"baseline_scan_id"`
+	CurrentScanID  string                 `json:"current_scan_id"`
+	DriftDetected  bool                   `json:"drift_detected"`
 	Changes        DifferentialScanResult `json:"changes"`
-	DriftItems     []string                 `json:"drift_items"`
+	DriftItems     []string               `json:"drift_items"`
 }
 
 type ChangeReportSummary struct {
-	ReportType string   `json:"report_type"`
-	Period     string   `json:"period"`
-	TotalScans int      `json:"total_scans"`
-	NewAssets  int      `json:"new_assets"`
-	NewFindings int     `json:"new_findings"`
+	ReportType  string   `json:"report_type"`
+	Period      string   `json:"period"`
+	TotalScans  int      `json:"total_scans"`
+	NewAssets   int      `json:"new_assets"`
+	NewFindings int      `json:"new_findings"`
 	DriftEvents []string `json:"drift_events"`
 }
 
 type TimelineEngine struct {
-	db *store.SQLiteCLI
+	db store.RuntimeStore
 }
 
-func NewTimelineEngine(db *store.SQLiteCLI) *TimelineEngine {
+func NewTimelineEngine(db store.RuntimeStore) *TimelineEngine {
 	return &TimelineEngine{db: db}
 }
 

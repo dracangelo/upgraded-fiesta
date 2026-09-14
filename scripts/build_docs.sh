@@ -4,11 +4,17 @@ set -eu
 repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 docs_dir="$repo_dir/docs"
 template="$docs_dir/template.html"
+docs_go_cache=${GOCACHE:-/tmp/enumscan-go-build}
 
 command -v pandoc >/dev/null 2>&1 || {
   echo "pandoc is required to build HTML documentation" >&2
   exit 1
 }
+
+(
+  cd "$repo_dir"
+  GOCACHE="$docs_go_cache" go run ./cmd/enumscan capabilities -format markdown > "$docs_dir/capabilities.md"
+)
 
 build_page() {
   source_file=$1
@@ -24,6 +30,7 @@ build_page README.md index.html
 build_page getting-started.md getting-started.html
 build_page configuration.md configuration.html
 build_page cli.md cli.html
+build_page capabilities.md capabilities.html
 build_page architecture.md architecture-guide.html
 build_page scanning.md scanning.html
 build_page reporting-api.md reporting-api.html
@@ -41,7 +48,7 @@ build_page plugins.md plugin_sdk.html
 build_page reporting-api.md api_reference.html
 build_page getting-started.md operator_guide.html
 build_page configuration.md configuration_reference.html
-build_page security.md authorized_use.html
+build_page authorized_use.md authorized_use.html
 build_page security.md threat_model.html
 build_page operations.md performance_tuning.html
 

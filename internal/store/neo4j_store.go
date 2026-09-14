@@ -49,7 +49,7 @@ type cypherResponse struct {
 
 // SyncScanToNeo4j transfers persisted assets and findings only when invoked by
 // an explicit operator command. It does not run as part of enumeration.
-func SyncScanToNeo4j(ctx context.Context, local *SQLiteCLI, remote *Neo4jStore, scanID string) (int, error) {
+func SyncScanToNeo4j(ctx context.Context, local RuntimeStore, remote *Neo4jStore, scanID string) (int, error) {
 	if local == nil || remote == nil {
 		return 0, fmt.Errorf("local and Neo4j stores are required")
 	}

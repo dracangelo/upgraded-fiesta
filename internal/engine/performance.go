@@ -18,14 +18,14 @@ import (
 
 // 1. Adaptive Worker Pool
 type AdaptiveWorkerPool struct {
-	minWorkers   int
-	maxWorkers   int
+	minWorkers    int
+	maxWorkers    int
 	activeWorkers int32
-	jobQueue     chan func()
-	ctx          context.Context
-	cancel       context.CancelFunc
-	wg           sync.WaitGroup
-	mu           sync.RWMutex
+	jobQueue      chan func()
+	ctx           context.Context
+	cancel        context.CancelFunc
+	wg            sync.WaitGroup
+	mu            sync.RWMutex
 }
 
 func NewAdaptiveWorkerPool(minWorkers, maxWorkers int, queueSize int) *AdaptiveWorkerPool {
@@ -184,11 +184,11 @@ func (b *BloomFilter) Contains(item string) bool {
 
 // 4. Persistent Cache
 type PersistentCache struct {
-	db  *store.SQLiteCLI
+	db  store.RuntimeStore
 	mem *ScanCache
 }
 
-func NewPersistentCache(db *store.SQLiteCLI, ttl time.Duration) *PersistentCache {
+func NewPersistentCache(db store.RuntimeStore, ttl time.Duration) *PersistentCache {
 	return &PersistentCache{
 		db:  db,
 		mem: NewScanCache(ttl),

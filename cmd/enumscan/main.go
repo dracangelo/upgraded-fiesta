@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"enumscan/internal/api"
+	"enumscan/internal/capability"
 	"enumscan/internal/config"
 	"enumscan/internal/engine"
 	"enumscan/internal/inventory"
@@ -32,10 +34,57 @@ func main() {
 	if flag.NArg() >= 1 {
 		subcmd = flag.Arg(0)
 	}
+	if subcmd == "capabilities" {
+		capabilityFlags := flag.NewFlagSet("capabilities", flag.ExitOnError)
+		format := capabilityFlags.String("format", "text", "text, json, or markdown")
+		_ = capabilityFlags.Parse(flag.Args()[1:])
+		switch strings.ToLower(strings.TrimSpace(*format)) {
+		case "text":
+			fmt.Print(capability.Text())
+		case "json":
+			payload, renderErr := capability.JSON()
+			if renderErr != nil {
+				log.Fatalf("render capabilities: %v", renderErr)
+			}
+			fmt.Println(string(payload))
+		case "markdown":
+			fmt.Print(capability.Markdown())
+		default:
+			log.Fatalf("unsupported capabilities format %q (use text, json, or markdown)", *format)
+		}
+		return
+	}
+	// First-run setup must not depend on an already valid configuration file.
+	// It produces that file, then the normal config loading path validates it.
+	if subcmd == "engagement-wizard" {
+		if err := runEngagementWizard(flag.Args()[1:]); err != nil {
+			log.Fatalf("engagement wizard: %v", err)
+		}
+		return
+	}
 
 	cfg, err := config.Load(*cfgPath)
 	if err != nil {
 		log.Fatalf("load config: %v", err)
+	}
+	if subcmd == "validate-config" {
+		validateFlags := flag.NewFlagSet("validate-config", flag.ExitOnError)
+		format := validateFlags.String("format", "text", "text or json")
+		_ = validateFlags.Parse(flag.Args()[1:])
+		plan := config.ResolveEffectivePlan(cfg, os.LookupEnv)
+		switch strings.ToLower(strings.TrimSpace(*format)) {
+		case "text":
+			fmt.Print(config.FormatEffectivePlanText(plan))
+		case "json":
+			payload, renderErr := json.MarshalIndent(plan, "", "  ")
+			if renderErr != nil {
+				log.Fatalf("render effective configuration: %v", renderErr)
+			}
+			fmt.Println(string(payload))
+		default:
+			log.Fatalf("unsupported validate-config format %q (use text or json)", *format)
+		}
+		return
 	}
 	// Doctor intentionally runs before opening the datastore. Its default mode
 	// is a local configuration preflight; -remote is an explicit bounded
@@ -97,8 +146,7 @@ func main() {
 		fmt.Println("PostgreSQL core schema migrated successfully.")
 		return
 	}
-
-	var db *store.SQLiteCLI
+	var db store.RuntimeStore
 	var secretManager store.SecretsManager
 	if cfg.Secrets.Provider != "" {
 		secretManager, err = configuredSecretsManager(cfg)
@@ -106,29 +154,65 @@ func main() {
 			log.Fatalf("configure secret manager: %v", err)
 		}
 	}
-	keyMaterial := ""
-	keySource := ""
-	if cfg.Database.EncryptionKeySecret != "" {
-		keyMaterial, err = secretManager.GetSecret(context.Background(), cfg.Database.EncryptionKeySecret)
-		keySource = "configured secret manager key " + cfg.Database.EncryptionKeySecret
-	} else if cfg.Database.EncryptionKeyEnv != "" {
-		keyMaterial = os.Getenv(cfg.Database.EncryptionKeyEnv)
-		keySource = cfg.Database.EncryptionKeyEnv
-	}
-	if keySource != "" {
-		if err != nil {
-			log.Fatalf("read live datastore encryption key from %s: %v", keySource, err)
+	if strings.EqualFold(cfg.Database.Driver, "postgres") {
+		dsn := os.Getenv(cfg.Database.PostgresDSNEnv)
+		if strings.TrimSpace(dsn) == "" {
+			log.Fatalf("database.driver postgres requires a non-empty %s environment variable", cfg.Database.PostgresDSNEnv)
 		}
-		key, keyErr := store.DecodeBackupKey(keyMaterial)
-		if keyErr != nil {
-			log.Fatalf("read live datastore encryption key from %s: %v", keySource, keyErr)
+		postgres := store.NewPostgresStore(dsn)
+		if cfg.Database.EncryptionKeySecret != "" || cfg.Database.EncryptionKeyEnv != "" {
+			keyMaterial := ""
+			keySource := cfg.Database.EncryptionKeyEnv
+			if cfg.Database.EncryptionKeySecret != "" {
+				keyMaterial, err = secretManager.GetSecret(context.Background(), cfg.Database.EncryptionKeySecret)
+				keySource = "configured secret manager key " + cfg.Database.EncryptionKeySecret
+			} else {
+				keyMaterial = os.Getenv(cfg.Database.EncryptionKeyEnv)
+			}
+			if err != nil {
+				log.Fatalf("read live datastore encryption key from %s: %v", keySource, err)
+			}
+			key, keyErr := store.DecodeBackupKey(keyMaterial)
+			if keyErr != nil {
+				log.Fatalf("read live datastore encryption key from %s: %v", keySource, keyErr)
+			}
+			postgres, err = store.NewEncryptedPostgresStore(dsn, key)
+			for index := range key {
+				key[index] = 0
+			}
+			if err != nil {
+				log.Fatalf("configure PostgreSQL live evidence encryption: %v", err)
+			}
 		}
-		db, err = store.OpenEncryptedSQLiteCLI(cfg.Database.Path, key)
-		for index := range key {
-			key[index] = 0
+		if err = postgres.ConfigurePool(cfg.Database.PostgresMaxOpenConns, cfg.Database.PostgresMaxIdleConns); err == nil {
+			err = postgres.OpenContext(context.Background())
 		}
+		db = postgres
 	} else {
-		db, err = store.OpenSQLiteCLI(cfg.Database.Path)
+		keyMaterial := ""
+		keySource := ""
+		if cfg.Database.EncryptionKeySecret != "" {
+			keyMaterial, err = secretManager.GetSecret(context.Background(), cfg.Database.EncryptionKeySecret)
+			keySource = "configured secret manager key " + cfg.Database.EncryptionKeySecret
+		} else if cfg.Database.EncryptionKeyEnv != "" {
+			keyMaterial = os.Getenv(cfg.Database.EncryptionKeyEnv)
+			keySource = cfg.Database.EncryptionKeyEnv
+		}
+		if keySource != "" {
+			if err != nil {
+				log.Fatalf("read live datastore encryption key from %s: %v", keySource, err)
+			}
+			key, keyErr := store.DecodeBackupKey(keyMaterial)
+			if keyErr != nil {
+				log.Fatalf("read live datastore encryption key from %s: %v", keySource, keyErr)
+			}
+			db, err = store.OpenEncryptedSQLiteCLI(cfg.Database.Path, key)
+			for index := range key {
+				key[index] = 0
+			}
+		} else {
+			db, err = store.OpenSQLiteCLI(cfg.Database.Path)
+		}
 	}
 	if err != nil {
 		log.Fatalf("open store: %v", err)
@@ -153,7 +237,11 @@ func main() {
 		if err != nil {
 			log.Fatalf("read encrypted backup key from %s: %v", *keyEnv, err)
 		}
-		if err := db.BackupEncrypted(ctx, flag.Arg(1), key); err != nil {
+		sqlite, ok := db.(*store.SQLiteCLI)
+		if !ok {
+			log.Fatal("backup-encrypted is only supported for SQLite; use a PostgreSQL-native backup workflow for server-managed PostgreSQL")
+		}
+		if err := sqlite.BackupEncrypted(ctx, flag.Arg(1), key); err != nil {
 			log.Fatalf("create encrypted backup: %v", err)
 		}
 		fmt.Printf("Wrote AES-256-GCM authenticated encrypted backup to %s. The key was read only from %s.\n", flag.Arg(1), *keyEnv)
@@ -172,7 +260,11 @@ func main() {
 		if err != nil {
 			log.Fatalf("read encrypted backup key from %s: %v", *keyEnv, err)
 		}
-		if err := db.RestoreEncrypted(ctx, flag.Arg(1), key); err != nil {
+		sqlite, ok := db.(*store.SQLiteCLI)
+		if !ok {
+			log.Fatal("restore-encrypted is only supported for SQLite; use a PostgreSQL-native restore workflow for server-managed PostgreSQL")
+		}
+		if err := sqlite.RestoreEncrypted(ctx, flag.Arg(1), key); err != nil {
 			log.Fatalf("restore encrypted backup: %v", err)
 		}
 		fmt.Printf("Restored authenticated encrypted backup from %s into %s.\n", flag.Arg(1), cfg.Database.Path)
@@ -656,6 +748,136 @@ func configuredSecretsManager(cfg models.Config) (store.SecretsManager, error) {
 	})
 }
 
+func runEngagementWizard(args []string) error {
+	wizardFlags := flag.NewFlagSet("engagement-wizard", flag.ContinueOnError)
+	target := wizardFlags.String("target", "", "single authorized IP, CIDR, or hostname")
+	profile := wizardFlags.String("profile", "", "quick, standard, exhaustive, or template name (web, network, api, external, cloud)")
+	templateName := wizardFlags.String("template", "", "assessment template: standard, web, network, api, external, cloud")
+	authorization := wizardFlags.String("authorization", "", "written authorization reference")
+	output := wizardFlags.String("output", "configs/engagement.yaml", "new config file to create (must not exist)")
+	yes := wizardFlags.Bool("yes", false, "skip interactive confirmation prompt")
+	if err := wizardFlags.Parse(args); err != nil {
+		return err
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+	prompt := func(label, current string) (string, error) {
+		if strings.TrimSpace(current) != "" {
+			return current, nil
+		}
+		fmt.Fprint(os.Stderr, label)
+		value, err := reader.ReadString('\n')
+		if err != nil && len(value) == 0 {
+			return "", err
+		}
+		return strings.TrimSpace(value), nil
+	}
+
+	var err error
+	if *target, err = prompt("Authorized IP, CIDR, or hostname: ", *target); err != nil {
+		return fmt.Errorf("read target: %w", err)
+	}
+
+	// Template selection if neither profile nor template is specified
+	if strings.TrimSpace(*profile) == "" && strings.TrimSpace(*templateName) == "" {
+		templates := config.AvailableEngagementTemplates()
+		fmt.Println("\nAvailable Assessment Templates:")
+		for i, tmpl := range templates {
+			fmt.Printf("  [%d] %-10s - %s (%s)\n", i+1, tmpl.ID, tmpl.Name, tmpl.Description)
+		}
+		selectedTemplate, _ := prompt("Select template [1-6, default standard]: ", "")
+		switch strings.TrimSpace(selectedTemplate) {
+		case "1", "standard":
+			*profile = "standard"
+		case "2", "web":
+			*profile = "web_application"
+		case "3", "network":
+			*profile = "internal_network"
+		case "4", "api":
+			*profile = "api_assessment"
+		case "5", "external":
+			*profile = "external_infrastructure"
+		case "6", "cloud":
+			*profile = "cloud_infrastructure"
+		case "":
+			*profile = "standard"
+		default:
+			*profile = selectedTemplate
+		}
+	} else if strings.TrimSpace(*templateName) != "" {
+		*profile = *templateName
+	}
+
+	if *authorization, err = prompt("Written authorization reference: ", *authorization); err != nil {
+		return fmt.Errorf("read authorization reference: %w", err)
+	}
+
+	input := config.EngagementInput{
+		Target: *target, Profile: *profile, Authorization: *authorization,
+	}
+
+	// 1. Run Dependency Checks
+	fmt.Println("\nRunning Engagement Dependency Checks...")
+	checks, _ := config.RunEngagementDependencyChecks(*target, "data/enumscan.sqlite")
+	allChecksPassed := true
+	for _, chk := range checks {
+		statusTag := "[PASS]"
+		if chk.Severity == "warn" {
+			statusTag = "[WARN]"
+		} else if chk.Severity == "error" {
+			statusTag = "[FAIL]"
+			allChecksPassed = false
+		}
+		fmt.Printf("  %-6s %-30s %s\n", statusTag, chk.Name, chk.Message)
+	}
+	if !allChecksPassed {
+		return fmt.Errorf("prerequisite dependency check failed: verify target and write permissions")
+	}
+
+	// 2. Generate and Display Effective-Plan Preview & Estimates
+	preview, err := config.PreviewEngagementPlan(input, "data/enumscan.sqlite")
+	if err != nil {
+		return fmt.Errorf("preview engagement plan: %w", err)
+	}
+
+	fmt.Println("\n=== EFFECTIVE ENGAGEMENT PLAN PREVIEW ===")
+	fmt.Printf("  Target:              %s\n", preview.Target)
+	fmt.Printf("  Authorized Scope:    %s\n", strings.Join(preview.Scope, ", "))
+	fmt.Printf("  Authorization Ref:   %s\n", preview.Authorization)
+	fmt.Printf("  Assessment Profile:  %s\n", preview.Profile)
+	fmt.Printf("  Active Modules:      %s\n", strings.Join(preview.EnabledModules, ", "))
+	fmt.Printf("  Concurrency:         %d workers\n", preview.Concurrency)
+	fmt.Printf("  Rate Limit:          %d ms/target\n", preview.RateLimitPerTarget)
+	fmt.Println("\n--- WORKLOAD ESTIMATES ---")
+	fmt.Printf("  Estimated Hosts:     %d\n", preview.EstimatedHosts)
+	fmt.Printf("  Estimated Probes:    %d port checks\n", preview.EstimatedPortProbes)
+	fmt.Printf("  Estimated Duration:  %s\n", preview.EstimatedDuration)
+	fmt.Println("\n--- SAFETY BOUNDS ---")
+	for _, g := range preview.SafetyGuarantees {
+		fmt.Printf("  • %s\n", g)
+	}
+
+	// 3. Explicit Pre-Run Confirmation
+	if !*yes {
+		confirm, err := prompt("\nProceed with this engagement plan? [y/N]: ", "")
+		if err != nil {
+			return fmt.Errorf("read confirmation: %w", err)
+		}
+		confirm = strings.ToLower(strings.TrimSpace(confirm))
+		if confirm != "y" && confirm != "yes" {
+			fmt.Println("Engagement generation cancelled by operator.")
+			return nil
+		}
+	}
+
+	if err := config.WriteEngagementConfig(*output, input); err != nil {
+		return err
+	}
+	fmt.Printf("\n[SUCCESS] Created private, scope-locked engagement config: %s\n", *output)
+	fmt.Printf("Review it, then run: make validate-config CONFIG=%s\n", *output)
+	return nil
+}
+
 func parseAPITokens(value string) (map[string]string, error) {
 	tokens := make(map[string]string)
 	for _, item := range strings.Split(value, ",") {
@@ -704,44 +926,79 @@ func printDistributedStatus(status models.DistributedCoordinatorStatus, format s
 }
 
 func usage() {
-	fmt.Println(`enumscan - authorized reconnaissance pipeline
+	fmt.Println(`enumscan - authorized reconnaissance and security pipeline
 
-Usage:
-  enumscan [-config configs/example.yaml] init-db
-	  enumscan [-config configs/example.yaml] backup-encrypted <path> [-key-env ENUMSCAN_BACKUP_KEY]
-	  enumscan [-config configs/example.yaml] restore-encrypted <path> -confirm [-key-env ENUMSCAN_BACKUP_KEY]
-	  enumscan [-config configs/secrets.template.yaml] secret-check <name>
-	  enumscan [-config configs/secrets.template.yaml] secret-set <name> [-value-env ENUMSCAN_SECRET_VALUE]
-	  enumscan [-config configs/secrets.template.yaml] secret-rotate <name> [-value-env ENUMSCAN_SECRET_VALUE]
-	  enumscan [-config configs/example.yaml] run <scan-id>
-	  enumscan [-config configs/example.yaml] monitor [-prefix recurring]
-	  enumscan [-config configs/example.yaml] distributed-status [-format text|json] [-limit 50]
-	  enumscan [-config configs/example.yaml] distributed-enqueue <scan-id>
-	  enumscan [-config configs/example.yaml] distributed-enroll -agent <id> -public-key <base64-ed25519-key>
-	  enumscan [-config configs/example.yaml] distributed-heartbeat -agent <id>
-	  enumscan [-config configs/example.yaml] distributed-lease -agent <id> [-lease-seconds 60]
-	  enumscan [-config configs/example.yaml] distributed-complete -agent <id> -job <id> [-status completed|failed]
-	  enumscan [-config configs/example.yaml] distributed-agent -agent <id> -coordinator <https-url> [-private-key-env ENUMSCAN_AGENT_PRIVATE_KEY]
-	  enumscan [-config configs/example.yaml] git-secrets <scan-id> -repo <explicit-local-worktree> [-max-commits 250]
-	  enumscan [-config configs/example.yaml] report <scan-id> [-format json|markdown|executive|technical|triage|html|pdf|sarif|csv|neo4j]
-	  enumscan [-config configs/example.yaml] notify-webhook <scan-id> -url <https-endpoint>
-	  enumscan [-config configs/example.yaml] notify-slack <scan-id> -url <https-slack-webhook>
-	  enumscan [-config configs/example.yaml] notify-email <scan-id> -server <host:port> -from <email> -to <email> [-username <user>]
-	  enumscan [-config configs/example.yaml] local-llm-summary <scan-id>
-	  enumscan [-config configs/example.yaml] sync-neo4j <scan-id>
-  enumscan [-config configs/example.yaml] import-report <scan-id> -tool nuclei|openvas|nessus -file <path>
-  enumscan [-config configs/example.yaml] import-nvd -file <path>
-  enumscan [-config configs/example.yaml] analyze-vulnerabilities <scan-id>
-  enumscan [-config configs/example.yaml] correlate <scan-id>
-	  enumscan [-config configs/example.yaml] score-risk <scan-id>
-	  enumscan [-config configs/example.yaml] compare-scans <baseline-scan-id> <current-scan-id>
-	  enumscan [-config configs/example.yaml] doctor [-remote] [-format text|json]
-	  enumscan [-config configs/postgres.yaml] postgres-migrate
-	  enumscan [-config configs/example.yaml] tui
-  enumscan [-config configs/example.yaml] server [-port 8080]`)
+USAGE:
+  enumscan [flags] <command> [command options]
+
+WORKFLOW COMMANDS:
+
+  1. First-Run & Engagement Setup:
+     enumscan engagement-wizard [-target ip|cidr|host] [-template standard|web|network|api|external|cloud] [-authorization ref] [-output configs/engagement.yaml] [-yes]
+     enumscan [-config config.yaml] init-db
+     enumscan capabilities [-format text|json|markdown]
+     enumscan [-config config.yaml] validate-config [-format text|json]
+     enumscan [-config config.yaml] doctor [-remote] [-format text|json]
+
+  2. Scan Execution & Monitoring:
+     enumscan [-config config.yaml] run <scan-id>
+     enumscan [-config config.yaml] monitor [-prefix recurring]
+     enumscan [-config config.yaml] server [-port 8080]
+
+  3. Distributed Operations & High Availability:
+     enumscan [-config config.yaml] distributed-status [-format text|json] [-limit 50]
+     enumscan [-config config.yaml] distributed-enqueue <scan-id>
+     enumscan [-config config.yaml] distributed-enroll -agent <id> -public-key <base64-ed25519-key>
+     enumscan [-config config.yaml] distributed-heartbeat -agent <id>
+     enumscan [-config config.yaml] distributed-lease -agent <id> [-lease-seconds 60]
+     enumscan [-config config.yaml] distributed-complete -agent <id> -job <id> [-status completed|failed]
+     enumscan [-config config.yaml] distributed-agent -agent <id> -coordinator <https-url> [-private-key-env KEY]
+     enumscan [-config postgres.yaml] postgres-migrate
+
+  4. Analysis, Prioritization & Risk:
+     enumscan [-config config.yaml] analyze-vulnerabilities <scan-id>
+     enumscan [-config config.yaml] correlate <scan-id>
+     enumscan [-config config.yaml] score-risk <scan-id>
+     enumscan [-config config.yaml] compare-scans <baseline-scan-id> <current-scan-id>
+     enumscan [-config config.yaml] import-report <scan-id> -tool nuclei|openvas|nessus -file <path>
+     enumscan [-config config.yaml] import-nvd -file <path>
+     enumscan [-config config.yaml] git-secrets <scan-id> -repo <path> [-max-commits 250]
+
+  5. Reports & Integrations:
+     enumscan [-config config.yaml] report <scan-id> [-format json|markdown|executive|technical|triage|html|pdf|sarif|csv|neo4j]
+     enumscan [-config config.yaml] notify-webhook <scan-id> -url <https-endpoint>
+     enumscan [-config config.yaml] notify-slack <scan-id> -url <https-slack-webhook>
+     enumscan [-config config.yaml] notify-email <scan-id> -server <host:port> -from <email> -to <email> [-username <user>]
+     enumscan [-config config.yaml] local-llm-summary <scan-id>
+     enumscan [-config config.yaml] sync-neo4j <scan-id>
+
+  6. Storage, Secrets & Key Rotation:
+     enumscan [-config config.yaml] backup-encrypted <path> [-key-env ENUMSCAN_BACKUP_KEY]
+     enumscan [-config config.yaml] restore-encrypted <path> -confirm [-key-env ENUMSCAN_BACKUP_KEY]
+     enumscan [-config secrets.yaml] secret-check <name>
+     enumscan [-config secrets.yaml] secret-set <name> [-value-env ENUMSCAN_SECRET_VALUE]
+     enumscan [-config secrets.yaml] secret-rotate <name> [-value-env ENUMSCAN_SECRET_VALUE]
+
+  7. Operator Diagnostics & Console:
+     enumscan [-config config.yaml] tui
+
+EXAMPLES:
+  # 1. Guided first-run engagement setup:
+  enumscan engagement-wizard -target 192.168.1.0/24 -template network -authorization AUTH-2026-001 -output configs/corp.yaml -yes
+
+  # 2. Run scan and view in interactive TUI:
+  enumscan -config configs/corp.yaml run scan-01
+  enumscan -config configs/corp.yaml tui
+
+  # 3. Export executive and SARIF compliance reports:
+  enumscan -config configs/corp.yaml report scan-01 -format executive
+  enumscan -config configs/corp.yaml report scan-01 -format sarif
+
+  # 4. Start local operator web console on port 8080:
+  enumscan -config configs/corp.yaml server -port 8080`)
 }
 
-func runBoundedMonitoring(ctx context.Context, cfg models.Config, db *store.SQLiteCLI, prefix string) error {
+func runBoundedMonitoring(ctx context.Context, cfg models.Config, db store.RuntimeStore, prefix string) error {
 	prefix = strings.TrimSpace(prefix)
 	if prefix == "" {
 		prefix = "monitor"

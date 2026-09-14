@@ -4,9 +4,13 @@
 /reports/*.md
 /bin/
 /.env
+node_modules/
 enumscan.txt
 PRODUCTION_READINESS.md
 todo.md
 DATA_HANDLING.md
 ENTERPRISE_RELEASE_AUDIT.md
 FEATURE_ADHERENCE.md
+OPEN_WORK.md
+ROADMAP.md
+LIMITATIONS.md

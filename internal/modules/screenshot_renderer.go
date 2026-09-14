@@ -28,7 +28,7 @@ const maxScreenshotBytes int64 = 10 << 20
 // engagement. Enumscan neither guesses a renderer nor records a gallery item
 // until an image file is present and its checksum has been verified.
 type BrowserScreenshotRenderer struct {
-	db     *store.SQLiteCLI
+	db     store.RuntimeStore
 	guard  scope.Guard
 	config models.HTTPConfig
 	mu     sync.Mutex
@@ -37,11 +37,11 @@ type BrowserScreenshotRenderer struct {
 
 // NewBrowserScreenshotRenderer preserves the disabled default for callers
 // that have not provided a renderer configuration.
-func NewBrowserScreenshotRenderer(db *store.SQLiteCLI, guard scope.Guard) *BrowserScreenshotRenderer {
+func NewBrowserScreenshotRenderer(db store.RuntimeStore, guard scope.Guard) *BrowserScreenshotRenderer {
 	return NewBrowserScreenshotRendererWithConfig(db, guard, models.HTTPConfig{})
 }
 
-func NewBrowserScreenshotRendererWithConfig(db *store.SQLiteCLI, guard scope.Guard, config models.HTTPConfig) *BrowserScreenshotRenderer {
+func NewBrowserScreenshotRendererWithConfig(db store.RuntimeStore, guard scope.Guard, config models.HTTPConfig) *BrowserScreenshotRenderer {
 	if config.MaxScreenshotsPerScan <= 0 {
 		config.MaxScreenshotsPerScan = 25
 	}

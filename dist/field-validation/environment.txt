@@ -1,0 +1,6 @@
+enumscan synthetic field validation
+timestamp_utc=2026-09-14T05:40:00Z
+target_count=1000
+go version go1.26.7 linux/amd64
+linux
+amd64

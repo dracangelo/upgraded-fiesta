@@ -21,19 +21,19 @@ import (
 )
 
 type HTTP2Fingerprinter struct {
-	db          *store.SQLiteCLI
+	db          store.RuntimeStore
 	guard       scope.Guard
 	enableHTTP3 bool
 }
 
-func NewHTTP2Fingerprinter(db *store.SQLiteCLI, guard scope.Guard) *HTTP2Fingerprinter {
+func NewHTTP2Fingerprinter(db store.RuntimeStore, guard scope.Guard) *HTTP2Fingerprinter {
 	return &HTTP2Fingerprinter{db: db, guard: guard}
 }
 
 // NewHTTP2FingerprinterWithHTTP3 enables a bounded HTTP/3 confirmation only
 // when the operator opts in. HTTP/3 confirmation is restricted to literal IP
 // targets so QUIC transport never introduces a second DNS resolution path.
-func NewHTTP2FingerprinterWithHTTP3(db *store.SQLiteCLI, guard scope.Guard, enableHTTP3 bool) *HTTP2Fingerprinter {
+func NewHTTP2FingerprinterWithHTTP3(db store.RuntimeStore, guard scope.Guard, enableHTTP3 bool) *HTTP2Fingerprinter {
 	return &HTTP2Fingerprinter{db: db, guard: guard, enableHTTP3: enableHTTP3}
 }
 
@@ -152,17 +152,17 @@ func probeHTTP3(ctx context.Context, target string) (int, bool) {
 	return resp.StatusCode, resp.ProtoMajor == 3
 }
 
-func NewHTTP23Fingerprinter(db *store.SQLiteCLI, guard scope.Guard) *HTTP2Fingerprinter {
+func NewHTTP23Fingerprinter(db store.RuntimeStore, guard scope.Guard) *HTTP2Fingerprinter {
 	return NewHTTP2Fingerprinter(db, guard)
 }
 
 type FaviconFingerprinter struct {
-	db     *store.SQLiteCLI
+	db     store.RuntimeStore
 	guard  scope.Guard
 	client *http.Client
 }
 
-func NewFaviconFingerprinter(db *store.SQLiteCLI, guard scope.Guard) *FaviconFingerprinter {
+func NewFaviconFingerprinter(db store.RuntimeStore, guard scope.Guard) *FaviconFingerprinter {
 	return &FaviconFingerprinter{
 		db:     db,
 		guard:  guard,
@@ -226,12 +226,12 @@ func (m *FaviconFingerprinter) Handle(ctx context.Context, evt models.Event) ([]
 }
 
 type WasmAndSPADiscovery struct {
-	db     *store.SQLiteCLI
+	db     store.RuntimeStore
 	guard  scope.Guard
 	client *http.Client
 }
 
-func NewWasmAndSPADiscovery(db *store.SQLiteCLI, guard scope.Guard) *WasmAndSPADiscovery {
+func NewWasmAndSPADiscovery(db store.RuntimeStore, guard scope.Guard) *WasmAndSPADiscovery {
 	return &WasmAndSPADiscovery{
 		db:     db,
 		guard:  guard,

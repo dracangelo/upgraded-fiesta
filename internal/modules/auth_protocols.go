@@ -14,12 +14,12 @@ import (
 )
 
 type AuthProtocolScanner struct {
-	db     *store.SQLiteCLI
+	db     store.RuntimeStore
 	guard  scope.Guard
 	client *http.Client
 }
 
-func NewAuthProtocolScanner(db *store.SQLiteCLI, guard scope.Guard) *AuthProtocolScanner {
+func NewAuthProtocolScanner(db store.RuntimeStore, guard scope.Guard) *AuthProtocolScanner {
 	return &AuthProtocolScanner{
 		db:     db,
 		guard:  guard,

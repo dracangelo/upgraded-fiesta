@@ -1,0 +1,10 @@
+{
+  "allocations": 165379,
+  "bytes_per_op": 10682440,
+  "max_allocations": 510000,
+  "max_bytes_per_op": 75536000,
+  "max_nanoseconds": 7000000000,
+  "nanoseconds": 564094356,
+  "passed": true,
+  "targets": 1000
+}

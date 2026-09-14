@@ -15,6 +15,7 @@
         <a href="getting-started.html">Start</a>
         <a href="configuration.html">Configure</a>
         <a href="cli.html">CLI</a>
+        <a href="capabilities.html">Capabilities</a>
         <a href="scanning.html">Scanning</a>
         <a href="reporting-api.html">API &amp; reports</a>
         <a href="operations.html">Operations</a>
@@ -44,9 +45,53 @@ API credentials for their corresponding features.</li>
 <p>The binary is written to <code>dist/enumscan</code>. For development,
 every command can also be run with
 <code>go run ./cmd/enumscan</code>.</p>
+<h2 id="install-a-signed-release-artifact">Install a signed release
+artifact</h2>
+<p>For a production installation, download the archive matching your
+operating system, its <code>.bundle</code> signature, and
+<code>enumscan-sha256sums.txt</code> from the same tagged release.
+Verify the exact archive before extracting it:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="va">VERSION</span><span class="op">=</span>v1.2.3</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="va">ARCHIVE</span><span class="op">=</span><span class="st">&quot;enumscan-</span><span class="va">${VERSION}</span><span class="st">-linux-amd64.tar.gz&quot;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">cosign</span> verify-blob <span class="at">--bundle</span> <span class="st">&quot;</span><span class="va">${ARCHIVE}</span><span class="st">.bundle&quot;</span> <span class="st">&quot;</span><span class="va">${ARCHIVE}</span><span class="st">&quot;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">grep</span> <span class="st">&quot; </span><span class="va">${ARCHIVE}</span><span class="st">$&quot;</span> enumscan-sha256sums.txt <span class="kw">|</span> <span class="fu">sha256sum</span> <span class="at">-c</span> <span class="at">-</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">tar</span> <span class="at">-xzf</span> <span class="st">&quot;</span><span class="va">${ARCHIVE}</span><span class="st">&quot;</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="st">&quot;enumscan-</span><span class="va">${VERSION}</span><span class="st">-linux-amd64/enumscan&quot;</span> help</span></code></pre></div>
+<p>Use the matching <code>darwin-arm64.tar.gz</code> archive on macOS or
+<code>windows-amd64.zip</code> on Windows. Archives contain only the
+binary, a safe scan template, authorized-use guidance, and release
+documentation.</p>
+<p>On Windows, verify <code>enumscan-${VERSION}-windows-amd64.zip</code>
+with <code>cosign.exe</code> and compare
+<code>Get-FileHash -Algorithm SHA256</code> output with the matching
+manifest entry before extracting it with
+<code>Expand-Archive</code>.</p>
+<p>Tagged releases also include verified package-manager artifacts:</p>
+<ul>
+<li><strong>Debian / Ubuntu</strong>:
+<code>enumscan_&lt;version&gt;_amd64.deb</code>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode sh"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">cosign</span> verify-blob <span class="at">--bundle</span> enumscan_<span class="op">&lt;</span>version<span class="op">&gt;</span>_amd64.deb.bundle enumscan_<span class="op">&lt;</span>version<span class="op">&gt;</span>_amd64.deb</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">grep</span> <span class="st">&#39; enumscan_&lt;version&gt;_amd64.deb$&#39;</span> enumscan-sha256sums.txt <span class="kw">|</span> <span class="fu">sha256sum</span> <span class="at">-c</span> <span class="at">-</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt-get install ./enumscan_<span class="op">&lt;</span>version<span class="op">&gt;</span>_amd64.deb</span></code></pre></div></li>
+<li><strong>Fedora / RHEL / CentOS</strong>:
+<code>enumscan-&lt;version&gt;-1.x86_64.rpm</code>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">cosign</span> verify-blob <span class="at">--bundle</span> enumscan-<span class="op">&lt;</span>version<span class="op">&gt;</span>-1.x86_64.rpm.bundle enumscan-<span class="op">&lt;</span>version<span class="op">&gt;</span>-1.x86_64.rpm</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">grep</span> <span class="st">&#39; enumscan-&lt;version&gt;-1.x86_64.rpm$&#39;</span> enumscan-sha256sums.txt <span class="kw">|</span> <span class="fu">sha256sum</span> <span class="at">-c</span> <span class="at">-</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> dnf install ./enumscan-<span class="op">&lt;</span>version<span class="op">&gt;</span>-1.x86_64.rpm</span></code></pre></div></li>
+<li><strong>macOS Homebrew (ARM64)</strong>:
+<code>enumscan-&lt;version&gt;-homebrew.rb</code>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">brew</span> install <span class="at">--formula</span> ./enumscan-<span class="op">&lt;</span>version<span class="op">&gt;</span>-homebrew.rb</span></code></pre></div></li>
+<li><strong>Windows Scoop (AMD64)</strong>:
+<code>enumscan-&lt;version&gt;-scoop.json</code>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>scoop install <span class="op">./</span>enumscan-<span class="op">&lt;</span>version<span class="op">&gt;-</span>scoop<span class="op">.</span><span class="fu">json</span></span></code></pre></div></li>
+</ul>
 <h2 id="create-a-configuration">Create a configuration</h2>
-<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> scan-templates</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> new-scan-config TEMPLATE=web OUTPUT_CONFIG=configs/my-scan.yaml</span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> scan-templates</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> new-scan-config TEMPLATE=web OUTPUT_CONFIG=configs/my-scan.yaml</span></code></pre></div>
 <p>Edit <code>configs/my-scan.yaml</code> and replace the target,
 authorization reference, database path, and any feature-specific
 placeholders. Never commit an engagement configuration containing target
@@ -54,22 +99,38 @@ or credential metadata.</p>
 <p>Use <code>make scan-template</code> if you prefer the comprehensive
 general-purpose template instead of an assessment-specific starting
 point.</p>
+<h3 id="guided-engagement-setup">Guided engagement setup</h3>
+<p>For a new repeatable engagement, use the wizard instead of editing a
+template by hand. It requires a single IP address, CIDR, or hostname
+plus a written authorization reference, then creates a new private
+configuration file. It does not overwrite an existing file and enables
+safe enumeration only.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> engagement-wizard</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> validate-config CONFIG=configs/engagement.yaml</span></code></pre></div>
+<p>The dashboard's <strong>New engagement</strong> button produces the
+same validated YAML as a browser download. Review it and start the scan
+with the CLI; the dashboard does not persist the new engagement or alter
+its server scope. Authenticated dashboard deployments require an admin
+role to generate this plan.</p>
 <p>For a guided IP/CIDR scan:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> interactive-scan</span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> interactive-scan</span></code></pre></div>
 <h2 id="run-a-scan">Run a scan</h2>
-<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> init-db CONFIG=configs/my-scan.yaml</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> scan CONFIG=configs/my-scan.yaml SCAN_ID=engagement-001</span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode sh"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> init-db CONFIG=configs/my-scan.yaml</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> scan CONFIG=configs/my-scan.yaml SCAN_ID=engagement-001</span></code></pre></div>
 <p>Scan IDs should be unique and meaningful. The engine rejects targets
 outside <code>scope.allowed_targets</code> before modules run.</p>
 <h2 id="generate-a-report">Generate a report</h2>
-<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> report CONFIG=configs/my-scan.yaml SCAN_ID=engagement-001 FORMAT=markdown</span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode sh"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> report CONFIG=configs/my-scan.yaml SCAN_ID=engagement-001 FORMAT=markdown</span></code></pre></div>
 <p>Other formats include <code>json</code>, <code>executive</code>,
 <code>technical</code>, <code>triage</code>, <code>html</code>,
 <code>pdf</code>, <code>sarif</code>, <code>csv</code>, and
 <code>neo4j</code>.</p>
 <h2 id="open-the-operator-interfaces">Open the operator interfaces</h2>
-<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> dashboard CONFIG=configs/my-scan.yaml</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> tui CONFIG=configs/my-scan.yaml</span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode sh"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> dashboard CONFIG=configs/my-scan.yaml</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> tui CONFIG=configs/my-scan.yaml</span></code></pre></div>
 <p>The dashboard listens on loopback by default. Configure API
 authentication and TLS before exposing it beyond the local operator
 workstation.</p>

@@ -20,7 +20,7 @@ type report struct {
 	Findings []models.Finding `json:"findings"`
 }
 
-func Write(ctx context.Context, db *store.SQLiteCLI, scanID, format, outputDir string) (string, error) {
+func Write(ctx context.Context, db store.RuntimeStore, scanID, format, outputDir string) (string, error) {
 	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		return "", err
 	}

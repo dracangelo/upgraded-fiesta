@@ -97,7 +97,7 @@ func (s *SQLiteCLI) PurgeScansOlderThan(ctx context.Context, threshold time.Dura
 		return 0, nil
 	}
 
-	cutoff := time.Now().Add(-threshold).Format(time.RFC3339)
+	cutoff := time.Now().UTC().Add(-threshold).Format(time.RFC3339)
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -105,12 +105,12 @@ func (s *SQLiteCLI) PurgeScansOlderThan(ctx context.Context, threshold time.Dura
 	}
 
 	// Delete from child tables using scan_runs created_at / started_at
-	_, _ = tx.ExecContext(ctx, `DELETE FROM assets WHERE scan_id IN (SELECT scan_id FROM scan_runs WHERE started_at < ?)`, cutoff)
-	_, _ = tx.ExecContext(ctx, `DELETE FROM findings WHERE scan_id IN (SELECT scan_id FROM scan_runs WHERE started_at < ?)`, cutoff)
-	_, _ = tx.ExecContext(ctx, `DELETE FROM events WHERE scan_id IN (SELECT scan_id FROM scan_runs WHERE started_at < ?)`, cutoff)
-	_, _ = tx.ExecContext(ctx, `DELETE FROM checkpoints WHERE scan_id IN (SELECT scan_id FROM scan_runs WHERE started_at < ?)`, cutoff)
+	_, _ = tx.ExecContext(ctx, `DELETE FROM assets WHERE scan_id IN (SELECT scan_id FROM scan_runs WHERE datetime(started_at) < datetime(?))`, cutoff)
+	_, _ = tx.ExecContext(ctx, `DELETE FROM findings WHERE scan_id IN (SELECT scan_id FROM scan_runs WHERE datetime(started_at) < datetime(?))`, cutoff)
+	_, _ = tx.ExecContext(ctx, `DELETE FROM events WHERE scan_id IN (SELECT scan_id FROM scan_runs WHERE datetime(started_at) < datetime(?))`, cutoff)
+	_, _ = tx.ExecContext(ctx, `DELETE FROM checkpoints WHERE scan_id IN (SELECT scan_id FROM scan_runs WHERE datetime(started_at) < datetime(?))`, cutoff)
 
-	res, err := tx.ExecContext(ctx, `DELETE FROM scan_runs WHERE started_at < ?`, cutoff)
+	res, err := tx.ExecContext(ctx, `DELETE FROM scan_runs WHERE datetime(started_at) < datetime(?)`, cutoff)
 	if err != nil {
 		_ = tx.Rollback()
 		return 0, err

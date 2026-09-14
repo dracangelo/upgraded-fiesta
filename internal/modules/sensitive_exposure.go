@@ -13,12 +13,12 @@ import (
 )
 
 type SensitiveExposureScanner struct {
-	db     *store.SQLiteCLI
+	db     store.RuntimeStore
 	guard  scope.Guard
 	client *http.Client
 }
 
-func NewSensitiveExposureScanner(db *store.SQLiteCLI, guard scope.Guard) *SensitiveExposureScanner {
+func NewSensitiveExposureScanner(db store.RuntimeStore, guard scope.Guard) *SensitiveExposureScanner {
 	return &SensitiveExposureScanner{
 		db:     db,
 		guard:  guard,

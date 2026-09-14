@@ -11,11 +11,11 @@ import (
 )
 
 type IPv6Discovery struct {
-	db    *store.SQLiteCLI
+	db    store.RuntimeStore
 	guard scope.Guard
 }
 
-func NewIPv6Discovery(db *store.SQLiteCLI, guard scope.Guard) *IPv6Discovery {
+func NewIPv6Discovery(db store.RuntimeStore, guard scope.Guard) *IPv6Discovery {
 	return &IPv6Discovery{db: db, guard: guard}
 }
 

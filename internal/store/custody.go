@@ -12,11 +12,11 @@ import (
 
 type ChainOfCustodyLogger struct {
 	mu       sync.Mutex
-	db       *SQLiteCLI
+	db       RuntimeStore
 	lastHash string
 }
 
-func NewChainOfCustodyLogger(db *SQLiteCLI) *ChainOfCustodyLogger {
+func NewChainOfCustodyLogger(db RuntimeStore) *ChainOfCustodyLogger {
 	return &ChainOfCustodyLogger{
 		db:       db,
 		lastHash: "GENESIS_HASH_00000000000000000000000000000000000000000000000000000000",

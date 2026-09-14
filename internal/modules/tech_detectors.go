@@ -14,12 +14,12 @@ import (
 )
 
 type CMSEnumerator struct {
-	db     *store.SQLiteCLI
+	db     store.RuntimeStore
 	guard  scope.Guard
 	client *http.Client
 }
 
-func NewCMSEnumerator(db *store.SQLiteCLI, guard scope.Guard) *CMSEnumerator {
+func NewCMSEnumerator(db store.RuntimeStore, guard scope.Guard) *CMSEnumerator {
 	return &CMSEnumerator{
 		db:     db,
 		guard:  guard,
@@ -101,12 +101,12 @@ func (m *CMSEnumerator) Handle(ctx context.Context, evt models.Event) ([]models.
 }
 
 type FrameworkEnumerator struct {
-	db     *store.SQLiteCLI
+	db     store.RuntimeStore
 	guard  scope.Guard
 	client *http.Client
 }
 
-func NewFrameworkEnumerator(db *store.SQLiteCLI, guard scope.Guard) *FrameworkEnumerator {
+func NewFrameworkEnumerator(db store.RuntimeStore, guard scope.Guard) *FrameworkEnumerator {
 	return &FrameworkEnumerator{
 		db:     db,
 		guard:  guard,
@@ -173,12 +173,12 @@ func (m *FrameworkEnumerator) Handle(ctx context.Context, evt models.Event) ([]m
 }
 
 type EnterpriseAppEnumerator struct {
-	db     *store.SQLiteCLI
+	db     store.RuntimeStore
 	guard  scope.Guard
 	client *http.Client
 }
 
-func NewEnterpriseAppEnumerator(db *store.SQLiteCLI, guard scope.Guard) *EnterpriseAppEnumerator {
+func NewEnterpriseAppEnumerator(db store.RuntimeStore, guard scope.Guard) *EnterpriseAppEnumerator {
 	return &EnterpriseAppEnumerator{
 		db:     db,
 		guard:  guard,
@@ -282,12 +282,12 @@ func (m *EnterpriseAppEnumerator) Handle(ctx context.Context, evt models.Event) 
 }
 
 type FrontendFrameworkDetector struct {
-	db     *store.SQLiteCLI
+	db     store.RuntimeStore
 	guard  scope.Guard
 	client *http.Client
 }
 
-func NewFrontendFrameworkDetector(db *store.SQLiteCLI, guard scope.Guard) *FrontendFrameworkDetector {
+func NewFrontendFrameworkDetector(db store.RuntimeStore, guard scope.Guard) *FrontendFrameworkDetector {
 	return &FrontendFrameworkDetector{
 		db:     db,
 		guard:  guard,

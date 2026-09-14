@@ -17,10 +17,10 @@ type AuditEntry struct {
 }
 
 type AuditLogger struct {
-	db *SQLiteCLI
+	db RuntimeStore
 }
 
-func NewAuditLogger(db *SQLiteCLI) *AuditLogger {
+func NewAuditLogger(db RuntimeStore) *AuditLogger {
 	return &AuditLogger{db: db}
 }
 

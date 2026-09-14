@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Enumscan documentation for authorized security assessments">
-  <title>Security model — Enumscan documentation</title>
+  <title>Authorized-use guidance — Enumscan documentation</title>
   <link rel="stylesheet" href="assets/docs.css">
 </head>
 <body>
@@ -15,6 +15,7 @@
         <a href="getting-started.html">Start</a>
         <a href="configuration.html">Configure</a>
         <a href="cli.html">CLI</a>
+        <a href="capabilities.html">Capabilities</a>
         <a href="scanning.html">Scanning</a>
         <a href="reporting-api.html">API &amp; reports</a>
         <a href="operations.html">Operations</a>
@@ -26,51 +27,49 @@
     </div>
   </header>
   <main>
-<h1 id="security-model">Security model</h1>
-<p>Enumscan is intended only for explicitly authorized security
-assessments.</p>
-<h2 id="core-guarantees">Core guarantees</h2>
+<h1 id="authorized-use-guidance">Authorized-use guidance</h1>
+<p>Enumscan is for security assessments that you are explicitly
+authorized to perform. You are responsible for confirming authorization
+before any network action begins.</p>
+<h2 id="before-a-scan">Before a scan</h2>
 <ul>
-<li>Every scan requires a written authorization reference.</li>
-<li>Every requested and discovered target is constrained by the
-configured scope.</li>
-<li>Network work is bounded by concurrency, timeout, and pacing
-controls.</li>
-<li>Potentially sensitive evidence is minimized and redacted.</li>
-<li>Credentials are referenced indirectly and are not written into
-reports.</li>
-<li>State-changing API requests are role-checked and durably
-audited.</li>
-<li>Distributed work is digest-bound, signed, leased, and
-replay-resistant.</li>
-<li>Marketplace packages require a configured HTTPS registry, checksum,
-and Ed25519 signature before installation.</li>
+<li>Obtain written authorization that identifies the organization,
+approved targets, assessment period, operator, and allowed
+activity.</li>
+<li>Configure every approved IP address, CIDR, hostname, and domain in
+<code>scope.allowed_targets</code>. Do not use broad public ranges or
+wildcard scope.</li>
+<li>Choose bounded concurrency, timeouts, request pacing, and a profile
+appropriate to the engagement. Start with the smallest safe
+profile.</li>
+<li>Run <code>enumscan validate-config</code> and review its effective
+plan before running <code>enumscan run</code>.</li>
+<li>Keep credentials, cookies, API tokens, and evidence in approved
+storage. Do not place them in source control, command history, or
+support requests.</li>
 </ul>
-<h2 id="trust-boundaries">Trust boundaries</h2>
-<p>The operator controls configuration, target authorization,
-credentials, local storage, plugin trust keys, and external endpoints.
-Remote targets, provider responses, imported files, plugin packages,
-browser output, and agent evidence are untrusted inputs and are parsed
-with explicit bounds.</p>
-<h2 id="safe-defaults">Safe defaults</h2>
-<p>Active liveness, UDP, raw sockets, authenticated crawling,
-screenshots, third-party providers, outbound notifications, monitoring,
-remote graph sync, plugins, and Tier 4 testing are disabled until
-individually configured.</p>
-<h2 id="active-testing">Active testing</h2>
-<p>Tier 4 uses a separate expiring authorization, operator identity,
-environment-held acknowledgment, technique allowlist, hard impact
-ceilings, and an audit event. A normal scan authorization never implies
-active-testing permission. See <a href="tier4_active_testing.html">Tier 4
-active testing</a>.</p>
-<h2 id="reporting-security-issues">Reporting security issues</h2>
-<p>Do not include live credentials, customer target lists, raw secret
-findings, or other engagement data in a public issue. Provide the
-smallest reproducible test case and rotate any credential that may have
-been exposed.</p>
-<p>For additional design detail, see <a
-href="threat_model.html">threat_model.html</a> and <a
-href="authorized_use.html">authorized_use.html</a>.</p>
+<h2 id="prohibited-use">Prohibited use</h2>
+<p>Do not use Enumscan to access, disrupt, degrade, exploit, persist on,
+or exfiltrate from systems without explicit authority. Do not scan
+targets outside the configured scope, bypass access controls, or use
+results to facilitate harm.</p>
+<h2 id="elevated-activity">Elevated activity</h2>
+<p>Raw sockets, authenticated crawling, screenshots, third-party
+providers, notifications, distributed agents, and Tier 4 checks are
+separately gated. Tier 4 activity additionally requires an unexpired
+written authorization, operator identity, an explicit technique
+allowlist, bounded impact settings, and the environment-held
+acknowledgment described in <a href="tier4_active_testing.html">Tier 4
+active testing</a>. A normal scan authorization does not grant
+permission for those techniques.</p>
+<h2 id="stop-conditions">Stop conditions</h2>
+<p>Pause the engagement and contact the authorization owner if you
+observe an unexpected target, sensitive information outside the agreed
+handling plan, production impact, or a material change to scope or
+authorization. Preserve only the minimum evidence needed to report the
+issue and follow the engagement's incident-handling procedure.</p>
+<p>For the full security model, see <a href="security.html">Security
+model</a>.</p>
   </main>
   <footer>
     Enumscan is for explicitly authorized security assessments. Generated from the canonical Markdown documentation.

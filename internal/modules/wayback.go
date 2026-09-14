@@ -13,10 +13,10 @@ import (
 // the operator through DiscoveryConfig.HistoricalURLFiles and processed by
 // HistoricalURLImporter, rather than fetched from third-party services.
 type WaybackHarvester struct {
-	db *store.SQLiteCLI
+	db store.RuntimeStore
 }
 
-func NewWaybackHarvester(db *store.SQLiteCLI) *WaybackHarvester {
+func NewWaybackHarvester(db store.RuntimeStore) *WaybackHarvester {
 	return &WaybackHarvester{db: db}
 }
 

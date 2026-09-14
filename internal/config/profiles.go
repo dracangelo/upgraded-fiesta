@@ -188,6 +188,22 @@ func ModuleEnabled(cfg models.Config, module string) bool {
 func normalizeProfileName(name string) string {
 	name = strings.ToLower(strings.TrimSpace(name))
 	name = strings.NewReplacer("-", "_", " ", "_").Replace(name)
+	switch name {
+	case "web":
+		return string(ProfileWebApplication)
+	case "network", "internal":
+		return string(ProfileInternalNetwork)
+	case "api", "api_assessment":
+		return string(ProfileAPIAssessment)
+	case "external", "perimeter":
+		return string(ProfileExternalInfrastructure)
+	case "cloud":
+		return string(ProfileCloudInfrastructure)
+	case "ad":
+		return string(ProfileActiveDirectory)
+	case "k8s":
+		return string(ProfileKubernetes)
+	}
 	return name
 }
 

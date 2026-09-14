@@ -26,12 +26,12 @@ const (
 )
 
 type Specialized struct {
-	db    *store.SQLiteCLI
+	db    store.RuntimeStore
 	guard scope.Guard
 	cfg   models.SpecializedConfig
 }
 
-func NewSpecialized(db *store.SQLiteCLI, guard scope.Guard, cfg models.SpecializedConfig) Specialized {
+func NewSpecialized(db store.RuntimeStore, guard scope.Guard, cfg models.SpecializedConfig) Specialized {
 	return Specialized{db: db, guard: guard, cfg: cfg}
 }
 

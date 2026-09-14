@@ -131,7 +131,7 @@ func (s *Scheduler) EnqueuePriority(event models.Event, priority int) {
 	s.queueForPriority(priority) <- event
 }
 
-func (s *Scheduler) Run(ctx context.Context, db *store.SQLiteCLI) error {
+func (s *Scheduler) Run(ctx context.Context, db store.RuntimeStore) error {
 	errs := make(chan error, 1)
 	s.persistRuntime(ctx, db, true)
 	initialWorkers := s.concurrency
@@ -156,7 +156,7 @@ func (s *Scheduler) Run(ctx context.Context, db *store.SQLiteCLI) error {
 	}
 }
 
-func (s *Scheduler) spawnWorker(ctx context.Context, db *store.SQLiteCLI, errs chan<- error) {
+func (s *Scheduler) spawnWorker(ctx context.Context, db store.RuntimeStore, errs chan<- error) {
 	s.workerMu.Lock()
 	s.liveWorkers++
 	s.workerMu.Unlock()
@@ -179,7 +179,7 @@ func (s *Scheduler) workerExited() {
 	s.workerMu.Unlock()
 }
 
-func (s *Scheduler) worker(ctx context.Context, db *store.SQLiteCLI, errs chan<- error) {
+func (s *Scheduler) worker(ctx context.Context, db store.RuntimeStore, errs chan<- error) {
 	s.adjustRuntimeWorkers(ctx, db, 1)
 	defer s.adjustRuntimeWorkers(ctx, db, -1)
 	for {
@@ -280,7 +280,7 @@ func (s *Scheduler) worker(ctx context.Context, db *store.SQLiteCLI, errs chan<-
 	}
 }
 
-func (s *Scheduler) recordModuleLatency(ctx context.Context, db *store.SQLiteCLI, errs chan<- error, duration time.Duration) {
+func (s *Scheduler) recordModuleLatency(ctx context.Context, db store.RuntimeStore, errs chan<- error, duration time.Duration) {
 	if s.adaptive == nil {
 		return
 	}
@@ -321,7 +321,7 @@ func (s *Scheduler) runtimeScanID() string {
 // waitForScanResume provides cooperative pause/resume at safe scheduler
 // boundaries. It never interrupts a module in progress, avoiding half-finished
 // network operations; a pause takes effect before the next event or module.
-func waitForScanResume(ctx context.Context, db *store.SQLiteCLI, scanID string) error {
+func waitForScanResume(ctx context.Context, db store.RuntimeStore, scanID string) error {
 	if db == nil || scanID == "" {
 		return nil
 	}
@@ -340,7 +340,7 @@ func waitForScanResume(ctx context.Context, db *store.SQLiteCLI, scanID string) 
 	}
 }
 
-func (s *Scheduler) adjustRuntimeWorkers(ctx context.Context, db *store.SQLiteCLI, delta int) {
+func (s *Scheduler) adjustRuntimeWorkers(ctx context.Context, db store.RuntimeStore, delta int) {
 	s.runtimeMu.Lock()
 	s.runtime.ActiveWorkers += delta
 	if s.runtime.ActiveWorkers < 0 {
@@ -350,7 +350,7 @@ func (s *Scheduler) adjustRuntimeWorkers(ctx context.Context, db *store.SQLiteCL
 	s.persistRuntime(ctx, db, delta < 0)
 }
 
-func (s *Scheduler) adjustRunningModules(ctx context.Context, db *store.SQLiteCLI, delta int) {
+func (s *Scheduler) adjustRunningModules(ctx context.Context, db store.RuntimeStore, delta int) {
 	s.runtimeMu.Lock()
 	s.runtime.RunningModules += delta
 	if s.runtime.RunningModules < 0 {
@@ -370,7 +370,7 @@ func (s *Scheduler) runtimeSnapshot() models.ScanRuntimeStats {
 	return stats
 }
 
-func (s *Scheduler) persistRuntime(ctx context.Context, db *store.SQLiteCLI, force bool) {
+func (s *Scheduler) persistRuntime(ctx context.Context, db store.RuntimeStore, force bool) {
 	if db == nil {
 		return
 	}
@@ -484,7 +484,7 @@ func (s *Scheduler) nextEvent() (models.Event, bool) {
 	return models.Event{}, false
 }
 
-func (s *Scheduler) recordRun(ctx context.Context, db *store.SQLiteCLI, event models.Event, module, status string, duration time.Duration, runErr error) {
+func (s *Scheduler) recordRun(ctx context.Context, db store.RuntimeStore, event models.Event, module, status string, duration time.Duration, runErr error) {
 	message := ""
 	if runErr != nil {
 		message = runErr.Error()

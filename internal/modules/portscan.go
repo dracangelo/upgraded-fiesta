@@ -20,7 +20,7 @@ import (
 )
 
 type PortScan struct {
-	db     *store.SQLiteCLI
+	db     store.RuntimeStore
 	guard  scope.Guard
 	config models.PortScanConfig
 }
@@ -41,7 +41,7 @@ type tcpScanResult struct {
 	evidence string
 }
 
-func NewPortScan(db *store.SQLiteCLI, guard scope.Guard, config models.PortScanConfig) PortScan {
+func NewPortScan(db store.RuntimeStore, guard scope.Guard, config models.PortScanConfig) PortScan {
 	if config.Profile == "" {
 		config.Profile = "quick"
 	}

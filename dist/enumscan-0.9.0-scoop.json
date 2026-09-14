@@ -1,0 +1,14 @@
+{
+  "version": "0.9.0",
+  "description": "Scope-locked reconnaissance for authorized security assessments",
+  "homepage": "https://github.com/dracangelo/upgraded-fiesta",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/dracangelo/upgraded-fiesta/releases/download/v0.9.0/enumscan-v0.9.0-windows-amd64.zip",
+      "hash": "5ff3ae1c414ae545ff78f4425ae2b81674a758c40d5bf0a31392086e4274f149",
+      "extract_dir": "enumscan-v0.9.0-windows-amd64"
+    }
+  },
+  "bin": "enumscan.exe",
+  "checkver": "github"
+}

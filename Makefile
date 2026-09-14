@@ -5,8 +5,10 @@ CONFIG ?= configs/example.yaml
 ACTIVE_CONFIG ?= configs/my-active-scan.yaml
 TEMPLATE ?=
 OUTPUT_CONFIG ?= configs/my-scan.yaml
+ENGAGEMENT_CONFIG ?= configs/engagement.yaml
 SCAN_ID ?=
 FORMAT ?= markdown
+VALIDATE_FORMAT ?= text
 OUTPUT_DIR ?= reports
 BIN ?= dist/enumscan
 NVD_FILE ?=
@@ -14,11 +16,12 @@ BASELINE_SCAN ?=
 CURRENT_SCAN ?=
 BACKUP_PATH ?=
 BACKUP_KEY_ENV ?= ENUMSCAN_BACKUP_KEY
+VERSION ?= dev
 
 .DEFAULT_GOAL := help
 
-.PHONY: help init-db backup-encrypted postgres-migrate serve dashboard run scan monitor distributed-status distributed-agent interactive-scan scan-template scan-templates new-scan-config active-scan-template active-scan docs doctor doctor-remote report notify-webhook notify-slack notify-email local-llm-summary sync-neo4j analyze-vulnerabilities score-risk correlate compare-scans \
-	build build-cross checksums image test test-compile vet fmt-check verify reproducible sbom vulncheck threat-intel-test git-secrets tui clean
+.PHONY: help init-db backup-encrypted postgres-migrate postgres-recovery-drill serve dashboard dashboard-build dashboard-check run scan validate-config monitor distributed-status distributed-agent engagement-wizard interactive-scan scan-template scan-templates new-scan-config active-scan-template active-scan docs feature-status-check field-validation doctor doctor-remote report notify-webhook notify-slack notify-email local-llm-summary sync-neo4j analyze-vulnerabilities score-risk correlate compare-scans \
+	build build-cross release-archives system-packages verify-system-packages checksums image test test-compile vet fmt-check verify reproducible sbom vulncheck threat-intel-test git-secrets tui clean
 
 help:
 	@printf '%s\n' \
@@ -26,11 +29,14 @@ help:
 	  '  make init-db CONFIG=configs/example.yaml' \
 	  '  make backup-encrypted CONFIG=configs/my-scan.yaml BACKUP_PATH=/secure/path/enumscan.esb  # requires an AES-256 key in ENUMSCAN_BACKUP_KEY' \
 	  '  make postgres-migrate CONFIG=configs/postgres.template.yaml  # explicit PostgreSQL core-schema preflight' \
+	  '  make postgres-recovery-drill  # requires separate recovery DSN and explicit restore confirmation' \
 	  '  make dashboard CONFIG=configs/example.yaml' \
 	  '  make scan CONFIG=configs/example.yaml SCAN_ID=authorized-scan' \
+	  '  make validate-config CONFIG=configs/my-scan.yaml  # offline effective-plan preflight' \
 	  '  make monitor CONFIG=configs/monitor.template.yaml  # bounded recurring authorized scans' \
 	  '  make distributed-status CONFIG=configs/example.yaml  # local coordinator ledger only; does not dispatch work' \
 	  '  make distributed-agent CONFIG=configs/agent.yaml AGENT_ID=agent-east COORDINATOR_URL=https://coordinator:8080' \
+	  '  make engagement-wizard ENGAGEMENT_CONFIG=configs/acme.yaml  # creates a private, authorized, scope-locked config' \
 	  '  make interactive-scan   # prompts for authorized IP/CIDR, profile, and authorization reference' \
 	  '  make scan-template      # copies configs/scan.template.yaml to configs/my-scan.yaml' \
 	  '  make scan-templates     # list assessment-specific templates' \
@@ -52,6 +58,7 @@ help:
 	  '  make compare-scans CONFIG=configs/example.yaml BASELINE_SCAN=scan-a CURRENT_SCAN=scan-b' \
 	  '  make git-secrets CONFIG=configs/example.yaml SCAN_ID=repo-a REPO=/absolute/path/to/repo' \
 	  '  make tui CONFIG=configs/example.yaml' \
+	  '  make reproducible build-cross release-archives system-packages verify-system-packages VERSION=v1.2.3 checksums  # versioned archives/packages and checksums' \
 	  '  make build | test | verify'
 
 init-db:
@@ -64,14 +71,26 @@ backup-encrypted:
 postgres-migrate:
 	GOCACHE=$(GOCACHE) $(GO) run ./cmd/enumscan -config $(CONFIG) postgres-migrate
 
+postgres-recovery-drill:
+	sh scripts/postgres_recovery_drill.sh
+
 # Starts the local operator dashboard at http://127.0.0.1:8080/.
 serve dashboard:
 	GOCACHE=$(GOCACHE) $(GO) run ./cmd/enumscan -config $(CONFIG) server
+
+dashboard-build:
+	npm --prefix _frontend run build
+
+dashboard-check:
+	npm --prefix _frontend run check
 
 # No target or scan ID is inferred: both must be present in the authorized config.
 run scan:
 	@test -n "$(SCAN_ID)" || (echo 'SCAN_ID is required, e.g. make scan SCAN_ID=authorized-scan'; exit 2)
 	GOCACHE=$(GOCACHE) $(GO) run ./cmd/enumscan -config $(CONFIG) run $(SCAN_ID)
+
+validate-config:
+	GOCACHE=$(GOCACHE) $(GO) run ./cmd/enumscan -config $(CONFIG) validate-config -format $(VALIDATE_FORMAT)
 
 monitor:
 	GOCACHE=$(GOCACHE) $(GO) run ./cmd/enumscan -config $(CONFIG) monitor
@@ -109,6 +128,13 @@ active-scan: scan
 docs:
 	sh scripts/build_docs.sh
 
+feature-status-check:
+	GOCACHE=$(GOCACHE) python3 scripts/check_feature_status.py
+
+field-validation:
+	python3 -m unittest scripts/test_evaluate_field_validation.py
+	GOCACHE=$(GOCACHE) sh scripts/run_field_validation.sh
+
 # Reports only local passive-intelligence configuration and environment-variable
 # presence. It never contacts providers or displays credential values.
 doctor:
@@ -118,6 +144,11 @@ doctor:
 # query only to configured credentialed providers and may consume API quota.
 doctor-remote:
 	GOCACHE=$(GOCACHE) $(GO) run ./cmd/enumscan -config $(CONFIG) doctor -remote
+
+# Guided first-run workflow. The CLI validates authorization and emits a new
+# mode-0600 configuration, never overwriting an existing engagement file.
+engagement-wizard:
+	GOCACHE=$(GOCACHE) $(GO) run ./cmd/enumscan engagement-wizard -output "$(ENGAGEMENT_CONFIG)"
 
 # Guided one-off workflow. It writes a 0600 temporary config, runs only against
 # the entered scope, and removes that temporary config at the end.
@@ -211,11 +242,24 @@ build-cross:
 	GOCACHE=$(GOCACHE) GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 $(GO) build $(GOFLAGS) -o dist/enumscan-darwin-arm64 ./cmd/enumscan
 	GOCACHE=$(GOCACHE) GOOS=windows GOARCH=amd64 CGO_ENABLED=0 $(GO) build $(GOFLAGS) -o dist/enumscan-windows-amd64.exe ./cmd/enumscan
 
+# Package already-built binaries into self-contained archives. Signing and
+# publication remain explicit release actions.
+release-archives:
+	bash scripts/package_release.sh "$(VERSION)" dist
+
+# Build local Debian/RPM packages plus versioned Homebrew and Scoop manifests.
+# Release CI signs and publishes these only after all candidate checks pass.
+system-packages:
+	bash scripts/package_system_packages.sh "$(VERSION)" dist
+
+verify-system-packages:
+	bash scripts/verify_system_packages.sh dist
+
 # Release CI invokes this only after reproducible and cross-platform builds.
 # The manifest is signed with the accompanying binaries, so operators can
 # verify their downloaded artifact before execution.
 checksums:
-	sha256sum dist/enumscan dist/enumscan-linux-amd64 dist/enumscan-darwin-arm64 dist/enumscan-windows-amd64.exe > dist/enumscan-sha256sums.txt
+	bash scripts/generate_release_checksums.sh dist
 
 # Build only: image publication is intentionally a separate, release-approved
 # action outside this Make target.

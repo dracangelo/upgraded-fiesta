@@ -14,11 +14,11 @@ import (
 )
 
 type KerberosADFingerprint struct {
-	db    *store.SQLiteCLI
+	db    store.RuntimeStore
 	guard scope.Guard
 }
 
-func NewKerberosADFingerprint(db *store.SQLiteCLI, guard scope.Guard) *KerberosADFingerprint {
+func NewKerberosADFingerprint(db store.RuntimeStore, guard scope.Guard) *KerberosADFingerprint {
 	return &KerberosADFingerprint{db: db, guard: guard}
 }
 
@@ -64,11 +64,11 @@ func (m *KerberosADFingerprint) Handle(ctx context.Context, evt models.Event) ([
 }
 
 type SNMPWalkFingerprint struct {
-	db    *store.SQLiteCLI
+	db    store.RuntimeStore
 	guard scope.Guard
 }
 
-func NewSNMPWalkFingerprint(db *store.SQLiteCLI, guard scope.Guard) *SNMPWalkFingerprint {
+func NewSNMPWalkFingerprint(db store.RuntimeStore, guard scope.Guard) *SNMPWalkFingerprint {
 	return &SNMPWalkFingerprint{db: db, guard: guard}
 }
 
@@ -91,11 +91,11 @@ func (m *SNMPWalkFingerprint) Handle(ctx context.Context, evt models.Event) ([]m
 }
 
 type OSStackFingerprint struct {
-	db    *store.SQLiteCLI
+	db    store.RuntimeStore
 	guard scope.Guard
 }
 
-func NewOSStackFingerprint(db *store.SQLiteCLI, guard scope.Guard) *OSStackFingerprint {
+func NewOSStackFingerprint(db store.RuntimeStore, guard scope.Guard) *OSStackFingerprint {
 	return &OSStackFingerprint{db: db, guard: guard}
 }
 

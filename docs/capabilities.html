@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Enumscan documentation for authorized security assessments">
+  <title>Capability manifest — Enumscan documentation</title>
+  <link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="index.html">enumscan docs</a>
+      <nav class="doc-nav" aria-label="Documentation">
+        <a href="getting-started.html">Start</a>
+        <a href="configuration.html">Configure</a>
+        <a href="cli.html">CLI</a>
+        <a href="capabilities.html">Capabilities</a>
+        <a href="scanning.html">Scanning</a>
+        <a href="reporting-api.html">API &amp; reports</a>
+        <a href="operations.html">Operations</a>
+        <a href="security.html">Security</a>
+        <a href="architecture-guide.html">Architecture</a>
+        <a href="plugins.html">Plugins</a>
+        <a href="development.html">Develop</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+<h1 id="capability-manifest">Capability manifest</h1>
+<p>Generated from <code>internal/capability</code>; do not edit this
+file manually.</p>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Category</th>
+<th>Status</th>
+<th>Platforms</th>
+<th>Summary</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bounded-scheduler</code></td>
+<td>engine</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Runs event-driven modules with global/per-target pacing, timeouts,
+deduplication, and optional adaptive workers.</td>
+</tr>
+<tr>
+<td><code>dashboard-api</code></td>
+<td>interface</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Provides operator views, scan controls, evidence APIs, event
+streams, token roles, and mutation audit.</td>
+</tr>
+<tr>
+<td><code>discovery</code></td>
+<td>scanning</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Performs bounded DNS, CIDR, liveness, IPv6, ARP, virtual-host, and
+offline evidence discovery.</td>
+</tr>
+<tr>
+<td><code>distributed</code></td>
+<td>operations</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Provides digest-bound jobs, enrolled Ed25519 agents, replay
+protection, bounded leases, evidence upload, and centralized
+reporting.</td>
+</tr>
+<tr>
+<td><code>ha-coordinator</code></td>
+<td>operations</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Provides active/passive coordinator leadership, fenced mutations,
+standby rejection, and monotonic epoch takeover.</td>
+</tr>
+<tr>
+<td><code>http-enumeration</code></td>
+<td>scanning</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Provides bounded crawling, technology, directory/API, source-map,
+screenshot, HTTP/3, and gRPC-reflection enumeration.</td>
+</tr>
+<tr>
+<td><code>idle-decoy</code></td>
+<td>active-testing</td>
+<td><code>planned</code></td>
+<td>linux, macos</td>
+<td>Third-party and spoofed-traffic runners are not connected to
+production scans.</td>
+</tr>
+<tr>
+<td><code>inventory-analysis</code></td>
+<td>analysis</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Persists history and builds deterministic changes, relationships,
+prioritization, risk, and exposure-chain evidence.</td>
+</tr>
+<tr>
+<td><code>monitoring</code></td>
+<td>operations</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Runs finite recurring scope-locked scans only through an explicit
+monitor command.</td>
+</tr>
+<tr>
+<td><code>passive-intelligence</code></td>
+<td>integrations</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Normalizes supported third-party intelligence providers with pacing,
+quota, version, and credential diagnostics.</td>
+</tr>
+<tr>
+<td><code>plugin-marketplace</code></td>
+<td>plugins</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Provides explicit HTTPS discovery, ratings, versions, Ed25519
+verification, atomic installation, and updates.</td>
+</tr>
+<tr>
+<td><code>plugin-os-sandbox</code></td>
+<td>plugins</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Provides OS-level process isolation, separate process groups,
+resource ceilings, and stripped environments for untrusted plugins.</td>
+</tr>
+<tr>
+<td><code>plugin-runtimes</code></td>
+<td>plugins</td>
+<td><code>gated</code></td>
+<td>linux, macos, windows</td>
+<td>Provides capability-limited Lua and TLS-required remote gRPC
+execution; scans do not auto-load plugins.</td>
+</tr>
+<tr>
+<td><code>port-service</code></td>
+<td>scanning</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Collects bounded TCP/UDP state, banners, protocol responses,
+services, and CPE candidates.</td>
+</tr>
+<tr>
+<td><code>postgres</code></td>
+<td>storage</td>
+<td><code>experimental</code></td>
+<td>linux, macos, windows</td>
+<td>Core schema and operations exist, but full SQLite behavioral and
+migration parity is not release-complete.</td>
+</tr>
+<tr>
+<td><code>raw-tcp</code></td>
+<td>scanning</td>
+<td><code>gated</code></td>
+<td>linux, macos</td>
+<td>Supports explicitly selected raw SYN, ACK, FIN, NULL, XMAS, window,
+Maimon, and fragmented probes.</td>
+</tr>
+<tr>
+<td><code>reporting</code></td>
+<td>output</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Generates JSON, Markdown, HTML, PDF, SARIF, CSV, executive,
+technical, triage, and graph outputs with explicit notifications.</td>
+</tr>
+<tr>
+<td><code>scope-enforcement</code></td>
+<td>safety</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Checks configured and discovered targets against explicit address,
+CIDR, and domain scope.</td>
+</tr>
+<tr>
+<td><code>secret-managers</code></td>
+<td>storage</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Supports native OS keychains plus configured Vault, Kubernetes, AWS,
+Azure, and GCP adapters without plaintext fallback.</td>
+</tr>
+<tr>
+<td><code>specialized-protocols</code></td>
+<td>scanning</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Provides opt-in SMB, LDAP, SNMP, cloud, container, database, SSH,
+FTP, and SMTP capability checks.</td>
+</tr>
+<tr>
+<td><code>sqlite</code></td>
+<td>storage</td>
+<td><code>implemented</code></td>
+<td>linux, macos, windows</td>
+<td>Provides native migrations, evidence persistence, encrypted
+sensitive fields, retention, and encrypted backup/restore.</td>
+</tr>
+<tr>
+<td><code>tier4-credentialed</code></td>
+<td>active-testing</td>
+<td><code>planned</code></td>
+<td>linux, macos, windows</td>
+<td>SSH, WinRM, authenticated AD, Kerberos, LAPS, permission, secret,
+IMDS, and active DNS runners remain planned.</td>
+</tr>
+<tr>
+<td><code>tier4-tls</code></td>
+<td>active-testing</td>
+<td><code>planned</code></td>
+<td>linux, macos, windows</td>
+<td>Heartbleed, ROBOT, CRIME, and BREACH runners are not connected to
+scans.</td>
+</tr>
+<tr>
+<td><code>tier4-web</code></td>
+<td>active-testing</td>
+<td><code>planned</code></td>
+<td>linux, macos, windows</td>
+<td>SQLi, XSS, SSRF, file inclusion, XXE, SSTI, host-header,
+request-smuggling, and prototype-pollution runners are not
+connected.</td>
+</tr>
+</tbody>
+</table>
+  </main>
+  <footer>
+    Enumscan is for explicitly authorized security assessments. Generated from the canonical Markdown documentation.
+  </footer>
+</body>
+</html>

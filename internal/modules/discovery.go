@@ -17,12 +17,12 @@ import (
 )
 
 type Discovery struct {
-	db     *store.SQLiteCLI
+	db     store.RuntimeStore
 	guard  scope.Guard
 	config models.DiscoveryConfig
 }
 
-func NewDiscovery(db *store.SQLiteCLI, guard scope.Guard, config models.DiscoveryConfig) Discovery {
+func NewDiscovery(db store.RuntimeStore, guard scope.Guard, config models.DiscoveryConfig) Discovery {
 	if config.CIDRMaxHosts <= 0 {
 		config.CIDRMaxHosts = 256
 	}

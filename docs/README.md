@@ -11,12 +11,15 @@ The Markdown files are canonical. Matching HTML pages are generated with
 - [Getting started](getting-started.md) — prerequisites, build, first scan, and first report.
 - [Configuration reference](configuration.md) — configuration sections, profiles, scope, and validation.
 - [CLI reference](cli.md) — commands and common invocations.
+- [Generated capability manifest](capabilities.md) — authoritative implementation and gating status.
 - [Scanning and modules](scanning.md) — discovery, port, HTTP, specialized, passive, and active modules.
 - [Reports, dashboard, and API](reporting-api.md) — outputs, local UI, authentication, and integrations.
 
 ## Operate enumscan
 
 - [Operations guide](operations.md) — storage, encryption, secrets, monitoring, distributed agents, backup, and release artifacts.
+- [Field validation](field_validation.md) — release thresholds and the safe authorized-validation record.
+- [PostgreSQL recovery](postgres_recovery.md) — separate-database backup and restore drill.
 - [Security model](security.md) — trust boundaries, safe defaults, credential handling, and threat model.
 - [Tier 4 active testing](tier4_active_testing.md) — the separate authorization gate and current implementation status.
 

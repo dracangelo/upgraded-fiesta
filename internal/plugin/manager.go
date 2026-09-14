@@ -16,12 +16,12 @@ import (
 )
 
 type PluginManager struct {
-	db        *store.SQLiteCLI
+	db        store.RuntimeStore
 	guard     scope.Guard
 	manifests []*PluginManifest
 }
 
-func NewManager(db *store.SQLiteCLI, guard scope.Guard, pluginDir string) (*PluginManager, error) {
+func NewManager(db store.RuntimeStore, guard scope.Guard, pluginDir string) (*PluginManager, error) {
 	pm := &PluginManager{db: db, guard: guard}
 	if pluginDir != "" {
 		if err := pm.LoadPlugins(pluginDir); err != nil {

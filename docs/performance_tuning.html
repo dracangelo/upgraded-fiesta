@@ -15,6 +15,7 @@
         <a href="getting-started.html">Start</a>
         <a href="configuration.html">Configure</a>
         <a href="cli.html">CLI</a>
+        <a href="capabilities.html">Capabilities</a>
         <a href="scanning.html">Scanning</a>
         <a href="reporting-api.html">API &amp; reports</a>
         <a href="operations.html">Operations</a>
@@ -31,11 +32,18 @@
 <p>SQLite is the default local datastore. PostgreSQL is selectable
 through <code>database.driver: postgres</code>, an environment-held DSN,
 and bounded pool limits. Run <code>postgres-migrate</code> before
-production use.</p>
+production use. Normal <code>run</code>, <code>server</code>, and
+<code>monitor</code> commands then use PostgreSQL directly; they never
+fall back to SQLite or write scan evidence elsewhere.</p>
 <p>Application-level authenticated encryption protects configured
-sensitive fields. Keys come from an environment variable, OS keyring, or
-configured secret manager. Encrypted backup and confirmed restore are
-separate commands.</p>
+sensitive fields when a database encryption key is configured. Keys come
+from an environment variable, OS keyring, or configured secret manager.
+Encrypted file backup and confirmed restore are SQLite-only; use
+PostgreSQL-native, server-managed backup and restore procedures for
+PostgreSQL. Use <a href="postgres_recovery.html">the PostgreSQL recovery
+runbook</a> to exercise a separate recovery database; the drill requires
+an explicit restore confirmation and never prints connection
+strings.</p>
 <h2 id="secret-managers">Secret managers</h2>
 <p>Enumscan supports explicit Vault, AWS Secrets Manager, Azure Key
 Vault, Google Cloud Secret Manager, and Kubernetes Secret backends.
@@ -68,8 +76,10 @@ scan.</p>
 <h2 id="containers-and-releases">Containers and releases</h2>
 <p><code>make image</code> builds the local non-root image. Mount a
 private configuration and writable <code>/data</code> volume.
-<code>make build-cross</code>, <code>make reproducible</code>, and
-<code>make checksums</code> create the release artifacts.</p>
+<code>make reproducible build-cross release-archives system-packages verify-system-packages VERSION=v1.2.3 checksums</code>
+creates the release artifacts, including versioned archives, Debian/RPM
+packages, Homebrew/Scoop definitions, and a portable relative-path
+checksum manifest.</p>
 <p>Release automation performs hosted platform tests, security scans,
 SBOM and provenance generation, signed checksums, and approved
 multi-architecture GHCR publication. Production publication is gated by

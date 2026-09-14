@@ -25,7 +25,7 @@ import (
 // deliberately uses a bounded request list: it is intended for an authorized
 // recon scan, not as a high-volume content discovery tool.
 type DirectoryAPIEnumerator struct {
-	db     *store.SQLiteCLI
+	db     store.RuntimeStore
 	guard  scope.Guard
 	config models.HTTPConfig
 	client *http.Client
@@ -37,7 +37,7 @@ type directoryBaseline struct {
 	body   string
 }
 
-func NewDirectoryAPIEnumerator(db *store.SQLiteCLI, guard scope.Guard, config models.HTTPConfig) *DirectoryAPIEnumerator {
+func NewDirectoryAPIEnumerator(db store.RuntimeStore, guard scope.Guard, config models.HTTPConfig) *DirectoryAPIEnumerator {
 	if config.MaxDirectoryPaths <= 0 {
 		config.MaxDirectoryPaths = 80
 	}

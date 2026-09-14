@@ -42,7 +42,7 @@ func (d *DifferentialPortScanner) Compare(baseline, current []models.Asset, base
 	return result
 }
 
-func CompareStoredScans(ctx context.Context, db *store.SQLiteCLI, baselineID, currentID string) (DifferentialScanResult, error) {
+func CompareStoredScans(ctx context.Context, db store.RuntimeStore, baselineID, currentID string) (DifferentialScanResult, error) {
 	baselineAssets, err := db.Assets(ctx, baselineID)
 	if err != nil {
 		return DifferentialScanResult{}, err

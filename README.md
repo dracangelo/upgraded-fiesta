@@ -16,6 +16,10 @@ and can be regenerated with `make docs`.
 - [Architecture](docs/architecture.md), [plugins](docs/plugins.md), and
   [development](docs/development.md)
 
+Current product truth is separated into [`CHANGELOG.md`](CHANGELOG.md),
+[`ROADMAP.md`](ROADMAP.md), [`LIMITATIONS.md`](LIMITATIONS.md), and the
+code-owned capability manifest (`enumscan capabilities`).
+
 This first scaffold focuses on the core engine, scheduler, networking, crawling-ready HTTP enumeration, SQLite storage, YAML configuration/templates, reporting, and Python scripting hooks.
 
 ## Safety Model
@@ -46,15 +50,14 @@ go run ./cmd/enumscan -config configs/example.yaml report example-scan -format m
 
 Reports are written to `reports/`. Scan state is stored in SQLite at the path configured in YAML.
 
-## PostgreSQL operational preflight
+## PostgreSQL
 
-PostgreSQL migration is staged. To initialize its core schema, copy and edit
+PostgreSQL is selectable for normal scans. Copy and edit
 `configs/postgres.template.yaml`, set its authorization/target placeholders,
 export the DSN named by `database.postgres_dsn_env`, then run
-`make postgres-migrate CONFIG=configs/postgres.template.yaml`. The command uses
-the pgx driver, verifies the connection, and applies the core schema with
-bounded pool settings. Scan execution remains SQLite-backed until the complete
-store-interface migration is finished; no scan can silently switch databases.
+`make postgres-migrate CONFIG=configs/postgres.template.yaml` before the first
+scan. The pgx datastore uses bounded pool settings and a serialized migration
+ledger; `run`, `server`, and `monitor` persist their evidence in PostgreSQL.
 
 ## Bounded continuous monitoring
 
@@ -188,6 +191,21 @@ To subscribe an approved webhook to healthy `scan.completed` events, set
 webhook transport, stays disabled by default, and does not change the scan's
 completed result if the notification system is unavailable.
 
+For a guided, repeatable engagement, run `make engagement-wizard`. It prompts
+for a single IP/CIDR/hostname and written authorization reference, writes a
+new mode-`0600` scope-locked configuration, and never overwrites an existing
+file. Validate the result before scanning:
+
+```sh
+make engagement-wizard
+make validate-config CONFIG=configs/engagement.yaml
+make scan CONFIG=configs/engagement.yaml SCAN_ID=engagement-001
+```
+
+The dashboard offers the same workflow through **New engagement**. It
+downloads a reviewable YAML file rather than changing the running server's
+scope. Where dashboard authentication is enabled, an admin role is required.
+
 For an easy one-off, authorized scan, run `make interactive-scan`. It prompts
 for an IP/CIDR, scan type (`quick`, `standard`, or `exhaustive`), and the
 written authorization reference, then creates a temporary scope-locked config.
@@ -219,9 +237,13 @@ refresh, and `q` to quit.
 ## Container and release artifacts
 
 `make build-cross` produces Linux AMD64, macOS ARM64, and Windows AMD64
-binaries in `dist/`. After `make reproducible build-cross`, run
-`make checksums` to create `dist/enumscan-sha256sums.txt`; the release workflow
-keyless-signs every artifact and creates GitHub build-provenance attestations.
+binaries in `dist/`. Release CI additionally runs
+`make reproducible build-cross release-archives system-packages
+verify-system-packages VERSION=<tag> checksums` to produce versioned
+Linux/macOS `.tar.gz`, Windows `.zip`, Debian, RPM, Homebrew-formula, and Scoop
+manifest artifacts. The checksum manifest contains relative names so it can be
+used directly after a release download; the workflow keyless-signs every
+artifact and creates GitHub build-provenance attestations.
 `make image` builds the non-root local container image;
 mount an engagement-specific configuration and writable database directory at
 `/data`. CI runs the complete tests and executes a native binary on hosted
