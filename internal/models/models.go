@@ -102,6 +102,8 @@ type DiscoveryConfig struct {
 	CertificateTransparencyFiles []string
 	PassiveCaptureFiles          []string
 	HistoricalURLFiles           []string
+	EnableLiveHistoricalHarvest  bool
+	MaxHistoricalURLsPerHost     int
 }
 
 type PortScanConfig struct {

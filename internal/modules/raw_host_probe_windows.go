@@ -9,3 +9,6 @@ import "context"
 // safe TCP-connect fallback in raw_scanner_windows.go.
 func rawTCPSYNProbe(context.Context, string, int) bool { return false }
 func rawTCPACKProbe(context.Context, string, int) bool { return false }
+func rawTCPTraitsProbe(context.Context, string, int) (int, int, error) {
+	return 0, 0, nil
+}

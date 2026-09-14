@@ -159,6 +159,8 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	mux.HandleFunc("/api/v1/findings/audit", s.handleFindingAudit)
 	mux.HandleFunc("/api/v1/events", s.handleEvents)
 	mux.HandleFunc("/api/v1/graph", s.handleGraph)
+	mux.HandleFunc("/api/v1/graph/interactive", s.handleInteractiveGraph)
+	mux.HandleFunc("/api/v1/graph/expand", s.handleGraphExpand)
 	mux.HandleFunc("/api/v1/neo4j/graph", s.handleNeo4jGraph)
 	mux.HandleFunc("/api/v1/search", s.handleSearch)
 	mux.HandleFunc("/api/v1/screenshots", s.handleScreenshots)

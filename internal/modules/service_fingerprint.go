@@ -445,7 +445,3 @@ func tcpIPStackOSFingerprint(ctx context.Context, host string, port int) (string
 	evidence := fmt.Sprintf("ttl=%d;window_size=%d;port=%d", ttl, win, port)
 	return osFamily, cpe, evidence
 }
-
-func probeTCPTraits(ctx context.Context, host string, port int) (int, int, error) {
-	return 0, 0, fmt.Errorf("TCP/IP traits require a passive packet capture or raw-packet collector")
-}
