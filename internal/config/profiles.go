@@ -189,6 +189,8 @@ func normalizeProfileName(name string) string {
 	name = strings.ToLower(strings.TrimSpace(name))
 	name = strings.NewReplacer("-", "_", " ", "_").Replace(name)
 	switch name {
+	case "all", "all_scan_types", "all_scans", "all_types":
+		return string(ProfileExhaustive)
 	case "web":
 		return string(ProfileWebApplication)
 	case "network", "internal":

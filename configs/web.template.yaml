@@ -1,0 +1,90 @@
+# ==============================================================================
+# ENUMSCAN WEB APPLICATION & API ASSESSMENT TEMPLATE
+# ==============================================================================
+# Specifically tuned for web surface discovery, Gobuster-style directory fuzzing,
+# API route mapping, JavaScript analysis, and technology fingerprinting.
+#
+# USAGE:
+#   1. Copy this file: cp configs/web.template.yaml configs/my-web-scan.yaml
+#   2. Replace every REPLACE_ value with your authorized target and authorization ref.
+#   3. Validate: make validate-config CONFIG=configs/my-web-scan.yaml
+#   4. Execute:  make scan CONFIG=configs/my-web-scan.yaml SCAN_ID=web-01
+# ==============================================================================
+
+database:
+  path: "data/REPLACE_web_engagement.sqlite"
+  encryption_key_env: "ENUMSCAN_DATASTORE_KEY"
+
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_WEB_TARGET_OR_URL"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+
+scheduler:
+  concurrency: 4
+  min_concurrency: 1
+  global_rate_limit_ms: 100
+  per_target_rate_limit_ms: 250
+  module_timeout_ms: 20000
+
+discovery:
+  cidr_max_hosts: 64
+  enable_dns_discovery: true
+  enable_dns_records: true
+  enable_reverse_dns: true
+  enable_wildcard_dns: true
+  enable_tcp_host_probes: true
+  tcp_probe_ports: [80, 443, 8080, 8443]
+
+portscan:
+  profile: "web_application"
+  # Standard and alternate web ports
+  tcp_ports: [80, 443, 8000, 8080, 8443, 8888, 9000, 9443, 3000, 5000]
+  enable_tcp: true
+  enable_banner: true
+  max_concurrent_ports: 8
+  base_timeout_ms: 750
+  max_timeout_ms: 3000
+
+http:
+  # Crawler Depth & Page Limits
+  max_depth: 3
+  max_pages_per_host: 150
+
+  # Protocol & Technology Detection
+  enable_tls: true
+  enable_crawler: true
+  enable_js_analysis: true
+  enable_api_discovery: true
+  enable_web_manifest: true
+  enable_redirect_tracking: true
+  enable_method_enumeration: true
+  enable_source_map_analysis: true
+  enable_http3: false
+
+  # Directory & Route Discovery (Gobuster / Dirb style)
+  enable_directory_api: true
+  max_directory_paths: 120
+  # Optional custom wordlist entries (leave empty to use built-in high-value paths)
+  directory_wordlist: []
+
+  # API Endpoints & Framework Definitions
+  api_paths: ["/openapi.json", "/openapi.yaml", "/swagger.json", "/swagger/v1/swagger.json", "/api-docs", "/v1/api-docs", "/v2/api-docs", "/v3/api-docs", "/graphql", "/graphiql", "/api/v1", "/api/v2", "/api/v3", "/actuator", "/actuator/health", "/actuator/info", "/healthz", "/metrics"]
+
+  # Secret & Sensitive Exposure Intelligence (Redacted fingerprints only)
+  enable_secret_intelligence: true
+
+  # Session State & Cookie Handling
+  enable_cookie_jar: true
+  enable_authenticated_crawling: false
+  auth_cookie_env: ""
+
+  # Optional Browser Screenshots (Requires Chrome/Chromium wrapper)
+  enable_screenshots: false
+  screenshot_renderer: ""
+  screenshot_renderer_args: []
+  screenshot_output_dir: "reports/screenshots"
+  max_screenshots_per_scan: 20
+
+scan:
+  profile: "web_application"
+  targets: ["REPLACE_WITH_AUTHORIZED_WEB_TARGET_OR_URL"]

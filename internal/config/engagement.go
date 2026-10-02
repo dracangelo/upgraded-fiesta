@@ -74,6 +74,13 @@ func AvailableEngagementTemplates() []EngagementTemplate {
 			Profile:     "cloud_infrastructure",
 			Focus:       []string{"dns_discovery", "tls", "http", "specialized"},
 		},
+		{
+			ID:          "all",
+			Name:        "All Scan Types (Exhaustive)",
+			Description: "Comprehensive enumeration across all safe discovery, portscan, service, HTTP, specialized, and passive modules.",
+			Profile:     "exhaustive",
+			Focus:       []string{"discovery", "portscan", "service", "specialized", "http", "passive_intel"},
+		},
 	}
 }
 

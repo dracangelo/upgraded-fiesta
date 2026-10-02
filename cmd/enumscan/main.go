@@ -785,7 +785,7 @@ func runEngagementWizard(args []string) error {
 		for i, tmpl := range templates {
 			fmt.Printf("  [%d] %-10s - %s (%s)\n", i+1, tmpl.ID, tmpl.Name, tmpl.Description)
 		}
-		selectedTemplate, _ := prompt("Select template [1-6, default standard]: ", "")
+		selectedTemplate, _ := prompt(fmt.Sprintf("Select template [1-%d, default standard]: ", len(templates)), "")
 		switch strings.TrimSpace(selectedTemplate) {
 		case "1", "standard":
 			*profile = "standard"
@@ -799,6 +799,8 @@ func runEngagementWizard(args []string) error {
 			*profile = "external_infrastructure"
 		case "6", "cloud":
 			*profile = "cloud_infrastructure"
+		case "7", "all", "all_scan_types":
+			*profile = "exhaustive"
 		case "":
 			*profile = "standard"
 		default:
@@ -810,6 +812,18 @@ func runEngagementWizard(args []string) error {
 
 	if *authorization, err = prompt("Written authorization reference: ", *authorization); err != nil {
 		return fmt.Errorf("read authorization reference: %w", err)
+	}
+
+	if !*yes {
+		outputPrompt := fmt.Sprintf("Configuration file path [%s]: ", *output)
+		enteredOutput, err := prompt(outputPrompt, "")
+		if err == nil && strings.TrimSpace(enteredOutput) != "" {
+			trimmed := strings.TrimSpace(enteredOutput)
+			if !strings.HasSuffix(trimmed, ".yaml") && !strings.HasSuffix(trimmed, ".yml") && !strings.Contains(trimmed, ".") {
+				trimmed += ".yaml"
+			}
+			*output = trimmed
+		}
 	}
 
 	input := config.EngagementInput{

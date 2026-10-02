@@ -11,11 +11,11 @@ if [ -z "$template_name" ] || [ -z "$output_path" ]; then
 fi
 
 case "$template_name" in
-  external|internal|web|api|active-directory|kubernetes|cloud|bug-bounty|compliance|passive|active-testing)
+  external|internal|web|api|active-directory|kubernetes|cloud|bug-bounty|compliance|passive|active-testing|quick|standard|exhaustive)
     ;;
   *)
     echo "unknown template: $template_name" >&2
-    echo "available: external internal web api active-directory kubernetes cloud bug-bounty compliance passive active-testing" >&2
+    echo "available: external internal web api active-directory kubernetes cloud bug-bounty compliance passive active-testing quick standard exhaustive" >&2
     exit 2
     ;;
 esac

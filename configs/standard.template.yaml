@@ -1,0 +1,142 @@
+# ==============================================================================
+# ENUMSCAN STANDARD ASSESSMENT TEMPLATE
+# ==============================================================================
+# Balanced multi-module reconnaissance: host discovery, standard port scanning,
+# banner grabbing, SSL/TLS inspection, HTTP crawling, and Gobuster-style directory fuzzing.
+#
+# USAGE:
+#   1. Copy this file: cp configs/standard.template.yaml configs/my-scan.yaml
+#   2. Replace every REPLACE_ value with your authorized target and authorization ref.
+#   3. Validate: make validate-config CONFIG=configs/my-scan.yaml
+#   4. Execute:  make scan CONFIG=configs/my-scan.yaml SCAN_ID=standard-01
+# ==============================================================================
+
+database:
+  path: "data/REPLACE_standard_engagement.sqlite"
+  encryption_key_env: "ENUMSCAN_DATASTORE_KEY"
+
+neo4j:
+  uri: ""
+  username: ""
+  password_env: "ENUMSCAN_NEO4J_PASSWORD"
+
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_IP_OR_CIDR"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+
+active_testing:
+  enabled: false
+  authorization_expires: ""
+  operator: ""
+  acknowledgement_env: ""
+  allowed_techniques: []
+  max_requests_per_host: 25
+  max_concurrency: 1
+  minimum_request_delay_ms: 500
+
+scheduler:
+  concurrency: 4
+  enable_adaptive_workers: false
+  min_concurrency: 1
+  global_rate_limit_ms: 100
+  per_target_rate_limit_ms: 250
+  module_timeout_ms: 20000
+
+discovery:
+  cidr_max_hosts: 256
+  enable_dns_discovery: true
+  enable_dns_records: true
+  enable_reverse_dns: true
+  enable_wildcard_dns: true
+  enable_rdap: false
+  enable_icmp_sweep: false
+  enable_tcp_host_probes: true
+  tcp_probe_ports: [21, 22, 80, 443, 8080, 8443]
+  enable_udp_live_probes: false
+  udp_probe_ports: [53, 123]
+  passive_dns_files: []
+  certificate_transparency_files: []
+  passive_capture_files: []
+  historical_url_files: []
+
+portscan:
+  profile: "standard"
+  tcp_ports: []
+  udp_ports: []
+  enable_tcp: true
+  enable_udp: false
+  enable_banner: true
+  enable_raw_syn: false
+  enable_raw_scanning: false
+  max_concurrent_ports: 8
+  record_closed_ports: false
+  base_timeout_ms: 750
+  max_timeout_ms: 3000
+
+http:
+  max_depth: 2
+  max_pages_per_host: 50
+  enable_tls: true
+  enable_crawler: true
+  enable_js_analysis: true
+  enable_api_discovery: true
+  enable_screenshots: false
+  screenshot_renderer: ""
+  screenshot_renderer_args: []
+  screenshot_output_dir: ""
+  max_screenshots_per_scan: 25
+  enable_directory_api: true
+  enable_secret_intelligence: true
+  enable_web_manifest: true
+  enable_redirect_tracking: true
+  enable_method_enumeration: true
+  enable_source_map_analysis: true
+  enable_cookie_jar: true
+  enable_authenticated_crawling: false
+  auth_cookie_env: ""
+  enable_http3: false
+  enable_grpc_reflection: false
+  grpc_reflection_ports: []
+  max_directory_paths: 80
+  directory_wordlist: []
+  api_paths: ["/openapi.json", "/swagger.json", "/swagger/v1/swagger.json", "/api-docs", "/v1/api-docs", "/v2/api-docs", "/graphql", "/healthz", "/metrics"]
+
+specialized:
+  enable_protocol_enumeration: true
+  enable_smb: false
+  enable_ldap: false
+  enable_snmp: false
+  enable_cloud: false
+  enable_container: false
+  enable_database: false
+  snmp_communities: []
+
+passive_intel:
+  enabled: false
+  sources: []
+  provider_controls: []
+  provider_versions: []
+  enable_quota_discovery: false
+  enable_update_checks: false
+  provider_min_interval_ms: 1000
+  max_retry_after_ms: 30000
+
+scan:
+  profile: "standard"
+  targets: ["REPLACE_WITH_AUTHORIZED_IP_OR_CIDR"]
+  ports: []
+
+reporting:
+  output_dir: "reports"
+  local_llm_url: ""
+  local_llm_model: ""
+  local_llm_timeout_ms: 30000
+
+notifications:
+  enable_scan_completed_webhook: false
+  webhook_url: ""
+
+monitoring:
+  enabled: false
+  interval_minutes: 60
+  max_runs: 1

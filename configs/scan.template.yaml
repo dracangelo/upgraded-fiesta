@@ -71,8 +71,8 @@ portscan:
   max_timeout_ms: 3000
 
 http:
-  max_depth: 1
-  max_pages_per_host: 25
+  max_depth: 2
+  max_pages_per_host: 50
   enable_tls: true
   enable_crawler: true
   enable_js_analysis: true
@@ -90,7 +90,7 @@ http:
   enable_method_enumeration: true
   enable_source_map_analysis: true
   # Preserve server-issued cookies while crawling; no credentials are supplied.
-  enable_cookie_jar: false
+  enable_cookie_jar: true
   # Authenticated enumeration uses an operator-supplied session cookie only;
   # enumscan never performs a login or stores the cookie.
   enable_authenticated_crawling: false
@@ -102,7 +102,7 @@ http:
   grpc_reflection_ports: []
   max_directory_paths: 80
   directory_wordlist: []
-  api_paths: []
+  api_paths: ["/openapi.json", "/swagger.json", "/swagger/v1/swagger.json", "/api-docs", "/v1/api-docs", "/v2/api-docs", "/graphql", "/healthz", "/metrics"]
 
 specialized:
   enable_protocol_enumeration: true

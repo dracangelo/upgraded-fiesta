@@ -25,6 +25,7 @@ Supported assessment templates for `engagement-wizard`:
 - `api`: API & Microservice Assessment (REST, GraphQL, OpenAPI metadata)
 - `external`: External Perimeter Reconnaissance (DNS record harvest, external perimeter)
 - `cloud`: Cloud Exposure & Asset Mapping (cloud endpoints, certificates, exposure mapping)
+- `all`: All Scan Types (Exhaustive full-surface enumeration across all safe modules)
 
 ### 2. Scan Execution & Monitoring
 

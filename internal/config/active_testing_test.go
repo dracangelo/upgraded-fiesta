@@ -106,3 +106,63 @@ func TestAssessmentTemplatesLoadAfterPlaceholdersAreReplaced(t *testing.T) {
 		})
 	}
 }
+
+func TestWebTemplateLoadsAfterPlaceholdersAreReplaced(t *testing.T) {
+	raw, err := os.ReadFile("../../configs/web.template.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := strings.ReplaceAll(string(raw), "REPLACE_WITH_AUTHORIZED_WEB_TARGET_OR_URL", "127.0.0.1")
+	content = strings.ReplaceAll(content, "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE", "TEST-AUTH-123")
+	content = strings.ReplaceAll(content, "data/REPLACE_web_engagement.sqlite", filepath.Join(t.TempDir(), "web.sqlite"))
+	path := filepath.Join(t.TempDir(), "web.yaml")
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("web template rejected: %v", err)
+	}
+	if !cfg.HTTP.EnableCrawler || !cfg.HTTP.EnableDirectoryAPI || cfg.HTTP.MaxDepth != 3 {
+		t.Fatalf("unexpected web template config: %+v", cfg.HTTP)
+	}
+	if len(cfg.HTTP.APIPaths) == 0 {
+		t.Fatalf("expected api_paths in web template")
+	}
+}
+
+func TestRootScanTemplatesLoadAfterPlaceholdersAreReplaced(t *testing.T) {
+	templates := []struct {
+		file            string
+		expectedProfile string
+	}{
+		{"../../configs/quick.template.yaml", "quick"},
+		{"../../configs/standard.template.yaml", "standard"},
+		{"../../configs/scan.template.yaml", "standard"},
+		{"../../configs/exhaustive.template.yaml", "exhaustive"},
+	}
+
+	for _, tc := range templates {
+		t.Run(filepath.Base(tc.file), func(t *testing.T) {
+			raw, err := os.ReadFile(tc.file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			content := strings.ReplaceAll(string(raw), "REPLACE_WITH_AUTHORIZED_IP_OR_CIDR", "127.0.0.1")
+			content = strings.ReplaceAll(content, "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE", "TEST-AUTH-123")
+			content = strings.ReplaceAll(content, "data/REPLACE_", filepath.Join(t.TempDir(), "data-"))
+			path := filepath.Join(t.TempDir(), "scan.yaml")
+			if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Load(path)
+			if err != nil {
+				t.Fatalf("template %s rejected: %v", tc.file, err)
+			}
+			if cfg.Scan.Profile != tc.expectedProfile {
+				t.Fatalf("template %s: expected profile %s, got %s", tc.file, tc.expectedProfile, cfg.Scan.Profile)
+			}
+		})
+	}
+}
+

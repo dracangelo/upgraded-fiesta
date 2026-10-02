@@ -1,0 +1,58 @@
+# Deep exhaustive enumeration across all TCP ports and specialized services.
+database:
+  path: "data/REPLACE_exhaustive.sqlite"
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+scheduler:
+  concurrency: 6
+  min_concurrency: 1
+  global_rate_limit_ms: 50
+  per_target_rate_limit_ms: 150
+  module_timeout_ms: 45000
+discovery:
+  cidr_max_hosts: 128
+  enable_dns_discovery: true
+  enable_dns_records: true
+  enable_reverse_dns: true
+  enable_wildcard_dns: true
+  enable_rdap: true
+  enable_tcp_host_probes: true
+  tcp_probe_ports: [21, 22, 23, 25, 53, 80, 110, 111, 135, 139, 143, 389, 443, 445, 993, 995, 1433, 1521, 2049, 3306, 3389, 5432, 5900, 6379, 8080, 8443, 27017]
+portscan:
+  profile: "exhaustive"
+  tcp_ports: []
+  enable_tcp: true
+  enable_banner: true
+  max_concurrent_ports: 32
+  base_timeout_ms: 1000
+  max_timeout_ms: 5000
+http:
+  max_depth: 4
+  max_pages_per_host: 300
+  enable_tls: true
+  enable_crawler: true
+  enable_js_analysis: true
+  enable_api_discovery: true
+  enable_directory_api: true
+  max_directory_paths: 200
+  directory_wordlist: []
+  api_paths: ["/openapi.json", "/openapi.yaml", "/swagger.json", "/swagger/v1/swagger.json", "/api-docs", "/v1/api-docs", "/v2/api-docs", "/v3/api-docs", "/graphql", "/graphiql", "/api/v1", "/api/v2", "/api/v3", "/actuator", "/actuator/health", "/actuator/info", "/healthz", "/metrics", "/soap?wsdl", "/server-status"]
+  enable_secret_intelligence: true
+  enable_web_manifest: true
+  enable_redirect_tracking: true
+  enable_method_enumeration: true
+  enable_source_map_analysis: true
+  enable_cookie_jar: true
+specialized:
+  enable_protocol_enumeration: true
+  enable_smb: true
+  enable_ldap: true
+  enable_snmp: true
+  snmp_communities: ["public", "private"]
+  enable_cloud: true
+  enable_container: true
+  enable_database: true
+scan:
+  profile: "exhaustive"
+  targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]

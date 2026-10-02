@@ -1,0 +1,143 @@
+# ==============================================================================
+# ENUMSCAN EXHAUSTIVE ASSESSMENT TEMPLATE
+# ==============================================================================
+# Comprehensive, deep authorized enumeration: full TCP port sweep, deep service
+# fingerprinting, deep web crawl, aggressive directory fuzzing, full API mapping,
+# and specialized protocol inspection (SMB, LDAP, SNMP, Database, Container, Cloud).
+#
+# USAGE:
+#   1. Copy this file: cp configs/exhaustive.template.yaml configs/my-exhaustive-scan.yaml
+#   2. Replace every REPLACE_ value with your authorized target and authorization ref.
+#   3. Validate: make validate-config CONFIG=configs/my-exhaustive-scan.yaml
+#   4. Execute:  make scan CONFIG=configs/my-exhaustive-scan.yaml SCAN_ID=exhaustive-01
+# ==============================================================================
+
+database:
+  path: "data/REPLACE_exhaustive_engagement.sqlite"
+  encryption_key_env: "ENUMSCAN_DATASTORE_KEY"
+
+neo4j:
+  uri: ""
+  username: ""
+  password_env: "ENUMSCAN_NEO4J_PASSWORD"
+
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_IP_OR_CIDR"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+
+active_testing:
+  enabled: false
+  authorization_expires: ""
+  operator: ""
+  acknowledgement_env: ""
+  allowed_techniques: []
+  max_requests_per_host: 25
+  max_concurrency: 1
+  minimum_request_delay_ms: 500
+
+scheduler:
+  concurrency: 6
+  enable_adaptive_workers: false
+  min_concurrency: 1
+  global_rate_limit_ms: 50
+  per_target_rate_limit_ms: 150
+  module_timeout_ms: 45000
+
+discovery:
+  cidr_max_hosts: 128
+  enable_dns_discovery: true
+  enable_dns_records: true
+  enable_reverse_dns: true
+  enable_wildcard_dns: true
+  enable_rdap: true
+  enable_icmp_sweep: false
+  enable_tcp_host_probes: true
+  tcp_probe_ports: [21, 22, 23, 25, 53, 80, 110, 111, 135, 139, 143, 389, 443, 445, 993, 995, 1433, 1521, 2049, 3306, 3389, 5432, 5900, 6379, 8080, 8443, 27017]
+  enable_udp_live_probes: false
+  udp_probe_ports: [53, 123, 161]
+  passive_dns_files: []
+  certificate_transparency_files: []
+  passive_capture_files: []
+  historical_url_files: []
+
+portscan:
+  profile: "exhaustive"
+  tcp_ports: []
+  udp_ports: []
+  enable_tcp: true
+  enable_udp: false
+  enable_banner: true
+  enable_raw_syn: false
+  enable_raw_scanning: false
+  max_concurrent_ports: 32
+  record_closed_ports: false
+  base_timeout_ms: 1000
+  max_timeout_ms: 5000
+
+http:
+  max_depth: 4
+  max_pages_per_host: 300
+  enable_tls: true
+  enable_crawler: true
+  enable_js_analysis: true
+  enable_api_discovery: true
+  enable_screenshots: false
+  screenshot_renderer: ""
+  screenshot_renderer_args: []
+  screenshot_output_dir: ""
+  max_screenshots_per_scan: 25
+  enable_directory_api: true
+  max_directory_paths: 200
+  directory_wordlist: []
+  api_paths: ["/openapi.json", "/openapi.yaml", "/swagger.json", "/swagger/v1/swagger.json", "/api-docs", "/v1/api-docs", "/v2/api-docs", "/v3/api-docs", "/graphql", "/graphiql", "/api/v1", "/api/v2", "/api/v3", "/actuator", "/actuator/health", "/actuator/info", "/healthz", "/metrics", "/soap?wsdl", "/server-status"]
+  enable_secret_intelligence: true
+  enable_web_manifest: true
+  enable_redirect_tracking: true
+  enable_method_enumeration: true
+  enable_source_map_analysis: true
+  enable_cookie_jar: true
+  enable_authenticated_crawling: false
+  auth_cookie_env: ""
+  enable_http3: false
+  enable_grpc_reflection: false
+  grpc_reflection_ports: []
+
+specialized:
+  enable_protocol_enumeration: true
+  enable_smb: true
+  enable_ldap: true
+  enable_snmp: true
+  enable_cloud: true
+  enable_container: true
+  enable_database: true
+  snmp_communities: ["public", "private"]
+
+passive_intel:
+  enabled: false
+  sources: []
+  provider_controls: []
+  provider_versions: []
+  enable_quota_discovery: false
+  enable_update_checks: false
+  provider_min_interval_ms: 1000
+  max_retry_after_ms: 30000
+
+scan:
+  profile: "exhaustive"
+  targets: ["REPLACE_WITH_AUTHORIZED_IP_OR_CIDR"]
+  ports: []
+
+reporting:
+  output_dir: "reports"
+  local_llm_url: ""
+  local_llm_model: ""
+  local_llm_timeout_ms: 30000
+
+notifications:
+  enable_scan_completed_webhook: false
+  webhook_url: ""
+
+monitoring:
+  enabled: false
+  interval_minutes: 60
+  max_runs: 1

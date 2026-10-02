@@ -202,7 +202,7 @@ const MAX_RENDERED_ROWS = 500;
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = payload.filename || 'enumscan-engagement.yaml';
+      link.download = payload.filename || input.filename || 'enumscan-engagement.yaml';
       document.body.appendChild(link);
       link.click();
       link.remove();

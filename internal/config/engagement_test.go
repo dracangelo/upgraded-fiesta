@@ -111,3 +111,28 @@ func TestEngagementPlanPreviewAndEstimates(t *testing.T) {
 	}
 }
 
+func TestBuildEngagementConfigAllScanTypes(t *testing.T) {
+	input := EngagementInput{
+		Target:        "192.168.1.10",
+		Profile:       "all",
+		Authorization: "AUTH-2026-ALL",
+	}
+	cfg, err := BuildEngagementConfig(input)
+	if err != nil {
+		t.Fatalf("unexpected error building config with profile 'all': %v", err)
+	}
+	if cfg.Scan.Profile != "exhaustive" {
+		t.Errorf("expected profile to be normalized to exhaustive, got %s", cfg.Scan.Profile)
+	}
+	expectedModules := []string{"discovery", "portscan", "service", "specialized", "http", "passive_intel"}
+	moduleMap := make(map[string]bool)
+	for _, m := range cfg.Scan.ModulePlan {
+		moduleMap[m] = true
+	}
+	for _, expected := range expectedModules {
+		if !moduleMap[expected] {
+			t.Errorf("expected module %s to be enabled in all scan types plan, plan was: %v", expected, cfg.Scan.ModulePlan)
+		}
+	}
+}
+

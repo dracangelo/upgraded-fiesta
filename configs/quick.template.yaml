@@ -1,0 +1,77 @@
+# ==============================================================================
+# ENUMSCAN QUICK ASSESSMENT TEMPLATE
+# ==============================================================================
+# High-speed surface reconnaissance: rapid host discovery, top TCP port scanning,
+# lightweight banner grabs, and shallow HTTP response inspection.
+#
+# USAGE:
+#   1. Copy this file: cp configs/quick.template.yaml configs/my-quick-scan.yaml
+#   2. Replace every REPLACE_ value with your authorized target and authorization ref.
+#   3. Validate: make validate-config CONFIG=configs/my-quick-scan.yaml
+#   4. Execute:  make scan CONFIG=configs/my-quick-scan.yaml SCAN_ID=quick-01
+# ==============================================================================
+
+database:
+  path: "data/REPLACE_quick_engagement.sqlite"
+  encryption_key_env: "ENUMSCAN_DATASTORE_KEY"
+
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_IP_OR_CIDR"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+
+scheduler:
+  concurrency: 8
+  min_concurrency: 2
+  global_rate_limit_ms: 50
+  per_target_rate_limit_ms: 100
+  module_timeout_ms: 10000
+
+discovery:
+  cidr_max_hosts: 256
+  enable_dns_discovery: true
+  enable_dns_records: true
+  enable_reverse_dns: true
+  enable_wildcard_dns: false
+  enable_rdap: false
+  enable_icmp_sweep: false
+  enable_tcp_host_probes: true
+  tcp_probe_ports: [22, 80, 443, 8080]
+
+portscan:
+  profile: "quick"
+  tcp_ports: [22, 80, 443, 8080]
+  enable_tcp: true
+  enable_banner: true
+  max_concurrent_ports: 16
+  base_timeout_ms: 500
+  max_timeout_ms: 1500
+
+http:
+  max_depth: 1
+  max_pages_per_host: 15
+  enable_tls: true
+  enable_crawler: true
+  enable_js_analysis: false
+  enable_api_discovery: false
+  enable_directory_api: false
+  max_directory_paths: 20
+  enable_secret_intelligence: false
+  enable_web_manifest: true
+  enable_redirect_tracking: true
+  enable_method_enumeration: false
+  enable_source_map_analysis: false
+  enable_cookie_jar: false
+  api_paths: []
+
+specialized:
+  enable_protocol_enumeration: false
+  enable_smb: false
+  enable_ldap: false
+  enable_snmp: false
+  enable_cloud: false
+  enable_container: false
+  enable_database: false
+
+scan:
+  profile: "quick"
+  targets: ["REPLACE_WITH_AUTHORIZED_IP_OR_CIDR"]

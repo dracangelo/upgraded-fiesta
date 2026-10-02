@@ -55,6 +55,7 @@ export function SaveQueryDialog({ initialName, onCancel, onSave }) {
 export function EngagementWizardDialog({ initialTarget, initialProfile, onCancel, onGenerate }) {
   const [target, setTarget] = React.useState(initialTarget);
   const [profile, setProfile] = React.useState(initialProfile || "standard");
+  const [filename, setFilename] = React.useState("enumscan-engagement.yaml");
   const [authorization, setAuthorization] = React.useState("");
   const [error, setError] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -63,7 +64,12 @@ export function EngagementWizardDialog({ initialTarget, initialProfile, onCancel
     setError("");
     setBusy(true);
     try {
-      await onGenerate({ target: target.trim(), profile, authorization: authorization.trim() });
+      await onGenerate({
+        target: target.trim(),
+        profile,
+        authorization: authorization.trim(),
+        filename: filename.trim() || "enumscan-engagement.yaml"
+      });
       onCancel();
     } catch (err) {
       setError(err.message || "Unable to create the engagement configuration.");
@@ -79,9 +85,19 @@ export function EngagementWizardDialog({ initialTarget, initialProfile, onCancel
           <p id="engagement-wizard-help">This downloads a reviewable YAML plan locked to one target. It enables safe discovery, port scanning, and HTTP enumeration only; it never enables active testing or includes credentials.</p>
           <label htmlFor="engagement-target">Authorized target</label>
           <input id="engagement-target" className="scan-input" autoFocus required value={target} onChange={event => setTarget(event.target.value)} placeholder="192.168.56.0/24 or app.example.com" />
-          <label htmlFor="engagement-profile">Enumeration profile</label>
+          <label htmlFor="engagement-filename">Configuration file name</label>
+          <input id="engagement-filename" className="scan-input" required value={filename} onChange={event => setFilename(event.target.value)} placeholder="enumscan-engagement.yaml" />
+          <label htmlFor="engagement-profile">Scan type / profile</label>
           <select id="engagement-profile" className="scan-input" value={profile} onChange={event => setProfile(event.target.value)}>
-            <option value="quick">Quick</option><option value="standard">Standard</option><option value="exhaustive">Exhaustive</option>
+            <option value="quick">Quick</option>
+            <option value="standard">Standard</option>
+            <option value="exhaustive">Exhaustive</option>
+            <option value="all">All scan types</option>
+            <option value="web">Web application</option>
+            <option value="network">Internal network</option>
+            <option value="api">API assessment</option>
+            <option value="external">External infrastructure</option>
+            <option value="cloud">Cloud infrastructure</option>
           </select>
           <label htmlFor="engagement-authorization">Written authorization reference</label>
           <input id="engagement-authorization" className="scan-input" required value={authorization} onChange={event => setAuthorization(event.target.value)} placeholder="ENG-2026-004" aria-describedby="engagement-wizard-help" />

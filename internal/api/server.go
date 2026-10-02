@@ -602,6 +602,7 @@ type engagementPlanRequest struct {
 	Target        string `json:"target"`
 	Profile       string `json:"profile"`
 	Authorization string `json:"authorization"`
+	Filename      string `json:"filename"`
 }
 
 // handleEngagementPlan renders a downloadable YAML plan. It does not write a
@@ -637,10 +638,20 @@ func (s *Server) handleEngagementPlan(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
 		return
 	}
+	filename := "enumscan-engagement.yaml"
+	if rawFilename := strings.TrimSpace(request.Filename); rawFilename != "" {
+		base := filepath.Base(rawFilename)
+		if base != "" && base != "." && base != "/" {
+			if !strings.HasSuffix(base, ".yaml") && !strings.HasSuffix(base, ".yml") {
+				base += ".yaml"
+			}
+			filename = base
+		}
+	}
 	preview, _ := config.PreviewEngagementPlan(input, "data/enumscan.sqlite")
 	previewJSON, _ := json.Marshal(preview)
 	_ = json.NewEncoder(w).Encode(map[string]string{
-		"filename": "enumscan-engagement.yaml",
+		"filename": filename,
 		"config":   string(content),
 		"notice":   "Review the downloaded config before use. It is locked to one authorized scope and safe enumeration settings.",
 		"preview":  string(previewJSON),

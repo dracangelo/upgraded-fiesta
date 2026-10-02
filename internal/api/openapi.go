@@ -58,6 +58,7 @@ func OpenAPIv1Spec() map[string]any {
 										"target":        map[string]any{"type": "string"},
 										"profile":       map[string]any{"type": "string"},
 										"authorization": map[string]any{"type": "string"},
+										"filename":      map[string]any{"type": "string"},
 									},
 								},
 							},

@@ -48,7 +48,8 @@
                 "properties": {
                   "target": { "type": "string" },
                   "profile": { "type": "string" },
-                  "authorization": { "type": "string" }
+                  "authorization": { "type": "string" },
+                  "filename": { "type": "string" }
                 }
               }
             }

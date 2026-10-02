@@ -1,0 +1,54 @@
+# Standard balanced reconnaissance, service fingerprinting, and web/API discovery.
+database:
+  path: "data/REPLACE_standard.sqlite"
+scope:
+  allowed_targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]
+  authorization: "REPLACE_WITH_WRITTEN_AUTHORIZATION_REFERENCE"
+scheduler:
+  concurrency: 4
+  min_concurrency: 1
+  global_rate_limit_ms: 100
+  per_target_rate_limit_ms: 250
+  module_timeout_ms: 20000
+discovery:
+  cidr_max_hosts: 256
+  enable_dns_discovery: true
+  enable_dns_records: true
+  enable_reverse_dns: true
+  enable_wildcard_dns: true
+  enable_tcp_host_probes: true
+  tcp_probe_ports: [21, 22, 80, 443, 8080, 8443]
+portscan:
+  profile: "standard"
+  tcp_ports: [21, 22, 23, 25, 53, 80, 110, 139, 143, 443, 445, 993, 995, 1433, 1521, 3306, 3389, 5432, 5900, 6379, 8000, 8080, 8443, 8888, 9000, 9443, 27017]
+  enable_tcp: true
+  enable_banner: true
+  max_concurrent_ports: 8
+  base_timeout_ms: 750
+  max_timeout_ms: 3000
+http:
+  max_depth: 2
+  max_pages_per_host: 50
+  enable_tls: true
+  enable_crawler: true
+  enable_js_analysis: true
+  enable_api_discovery: true
+  enable_directory_api: true
+  max_directory_paths: 80
+  directory_wordlist: []
+  api_paths: ["/openapi.json", "/swagger.json", "/swagger/v1/swagger.json", "/api-docs", "/v1/api-docs", "/v2/api-docs", "/graphql", "/healthz", "/metrics"]
+  enable_secret_intelligence: true
+  enable_web_manifest: true
+  enable_redirect_tracking: true
+  enable_method_enumeration: true
+  enable_source_map_analysis: true
+  enable_cookie_jar: true
+specialized:
+  enable_protocol_enumeration: true
+  enable_smb: false
+  enable_ldap: false
+  enable_snmp: false
+  enable_database: false
+scan:
+  profile: "standard"
+  targets: ["REPLACE_WITH_AUTHORIZED_TARGET"]

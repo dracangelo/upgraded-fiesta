@@ -3,6 +3,10 @@ GOCACHE ?= /tmp/enumscan-go-build
 GOFLAGS ?= -trimpath -buildvcs=true
 CONFIG ?= configs/example.yaml
 ACTIVE_CONFIG ?= configs/my-active-scan.yaml
+WEB_CONFIG ?= configs/my-web-scan.yaml
+QUICK_CONFIG ?= configs/my-quick-scan.yaml
+STANDARD_CONFIG ?= configs/my-standard-scan.yaml
+EXHAUSTIVE_CONFIG ?= configs/my-exhaustive-scan.yaml
 TEMPLATE ?=
 OUTPUT_CONFIG ?= configs/my-scan.yaml
 ENGAGEMENT_CONFIG ?= configs/engagement.yaml
@@ -20,8 +24,9 @@ VERSION ?= dev
 
 .DEFAULT_GOAL := help
 
-.PHONY: help init-db backup-encrypted postgres-migrate postgres-recovery-drill serve dashboard dashboard-build dashboard-check run scan validate-config monitor distributed-status distributed-agent engagement-wizard interactive-scan scan-template scan-templates new-scan-config active-scan-template active-scan docs feature-status-check field-validation doctor doctor-remote report notify-webhook notify-slack notify-email local-llm-summary sync-neo4j analyze-vulnerabilities score-risk correlate compare-scans \
+.PHONY: help init-db backup-encrypted postgres-migrate postgres-recovery-drill serve dashboard dashboard-build dashboard-check run scan validate-config monitor distributed-status distributed-agent engagement-wizard interactive-scan scan-template web-template quick-template standard-template exhaustive-template scan-templates new-scan-config active-scan-template active-scan docs feature-status-check field-validation doctor doctor-remote report notify-webhook notify-slack notify-email local-llm-summary sync-neo4j analyze-vulnerabilities score-risk correlate compare-scans \
 	build build-cross release-archives system-packages verify-system-packages checksums image test test-compile vet fmt-check verify reproducible sbom vulncheck threat-intel-test git-secrets tui clean
+
 
 help:
 	@printf '%s\n' \
@@ -39,6 +44,10 @@ help:
 	  '  make engagement-wizard ENGAGEMENT_CONFIG=configs/acme.yaml  # creates a private, authorized, scope-locked config' \
 	  '  make interactive-scan   # prompts for authorized IP/CIDR, profile, and authorization reference' \
 	  '  make scan-template      # copies configs/scan.template.yaml to configs/my-scan.yaml' \
+	  '  make quick-template     # copies configs/quick.template.yaml to configs/my-quick-scan.yaml' \
+	  '  make standard-template  # copies configs/standard.template.yaml to configs/my-standard-scan.yaml' \
+	  '  make exhaustive-template# copies configs/exhaustive.template.yaml to configs/my-exhaustive-scan.yaml' \
+	  '  make web-template       # copies configs/web.template.yaml to configs/my-web-scan.yaml' \
 	  '  make scan-templates     # list assessment-specific templates' \
 	  '  make new-scan-config TEMPLATE=web OUTPUT_CONFIG=configs/acme.yaml' \
 	  '  make active-scan-template ACTIVE_CONFIG=configs/my-active-scan.yaml' \
@@ -108,8 +117,28 @@ scan-template:
 	cp configs/scan.template.yaml configs/my-scan.yaml
 	@echo 'Created configs/my-scan.yaml. Replace the REPLACE_ values before running make scan CONFIG=configs/my-scan.yaml SCAN_ID=<id>.'
 
+web-template:
+	@test ! -e "$(WEB_CONFIG)" || (echo '$(WEB_CONFIG) already exists; choose another WEB_CONFIG or edit it directly'; exit 2)
+	cp configs/web.template.yaml "$(WEB_CONFIG)"
+	@echo 'Created $(WEB_CONFIG). Replace the REPLACE_ values before running make scan CONFIG=$(WEB_CONFIG) SCAN_ID=<id>.'
+
+quick-template:
+	@test ! -e "$(QUICK_CONFIG)" || (echo '$(QUICK_CONFIG) already exists; choose another QUICK_CONFIG or edit it directly'; exit 2)
+	cp configs/quick.template.yaml "$(QUICK_CONFIG)"
+	@echo 'Created $(QUICK_CONFIG). Replace the REPLACE_ values before running make scan CONFIG=$(QUICK_CONFIG) SCAN_ID=<id>.'
+
+standard-template:
+	@test ! -e "$(STANDARD_CONFIG)" || (echo '$(STANDARD_CONFIG) already exists; choose another STANDARD_CONFIG or edit it directly'; exit 2)
+	cp configs/standard.template.yaml "$(STANDARD_CONFIG)"
+	@echo 'Created $(STANDARD_CONFIG). Replace the REPLACE_ values before running make scan CONFIG=$(STANDARD_CONFIG) SCAN_ID=<id>.'
+
+exhaustive-template:
+	@test ! -e "$(EXHAUSTIVE_CONFIG)" || (echo '$(EXHAUSTIVE_CONFIG) already exists; choose another EXHAUSTIVE_CONFIG or edit it directly'; exit 2)
+	cp configs/exhaustive.template.yaml "$(EXHAUSTIVE_CONFIG)"
+	@echo 'Created $(EXHAUSTIVE_CONFIG). Replace the REPLACE_ values before running make scan CONFIG=$(EXHAUSTIVE_CONFIG) SCAN_ID=<id>.'
+
 scan-templates:
-	@printf '%s\n' external internal web api active-directory kubernetes cloud bug-bounty compliance passive active-testing
+	@printf '%s\n' external internal web api active-directory kubernetes cloud bug-bounty compliance passive active-testing quick standard exhaustive
 
 new-scan-config:
 	@test -n "$(TEMPLATE)" || (echo 'TEMPLATE is required; run make scan-templates'; exit 2)
